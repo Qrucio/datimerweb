@@ -1047,6 +1047,7 @@ export default function App() {
   const endTimeRef = useRef(null);
   const audioRefs = useRef({});
   const accumulatedTimeRef = useRef(0);
+  const lastHeartbeatRef = useRef(0);
   const prevSettings = useRef(DEFAULT_SETTINGS);
   const prevTasks = useRef([]);
   const prevSessionName = useRef('');
@@ -1585,6 +1586,17 @@ const handleSearchUsers = useCallback(async (queryText) => {
         const now = Date.now(); const diff = endTimeRef.current - now;
         const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
         setTimeLeft(prev => { if (prev !== secondsRemaining) return secondsRemaining; return prev; });
+
+        if (now - lastHeartbeatRef.current > 60000) {
+          lastHeartbeatRef.current = now;
+          syncTimerState({
+              isActive: true,
+              targetEndTime: endTimeRef.current,
+              mode: mode,
+              timeLeft: secondsRemaining,
+              sessionName: sessionName
+          });
+      }
         
         const delta = now - lastTickTime; 
         accumulatedTimeRef.current += delta;
@@ -1647,6 +1659,10 @@ const handleSearchUsers = useCallback(async (queryText) => {
   const toggleTimer = () => {
     const newIsActive = !isActive;
     setIsActive(newIsActive);
+
+    if (newIsActive) {
+      lastHeartbeatRef.current = Date.now();
+  }
     
     let stateToSync = {
         isActive: newIsActive,
