@@ -1002,6 +1002,269 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
   );
 };
 
+// --- ADD THIS NEW SECTION: UPDATE CARD COMPONENT ---
+
+const UPDATE_KEY = 'zen_update_music_v1'; // Unique key for this update
+
+const UpdateNotificationCard = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isDismissing, setIsDismissing] = useState(false);
+  
+  // Check localStorage on component mount
+  useEffect(() => {
+    const hasSeen = localStorage.getItem(UPDATE_KEY);
+    if (!hasSeen) {
+      setIsVisible(true);
+    }
+  }, []);
+
+  const handleDismiss = () => {
+    setIsDismissing(true);
+    // Mark as dismissed in local storage
+    localStorage.setItem(UPDATE_KEY, 'true');
+    
+    // Wait for exit animation before unmounting
+    setTimeout(() => {
+      setIsVisible(false);
+    }, 400); // Matches the exit animation duration
+  };
+
+  if (!isVisible && !isDismissing) return null;
+
+  return (
+    <AnimatePresence>
+      {isVisible && !isDismissing && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10, scale: 0.95 }} 
+          animate={{ opacity: 1, y: 0, scale: 1 }} 
+          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+          transition={{ duration: 0.4 }}
+          className="fixed bottom-4 md:bottom-8 right-4 md:right-8 z-50 w-[90vw] max-w-sm"
+        >
+          <div className="bg-[#1a1a1a] border border-white/20 p-4 rounded-xl shadow-2xl backdrop-blur-md">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <Music size={20} className="text-white fill-white/10" />
+                <div>
+                  <h4 className="text-sm font-bold text-white mb-0.5">Music is Here!</h4>
+                  <p className="text-xs text-white/70">Background music to power your focus. Find the music button in the bottom-left corner.</p>
+                </div>
+              </div>
+              <button onClick={handleDismiss} className="p-1 text-white/50 hover:text-white transition-colors flex-shrink-0 ml-2">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button onClick={handleDismiss} className="text-xs font-medium text-white/50 hover:text-white transition-colors underline">
+                Got it
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const MUSIC_TRACKS = [
+  {
+    id: 'track-1',
+    title: 'Binaural Beats',
+    src: 'https://archive.org/download/track2_202511/track1.mp3', 
+    cover: '/music/cover1.jpg' 
+  },
+  {
+    id: 'track-2',
+    title: 'Deep Focus Ambient',
+    src: 'https://archive.org/download/track2_202511/track2.mp3', 
+    cover: '/music/cover2.jpg'
+  }
+];
+
+const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek }) => {
+  const [view, setView] = useState('list'); // 'list' | 'player'
+
+  // Auto-switch to player if a track is selected while modal is open
+  useEffect(() => {
+     if (currentTrack && isOpen && view === 'list') {
+         // Optional: You can uncomment this if you want it to auto-jump to player on click
+         // setView('player');
+     }
+  }, [currentTrack]);
+
+  const formatTime = (time) => {
+    if (isNaN(time)) return "0:00";
+    const totalSeconds = Math.floor(time);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    
+    let timeString = `${m}:${s.toString().padStart(2, '0')}`;
+    
+    if (h > 0) {
+        timeString = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    } else {
+        timeString = `${m}:${s.toString().padStart(2, '0')}`;
+    }
+    
+    return timeString;
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[90vw] md:w-[24rem] shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+            
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+               {view === 'player' ? (
+                   <button onClick={() => setView('list')} className="p-2 -ml-2 text-white/50 hover:text-white transition-colors flex items-center gap-1">
+                       <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Library</span>
+                   </button>
+               ) : (
+                   <h3 className="text-xl font-medium text-white flex items-center gap-2"><Music size={20} /> Music</h3>
+               )}
+              <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
+            </div>
+
+            {/* VIEWS SWITCHER */}
+            <div className="relative w-full h-[320px]">
+                <AnimatePresence mode="wait">
+                    {view === 'list' ? (
+                        <motion.div 
+                            key="list"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="absolute inset-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1"
+                        >
+                            {MUSIC_TRACKS.map((track) => {
+                                const isActive = currentTrack?.id === track.id;
+                                return (
+                                    <div 
+                                        key={track.id} 
+                                        onClick={() => { onPlay(track); setView('player'); }}
+                                        className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
+                                    >
+                                        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                                            {track.cover ? (
+                                                <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
+                                            )}
+                                            {isActive && isPlaying && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                    <div className="flex gap-0.5 items-end h-3">
+                                                        <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
+                                                        <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
+                                                        <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
+                                            <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
+                                        </div>
+                                        {isActive && (
+                                            <div className="text-white/80">
+                                                {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </motion.div>
+                    ) : (
+                        <motion.div 
+                            key="player"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            className="absolute inset-0 flex flex-col items-center justify-center text-center"
+                        >
+                            {/* Cover Art */}
+                            <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group">
+                                {currentTrack?.cover ? (
+                                    <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
+                                )}
+                                {/* Play/Pause Overlay on Cover (Optional) */}
+                            </div>
+
+                            {/* Title */}
+                            <div className="mb-6 w-full px-4">
+                                <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
+                                <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="w-full flex items-center gap-3 mb-6 px-2">
+                                <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
+                                <div className="flex-1 relative h-1 bg-white/10 rounded-full group cursor-pointer" onClick={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const percent = (e.clientX - rect.left) / rect.width;
+                                    onSeek(percent * duration);
+                                }}>
+                                    <div 
+                                        className="absolute top-0 left-0 h-full bg-white rounded-full transition-all duration-100" 
+                                        style={{ width: `${(progress / duration) * 100}%` }}
+                                    />
+                                    <div 
+                                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                        style={{ left: `${(progress / duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                                    />
+                                </div>
+                                <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
+                            </div>
+
+                            {/* Controls */}
+                            <div className="flex items-center gap-6">
+                                <button className="text-white/30 hover:text-white transition-colors" onClick={() => onSeek(Math.max(0, progress - 10))}><SkipBack size={20} /></button>
+                                
+                                <button 
+                                    onClick={() => isPlaying ? onPause() : onPlay(currentTrack)}
+                                    className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                                >
+                                    {isLoading ? (
+                                        <Loader2 size={24} className="animate-spin text-black" />
+                                    ) : (
+                                        isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
+                                    )}
+                                </button>
+                                
+                                <button className="text-white/30 hover:text-white transition-colors" onClick={() => onSeek(Math.min(duration, progress + 10))}><SkipForward size={20} /></button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+            
+            {/* Mini Player / Now Playing Indicator in List View */}
+            {view === 'list' && currentTrack && (
+                 <button onClick={() => setView('player')} className="absolute bottom-6 left-6 right-6 h-14 bg-[#1a1a1a] border border-white/10 rounded-xl flex items-center px-3 gap-3 animate-fade-in-up hover:bg-[#222] transition-colors shadow-lg z-10">
+                    <div className="w-10 h-10 rounded-lg bg-white/10 overflow-hidden flex-shrink-0">
+                         {currentTrack.cover && <img src={currentTrack.cover} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                        <span className="text-xs font-bold text-white block truncate">{currentTrack.title}</span>
+                        <span className="text-[10px] text-white/50 block truncate">{isPlaying ? 'Playing' : 'Paused'}</span>
+                    </div>
+                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
+                        {isLoading ? <Loader2 size={12} className="animate-spin text-white" /> : (isPlaying ? <Pause size={12} fill="white" /> : <Play size={12} fill="white" />)}
+                    </div>
+                 </button>
+            )}
+
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -1033,6 +1296,13 @@ export default function App() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isQuoteLoading, setIsQuoteLoading] = useState(false);
+  const [showMusic, setShowMusic] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [musicLoading, setMusicLoading] = useState(false);
+  const [musicProgress, setMusicProgress] = useState(0);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const musicAudioRef = useRef(new Audio());
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
@@ -1554,6 +1824,58 @@ const handleSearchUsers = useCallback(async (queryText) => {
     return () => clearTimeout(timeout);
   }, [isActive, mode]);
 
+  useEffect(() => {
+    const audio = musicAudioRef.current;
+    
+    const updateProgress = () => setMusicProgress(audio.currentTime);
+    const updateDuration = () => setMusicDuration(audio.duration);
+    const handleEnded = () => setIsMusicPlaying(false);
+    const handleWaiting = () => setMusicLoading(true);
+    const handleCanPlay = () => setMusicLoading(false);
+    
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handleCanPlay);
+    audio.addEventListener('canplay', handleCanPlay);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handleCanPlay);
+      audio.removeEventListener('canplay', handleCanPlay);
+    };
+  }, []);
+
+  const handlePlayMusic = (track) => {
+      if (currentTrack?.id === track.id) {
+          // Resume
+          musicAudioRef.current.play();
+          setIsMusicPlaying(true);
+      } else {
+          // New Track
+          setCurrentTrack(track);
+          setMusicLoading(true);
+          musicAudioRef.current.src = track.src;
+          musicAudioRef.current.load();
+          musicAudioRef.current.play().catch(e => console.error("Play failed", e));
+          setIsMusicPlaying(true);
+      }
+  };
+
+  const handlePauseMusic = () => {
+      musicAudioRef.current.pause();
+      setIsMusicPlaying(false);
+  };
+
+  const handleSeekMusic = (time) => {
+      musicAudioRef.current.currentTime = time;
+      setMusicProgress(time);
+  };
+
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
   const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
 
@@ -1820,6 +2142,11 @@ const handleSearchUsers = useCallback(async (queryText) => {
             <SpinningLogo src="/logo/white.png" className="w-14 h-14 object-contain" />
           </div>
           <div className="flex items-center gap-3">
+            {/* --- ADD THIS BUTTON --- */}
+            <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
+              <Music size={22} />
+            </button>
+            {/* ----------------------- */}
             <button onClick={() => setShowFriends(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
                 <Users size={22} />
             </button>
@@ -1841,6 +2168,7 @@ const handleSearchUsers = useCallback(async (queryText) => {
                 {isQuoteLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} Gemini Inspiration
               </button>
             </div>
+
             <button onClick={() => setShowStats(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
               <BarChart2 size={20} />
             </button>
@@ -1850,8 +2178,8 @@ const handleSearchUsers = useCallback(async (queryText) => {
           </div>
         </div>
         
-        {/* --- DESKTOP FOOTER LEFT: FRIENDS --- */}
-        <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+{/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
+<div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
             {/* Live Friend Indicators */}
             {dashboardFriends.length > 0 && (
                 <div className="flex flex-col gap-2 mb-3">
@@ -1870,11 +2198,21 @@ const handleSearchUsers = useCallback(async (queryText) => {
                 </div>
             )}
             
-            <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
-                <Users size={20} />
-                <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
-            </button>
-        </div>
+            {/* New wrapper for Friends and Music buttons */}
+            <div className="flex items-center gap-3">
+                {/* Friends Button (Existing) */}
+                <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
+                    <Users size={20} />
+                    <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
+                </button>
+
+                {/* Music Button (New/Moved) */}
+                <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
+                    <Music size={20} />
+                    <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
+                </button>
+            </div>
+        </div>  
 
         {/* --- DESKTOP LOGO (Changed) --- */}
         <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? (focusMode ? 'opacity-0 hover:opacity-100 transition-opacity duration-700' : 'opacity-100') : 'opacity-0 pointer-events-none'}`}>
@@ -1946,6 +2284,20 @@ const handleSearchUsers = useCallback(async (queryText) => {
 
       <StatsModal isOpen={showStats} onClose={() => { setShowStats(false); setViewingFriendStats(null); }} stats={stats} user={user} targetUser={viewingFriendStats} />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
+      {/* --- ADD THIS LINE --- */}
+      <MusicModal 
+        isOpen={showMusic} 
+        onClose={() => setShowMusic(false)} 
+        currentTrack={currentTrack}
+        isPlaying={isMusicPlaying}
+        onPlay={handlePlayMusic}
+        onPause={handlePauseMusic}
+        isLoading={musicLoading}
+        progress={musicProgress}
+        duration={musicDuration}
+        onSeek={handleSeekMusic}
+      />
+      {/* --------------------- */}
       <SocialModal 
           isOpen={showFriends} 
           onClose={() => setShowFriends(false)} 
@@ -1959,6 +2311,7 @@ const handleSearchUsers = useCallback(async (queryText) => {
       />
       <ConfirmationModal isOpen={showResetConfirm} onClose={() => setShowResetConfirm(false)} onConfirm={handleConfirmReset} title="Reset Timer?" message="This will reset the current timer back to the beginning." warning="⚠️ Warning: This will also reset your completed Pomodoros tally for this session." />
       <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
+      <UpdateNotificationCard />
     </div>
   );
 }
