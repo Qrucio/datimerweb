@@ -2518,15 +2518,6 @@ export default function App() {
           </div>
         </div>
 
-        Here are the changes needed to move the fullscreen button inline with the Music/Friends buttons, style it to match, and remove the version text.
-
-        1. Update the "Desktop Footer Left" Section
-
-        Locate the section commented /* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */. You need to add the Fullscreen button inside the div that holds the Friends and Music buttons.
-
-        Replace that entire block (approx lines 1667-1704) with this:
-        JavaScript
-
         {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
         <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
           {/* Live Friend Indicators */}
