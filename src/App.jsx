@@ -403,36 +403,36 @@ const StatCard = ({ label, value, icon: Icon }) => (
 const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate, selectedDate }) => {
   const [viewMode, setViewMode] = useState('days'); // 'days' or 'months'
   const [selectorYear, setSelectorYear] = useState(currentMonth.getFullYear());
-  
+
   // Effect to sync selector year when currentMonth changes from external
   useEffect(() => {
-      setSelectorYear(currentMonth.getFullYear());
+    setSelectorYear(currentMonth.getFullYear());
   }, [currentMonth]);
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
-  
+
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   const handlePrev = () => {
     if (viewMode === 'days') {
-        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
     } else {
-        setSelectorYear(prev => prev - 1);
+      setSelectorYear(prev => prev - 1);
     }
   };
 
   const handleNext = () => {
     if (viewMode === 'days') {
-        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     } else {
-        setSelectorYear(prev => prev + 1);
+      setSelectorYear(prev => prev + 1);
     }
   };
-  
+
   const handleMonthSelect = (monthIndex) => {
-      setCurrentMonth(new Date(selectorYear, monthIndex, 1));
-      setViewMode('days');
+    setCurrentMonth(new Date(selectorYear, monthIndex, 1));
+    setViewMode('days');
   };
 
   const days = [];
@@ -447,14 +447,14 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
     if (!date) return 'invisible';
     const dateId = formatDateId(date);
     const dayStats = historyData[dateId];
-    
+
     // Base Text Style
     let textStyle = 'text-white/20'; // No data (Grey)
-    
+
     if (dayStats && dayStats.dailyFocusTime > 0) {
-        textStyle = 'text-white font-bold'; // Has data (White)
+      textStyle = 'text-white font-bold'; // Has data (White)
     }
-    
+
     // Selection Style (Circular background)
     const isSelected = date && selectedDate && isSameDay(date, selectedDate);
     const selectionBg = isSelected ? 'bg-white/20 rounded-full' : '';
@@ -465,52 +465,52 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <button 
-            onClick={() => setViewMode(viewMode === 'days' ? 'months' : 'days')}
-            className="text-base md:text-lg font-medium text-white hover:text-white/80 transition-colors flex items-center gap-1"
+        <button
+          onClick={() => setViewMode(viewMode === 'days' ? 'months' : 'days')}
+          className="text-base md:text-lg font-medium text-white hover:text-white/80 transition-colors flex items-center gap-1"
         >
-            {viewMode === 'days' ? `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}` : selectorYear}
+          {viewMode === 'days' ? `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}` : selectorYear}
         </button>
         <div className="flex gap-2">
           <button onClick={handlePrev} className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"><ChevronLeft size={18} /></button>
           <button onClick={handleNext} className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"><ChevronRight size={18} /></button>
         </div>
       </div>
-      
+
       {viewMode === 'days' ? (
         <div className="grid grid-cols-7 gap-1.5 text-center">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
             <div key={d} className="text-[10px] text-white/30 font-medium py-0.5">{d}</div>
-            ))}
-            {days.map((date, idx) => (
-            <button 
-                key={idx} 
-                disabled={!date}
-                onClick={() => date && onSelectDate(date)}
-                className={`h-8 w-8 md:h-9 md:w-9 flex items-center justify-center text-xs font-medium transition-all duration-200 mx-auto hover:text-white
+          ))}
+          {days.map((date, idx) => (
+            <button
+              key={idx}
+              disabled={!date}
+              onClick={() => date && onSelectDate(date)}
+              className={`h-8 w-8 md:h-9 md:w-9 flex items-center justify-center text-xs font-medium transition-all duration-200 mx-auto hover:text-white
                 ${getDayStyle(date)}
                 `}
             >
-                {date ? date.getDate() : ''}
+              {date ? date.getDate() : ''}
             </button>
-            ))}
+          ))}
         </div>
       ) : (
-          <div className="grid grid-cols-3 gap-2">
-              {monthNames.map((month, index) => (
-                  <button
-                    key={month}
-                    onClick={() => handleMonthSelect(index)}
-                    className={`p-3 rounded-xl text-sm font-medium transition-colors
-                        ${currentMonth.getMonth() === index && selectorYear === currentMonth.getFullYear() 
-                            ? 'bg-white text-black' 
-                            : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
+        <div className="grid grid-cols-3 gap-2">
+          {monthNames.map((month, index) => (
+            <button
+              key={month}
+              onClick={() => handleMonthSelect(index)}
+              className={`p-3 rounded-xl text-sm font-medium transition-colors
+                        ${currentMonth.getMonth() === index && selectorYear === currentMonth.getFullYear()
+                  ? 'bg-white text-black'
+                  : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
                     `}
-                  >
-                      {month.substring(0, 3)}
-                  </button>
-              ))}
-          </div>
+            >
+              {month.substring(0, 3)}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -523,41 +523,41 @@ const Avatar = ({ photoURL, name, size = "md", isPinned = false }) => {
 
   // Reset error if the URL changes (important for search lists)
   useEffect(() => {
-      setImageError(false);
+    setImageError(false);
   }, [photoURL]);
 
   const sizeClasses = {
-      sm: "w-6 h-6 text-[10px]",
-      md: "w-10 h-10 text-xs",
-      lg: "w-12 h-12 text-sm"
+    sm: "w-6 h-6 text-[10px]",
+    md: "w-10 h-10 text-xs",
+    lg: "w-12 h-12 text-sm"
   };
 
   return (
-      <div className={`relative flex-shrink-0 ${sizeClasses[size]}`}>
-          {photoURL && !imageError ? (
-              <img 
-                  src={photoURL} 
-                  alt={name} 
-                  // --- FIX: This allows Google Images to load ---
-                  referrerPolicy="no-referrer" 
-                  onError={(e) => {
-                      console.warn("Avatar load failed", e);
-                      setImageError(true);
-                  }}
-                  className="w-full h-full rounded-full object-cover border border-white/10"
-              />
-          ) : (
-              <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase border border-white/10 select-none">
-                  {name ? name.charAt(0) : '?'}
-              </div>
-          )}
-          
-          {isPinned && (
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-10">
-                  <Pin size={8} className="text-black fill-black" />
-              </div>
-          )}
-      </div>
+    <div className={`relative flex-shrink-0 ${sizeClasses[size]}`}>
+      {photoURL && !imageError ? (
+        <img
+          src={photoURL}
+          alt={name}
+          // --- FIX: This allows Google Images to load ---
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            console.warn("Avatar load failed", e);
+            setImageError(true);
+          }}
+          className="w-full h-full rounded-full object-cover border border-white/10"
+        />
+      ) : (
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase border border-white/10 select-none">
+          {name ? name.charAt(0) : '?'}
+        </div>
+      )}
+
+      {isPinned && (
+        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-10">
+          <Pin size={8} className="text-black fill-black" />
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -575,16 +575,16 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
   // Fetch stats if viewing a friend
   useEffect(() => {
     if (isOpen && targetUser) {
-        // We need to fetch the friend's current stats (which are in the main doc)
-        const fetchTargetStats = async () => {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', targetUser.uid));
-                if (userDoc.exists()) {
-                    setTargetStats(userDoc.data().stats);
-                }
-            } catch (e) { console.error("Error fetching friend stats", e); }
-        };
-        fetchTargetStats();
+      // We need to fetch the friend's current stats (which are in the main doc)
+      const fetchTargetStats = async () => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', targetUser.uid));
+          if (userDoc.exists()) {
+            setTargetStats(userDoc.data().stats);
+          }
+        } catch (e) { console.error("Error fetching friend stats", e); }
+      };
+      fetchTargetStats();
     }
   }, [isOpen, targetUser]);
 
@@ -600,9 +600,9 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
     setLoadingHistory(true);
     try {
       const historyRef = collection(db, 'users', currentUser.uid, 'history');
-      const q = query(historyRef, orderBy('date', 'desc')); 
+      const q = query(historyRef, orderBy('date', 'desc'));
       const snapshot = await getDocs(q);
-      
+
       const data = {};
       snapshot.forEach(doc => {
         data[doc.id] = doc.data();
@@ -616,11 +616,11 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
 
   // --- MERGE LIVE STATS INTO HISTORY ---
   const getEffectiveHistory = () => {
-      const todayId = formatDateId(new Date());
-      return {
-          ...historyData,
-          [todayId]: { ...displayCurrentStats, date: new Date() } 
-      };
+    const todayId = formatDateId(new Date());
+    return {
+      ...historyData,
+      [todayId]: { ...displayCurrentStats, date: new Date() }
+    };
   };
 
   const effectiveHistoryData = getEffectiveHistory();
@@ -628,8 +628,8 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
   const getDisplayStats = () => {
     if (activeTab === 'today') return displayCurrentStats;
     if (selectedDate) {
-        const dateId = formatDateId(selectedDate);
-        return effectiveHistoryData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: '-' };
+      const dateId = formatDateId(selectedDate);
+      return effectiveHistoryData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: '-' };
     }
     return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: '-' };
   };
@@ -642,29 +642,29 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-2xl shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar mx-2 md:mx-0 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6 flex-shrink-0">
-               <div className="flex flex-col">
-                  {targetUser && <h4 className="text-white/50 text-xs uppercase tracking-widest mb-1">Viewing Stats for</h4>}
-                  <h3 className="text-xl font-medium text-white">{targetUser ? (targetUser.displayName || 'Friend') : 'Your Statistics'}</h3>
-               </div>
+              <div className="flex flex-col">
+                {targetUser && <h4 className="text-white/50 text-xs uppercase tracking-widest mb-1">Viewing Stats for</h4>}
+                <h3 className="text-xl font-medium text-white">{targetUser ? (targetUser.displayName || 'Friend') : 'Your Statistics'}</h3>
+              </div>
               <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
             </div>
 
             <div className="flex gap-4 mb-6">
-                <button onClick={() => setActiveTab('today')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
-                <button onClick={() => setActiveTab('history')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
+              <button onClick={() => setActiveTab('today')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
+              <button onClick={() => setActiveTab('history')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
             </div>
 
             {activeTab === 'history' && (
-                <div className="mb-6 animate-fade-in flex-shrink-0">
-                    <CalendarView 
-                        historyData={effectiveHistoryData} 
-                        currentMonth={currentMonth} 
-                        setCurrentMonth={setCurrentMonth}
-                        onSelectDate={setSelectedDate}
-                        selectedDate={selectedDate}
-                    />
-                    {!selectedDate && <p className="text-white/30 text-[10px] text-center mt-3 uppercase tracking-widest">Select a date to view details</p>}
-                </div>
+              <div className="mb-6 animate-fade-in flex-shrink-0">
+                <CalendarView
+                  historyData={effectiveHistoryData}
+                  currentMonth={currentMonth}
+                  setCurrentMonth={setCurrentMonth}
+                  onSelectDate={setSelectedDate}
+                  selectedDate={selectedDate}
+                />
+                {!selectedDate && <p className="text-white/30 text-[10px] text-center mt-3 uppercase tracking-widest">Select a date to view details</p>}
+              </div>
             )}
 
             <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 flex-shrink-0 transition-opacity duration-300 ${activeTab === 'history' && !selectedDate ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
@@ -678,33 +678,33 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
                 value={finalStats.dailyTasksCompleted || 0}
                 icon={CheckSquare}
               />
-               <div className="hidden md:block">
-                  <StatCard
-                    label="Sessions"
-                    value={finalStats.dailySessions || 0}
-                    icon={Clock}
-                  />
-               </div>
+              <div className="hidden md:block">
+                <StatCard
+                  label="Sessions"
+                  value={finalStats.dailySessions || 0}
+                  icon={Clock}
+                />
+              </div>
             </div>
             <div className={`grid grid-cols-2 gap-3 flex-shrink-0 transition-opacity duration-300 ${activeTab === 'history' && !selectedDate ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-               <div className="md:hidden">
-                  <StatCard
-                    label="Sessions"
-                    value={finalStats.dailySessions || 0}
-                    icon={Clock}
-                  />
-               </div>
+              <div className="md:hidden">
+                <StatCard
+                  label="Sessions"
+                  value={finalStats.dailySessions || 0}
+                  icon={Clock}
+                />
+              </div>
               <StatCard
                 label="Break Time"
                 value={formatDetailedDuration(finalStats.dailyBreakTime || 0)}
                 icon={Coffee}
               />
               {activeTab === 'today' && (
-                  <StatCard
-                    label="Streak"
-                    value={`${finalStats.currentStreak || 0} d`}
-                    icon={Flame}
-                  />
+                <StatCard
+                  label="Streak"
+                  value={`${finalStats.currentStreak || 0} d`}
+                  icon={Flame}
+                />
               )}
             </div>
           </motion.div>
@@ -723,185 +723,185 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
 
   // Reset when modal opens
   useEffect(() => {
-      if(isOpen) {
-          setSearchText("");
-          setRawSearchResults([]);
-          setSearchPerformed(false);
-          setSuccessMsg(null);
-      }
+    if (isOpen) {
+      setSearchText("");
+      setRawSearchResults([]);
+      setSearchPerformed(false);
+      setSuccessMsg(null);
+    }
   }, [isOpen]);
 
   // Live Search Logic
   useEffect(() => {
-      const timer = setTimeout(async () => {
-          if (!searchText.trim()) {
-              setRawSearchResults([]);
-              setSearchPerformed(false);
-              return;
-          }
+    const timer = setTimeout(async () => {
+      if (!searchText.trim()) {
+        setRawSearchResults([]);
+        setSearchPerformed(false);
+        return;
+      }
 
-          setIsSearching(true);
-          
-          const results = await onSearchUsers(searchText);
-          
-          setIsSearching(false);
-          setRawSearchResults(results);
-          setSearchPerformed(true);
-          
-      }, 500);
+      setIsSearching(true);
 
-      return () => clearTimeout(timer);
+      const results = await onSearchUsers(searchText);
+
+      setIsSearching(false);
+      setRawSearchResults(results);
+      setSearchPerformed(true);
+
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [searchText, onSearchUsers]);
 
   // --- FILTER LOGIC ---
   // We filter here so it updates instantly if `friends` list changes (e.g. after adding someone)
-  const filteredSearchResults = rawSearchResults.filter(result => 
-      !friends.some(friend => friend.uid === result.uid)
+  const filteredSearchResults = rawSearchResults.filter(result =>
+    !friends.some(friend => friend.uid === result.uid)
   );
 
   const handleAddResult = async (email) => {
-      const result = await onAddFriend(email);
-      if(result.success) {
-          setSearchText("");
-          setRawSearchResults([]);
-          setSearchPerformed(false);
-          
-          setSuccessMsg(`Added friend successfully!`);
-          setTimeout(() => setSuccessMsg(null), 3000);
-      }
+    const result = await onAddFriend(email);
+    if (result.success) {
+      setSearchText("");
+      setRawSearchResults([]);
+      setSearchPerformed(false);
+
+      setSuccessMsg(`Added friend successfully!`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+    }
   };
 
   const sortedFriends = [...friends].sort((a, b) => {
-      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-      if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-      return 0;
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+    return 0;
   });
 
   return (
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-md shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar mx-2 md:mx-0 flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-medium text-white">Friends</h3>
-                <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
-              </div>
-              
-              {/* Search Section */}
-              <div className="mb-4 relative">
-                  <div className="relative z-10">
-                      <input 
-                          type="text" 
-                          value={searchText} 
-                          onChange={(e) => setSearchText(e.target.value)}
-                          placeholder="Search by Name or Email..." 
-                          className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-white/30 transition-colors"
-                      />
-                      <div className="absolute right-2 top-2 p-1.5 text-white/30">
-                         {isSearching ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                      </div>
-                  </div>
-                  {isSearching && (
-                      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 overflow-hidden rounded-b-xl">
-                          <motion.div 
-                              className="h-full bg-white/50"
-                              initial={{ x: "-100%" }}
-                              animate={{ x: "100%" }}
-                              transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                          />
-                      </div>
-                  )}
-              </div>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-md shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar mx-2 md:mx-0 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-medium text-white">Friends</h3>
+              <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
+            </div>
 
-              {successMsg && <p className="text-green-400 text-xs mb-4 ml-1">{successMsg}</p>}
-              
-              {/* LOGIC: If we searched, and aren't loading, and the FILTERED result is empty 
+            {/* Search Section */}
+            <div className="mb-4 relative">
+              <div className="relative z-10">
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Search by Name or Email..."
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-white/30 transition-colors"
+                />
+                <div className="absolute right-2 top-2 p-1.5 text-white/30">
+                  {isSearching ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                </div>
+              </div>
+              {isSearching && (
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 overflow-hidden rounded-b-xl">
+                  <motion.div
+                    className="h-full bg-white/50"
+                    initial={{ x: "-100%" }}
+                    animate={{ x: "100%" }}
+                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {successMsg && <p className="text-green-400 text-xs mb-4 ml-1">{successMsg}</p>}
+
+            {/* LOGIC: If we searched, and aren't loading, and the FILTERED result is empty 
                  (Meaning either no matches, OR the matches were already friends) 
               */}
-              {searchText && searchPerformed && !isSearching && filteredSearchResults.length === 0 && (
-                  <div className="mb-6 text-center py-4 border border-white/5 rounded-xl bg-white/5">
-                      <p className="text-white/40 text-xs">No new users found.</p>
-                  </div>
-              )}
-
-              {/* Render Filtered Results */}
-              {filteredSearchResults.length > 0 && (
-                  <div className="mb-6 animate-fade-in">
-                      <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
-                      <div className="flex flex-col gap-2">
-                          {filteredSearchResults.map(result => (
-                              <div key={result.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                      <Avatar photoURL={result.photoURL} name={result.displayName} size="md" />
-                                      <div className="flex flex-col">
-                                          <span className="text-sm font-bold text-white">{result.displayName}</span>
-                                          <span className="text-[10px] text-white/50">{result.email}</span>
-                                      </div>
-                                  </div>
-                                  <button onClick={() => handleAddResult(result.email)} className="px-3 py-1.5 bg-white text-black text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors tracking-wide">
-                                      ADD FRIEND
-                                  </button>
-                              </div>
-                          ))}
-                      </div>
-                      <div className="w-full h-px bg-white/10 my-4"></div>
-                  </div>
-              )}
-
-              {/* Friends List */}
-              <div className="flex flex-col gap-2">
-                  <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4>
-                  {friends.length === 0 ? (
-                      <div className="text-center py-8 text-white/30 text-sm">No friends yet. Have you even got any?</div>
-                  ) : (
-                      sortedFriends.map((friend) => (
-                          <div 
-                              key={friend.uid} 
-                              onClick={() => onViewStats(friend)}
-                              className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative"
-                          >
-                              <div className="flex items-center gap-3 pointer-events-none">
-                                  <Avatar 
-                                      photoURL={friend.photoURL} 
-                                      name={friend.displayName} 
-                                      size="md" 
-                                      isPinned={friend.isPinned} 
-                                  />
-                                  <div>
-                                      <div className="text-sm font-medium text-white leading-none mb-1 flex items-center gap-2">
-                                          {friend.displayName}
-                                      </div>
-                                      <div className="text-[10px] text-white/50 flex items-center gap-1.5">
-                                          <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
-                                          {friend.statusText}
-                                      </div>
-                                  </div>
-                              </div>
-                              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                  <button 
-                                      onClick={() => onTogglePin(friend.uid, friend.isPinned)} 
-                                      className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`} 
-                                      title={friend.isPinned ? "Unpin" : "Pin"}
-                                  >
-                                      <Pin size={16} className={friend.isPinned ? "fill-white" : ""} /> 
-                                  </button>
-                                  <button 
-                                      onClick={() => { if(confirm("Remove this friend?")) onRemoveFriend(friend.uid); }}
-                                      className="p-2 rounded-lg transition-colors text-white/20 hover:text-red-400 hover:bg-red-500/10" 
-                                      title="Remove Friend"
-                                  >
-                                      <UserMinus size={16} /> 
-                                  </button>
-                              </div>
-                          </div>
-                      ))
-                  )}
+            {searchText && searchPerformed && !isSearching && filteredSearchResults.length === 0 && (
+              <div className="mb-6 text-center py-4 border border-white/5 rounded-xl bg-white/5">
+                <p className="text-white/40 text-xs">No new users found.</p>
               </div>
+            )}
 
-            </motion.div>
+            {/* Render Filtered Results */}
+            {filteredSearchResults.length > 0 && (
+              <div className="mb-6 animate-fade-in">
+                <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
+                <div className="flex flex-col gap-2">
+                  {filteredSearchResults.map(result => (
+                    <div key={result.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar photoURL={result.photoURL} name={result.displayName} size="md" />
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-white">{result.displayName}</span>
+                          <span className="text-[10px] text-white/50">{result.email}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => handleAddResult(result.email)} className="px-3 py-1.5 bg-white text-black text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors tracking-wide">
+                        ADD FRIEND
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="w-full h-px bg-white/10 my-4"></div>
+              </div>
+            )}
+
+            {/* Friends List */}
+            <div className="flex flex-col gap-2">
+              <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4>
+              {friends.length === 0 ? (
+                <div className="text-center py-8 text-white/30 text-sm">No friends yet. Have you even got any?</div>
+              ) : (
+                sortedFriends.map((friend) => (
+                  <div
+                    key={friend.uid}
+                    onClick={() => onViewStats(friend)}
+                    className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative"
+                  >
+                    <div className="flex items-center gap-3 pointer-events-none">
+                      <Avatar
+                        photoURL={friend.photoURL}
+                        name={friend.displayName}
+                        size="md"
+                        isPinned={friend.isPinned}
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-white leading-none mb-1 flex items-center gap-2">
+                          {friend.displayName}
+                        </div>
+                        <div className="text-[10px] text-white/50 flex items-center gap-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
+                          {friend.statusText}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => onTogglePin(friend.uid, friend.isPinned)}
+                        className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}
+                        title={friend.isPinned ? "Unpin" : "Pin"}
+                      >
+                        <Pin size={16} className={friend.isPinned ? "fill-white" : ""} />
+                      </button>
+                      <button
+                        onClick={() => { if (confirm("Remove this friend?")) onRemoveFriend(friend.uid); }}
+                        className="p-2 rounded-lg transition-colors text-white/20 hover:text-red-400 hover:bg-red-500/10"
+                        title="Remove Friend"
+                      >
+                        <UserMinus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
           </motion.div>
-        )}
-      </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
@@ -911,30 +911,30 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
   const [errors, setErrors] = useState({});
   const [isSigningOut, setIsSigningOut] = useState(false);
   const fileInputRef = useRef(null);
-  
+
   useEffect(() => { if (isOpen) { setLocalSettings(settings); setErrors({}); } }, [isOpen]);
-  
+
   const handleChange = (e, mode) => { const value = e.target.value; if (value === '' || /^\d+$/.test(value)) { setLocalSettings(prev => ({ ...prev, [mode]: value })); if (errors[mode]) { setErrors(prev => ({ ...prev, [mode]: null })); } } };
   const handleToggle = (key, value) => { setLocalSettings(prev => ({ ...prev, [key]: value })); }
-  
-  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {}; ['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; return { hasError, newErrors, finalSettings }; };
-  
+
+  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; return { hasError, newErrors, finalSettings }; };
+
   const handleManualSave = () => { const { hasError, newErrors, finalSettings } = validateSettings(); if (hasError) { setErrors(newErrors); return; } onSave(finalSettings); };
-  
+
   const handleCloseAction = () => {
     const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(settings);
     if (hasChanges) {
-        const { hasError, finalSettings } = validateSettings();
-        if (!hasError) {
-            onSave(finalSettings);
-        } else {
-            onClose(); 
-        }
-    } else {
+      const { hasError, finalSettings } = validateSettings();
+      if (!hasError) {
+        onSave(finalSettings);
+      } else {
         onClose();
+      }
+    } else {
+      onClose();
     }
   };
-  
+
   const handleSignOut = async () => { setIsSigningOut(true); await new Promise(r => setTimeout(r, 800)); localStorage.removeItem('pomodoro_user_name'); await signOut(auth); window.location.reload(); };
   const handleFileSelect = (e) => { const file = e.target.files[0]; if (file && (file.type === "image/jpeg" || file.type === "image/png")) { const reader = new FileReader(); reader.onloadend = () => { const base64String = reader.result; const newBg = { id: `custom-${Date.now()}`, src: base64String, }; onAddCustomBackground(newBg); handleToggle('background', base64String); if (onBackgroundChange) onBackgroundChange(base64String); }; reader.readAsDataURL(file); } };
   const allBackgrounds = [...BACKGROUND_OPTIONS, ...customBackgrounds];
@@ -1009,7 +1009,7 @@ const UPDATE_KEY = 'zen_update_music_v1'; // Unique key for this update
 const UpdateNotificationCard = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
-  
+
   // Check localStorage on component mount
   useEffect(() => {
     const hasSeen = localStorage.getItem(UPDATE_KEY);
@@ -1022,7 +1022,7 @@ const UpdateNotificationCard = () => {
     setIsDismissing(true);
     // Mark as dismissed in local storage
     localStorage.setItem(UPDATE_KEY, 'true');
-    
+
     // Wait for exit animation before unmounting
     setTimeout(() => {
       setIsVisible(false);
@@ -1034,9 +1034,9 @@ const UpdateNotificationCard = () => {
   return (
     <AnimatePresence>
       {isVisible && !isDismissing && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10, scale: 0.95 }} 
-          animate={{ opacity: 1, y: 0, scale: 1 }} 
+        <motion.div
+          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.95 }}
           transition={{ duration: 0.4 }}
           className="fixed bottom-4 md:bottom-8 right-4 md:right-8 z-50 w-[90vw] max-w-sm"
@@ -1046,8 +1046,8 @@ const UpdateNotificationCard = () => {
               <div className="flex items-center gap-3">
                 <Music size={20} className="text-white fill-white/10" />
                 <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">ZenTunes is Here!</h4>
-                  <p className="text-xs text-white/70">Background music to power your focus. Find the button in the bottom-left corner.</p>
+                  <h4 className="text-sm font-bold text-white mb-0.5">Tunes are here! Stats still seem to be broken</h4>
+                  <p className="text-xs text-white/70">Background music to power your focus. Stats might not show the correct detais. Will be fixed soon</p>
                 </div>
               </div>
               <button onClick={handleDismiss} className="p-1 text-white/50 hover:text-white transition-colors flex-shrink-0 ml-2">
@@ -1071,21 +1071,21 @@ const MUSIC_TRACKS = [
   {
     id: 'track-3',
     title: 'Lofi Study',
-    src: 'https://archive.org/download/track1_202511/track1.mp3', 
+    src: 'https://archive.org/download/track1_202511/track1.mp3',
     cover: '/music/cover1.jpg'
   },
 
   {
     id: 'track-1',
     title: 'Binaural Beats',
-    src: 'https://archive.org/download/track2_202511/track1.mp3', 
-    cover: '/music/cover2.jpg' 
+    src: 'https://archive.org/download/track2_202511/track1.mp3',
+    cover: '/music/cover2.jpg'
   },
 
   {
     id: 'track-2',
     title: 'Deep Focus Ambient',
-    src: 'https://archive.org/download/track2_202511/track2.mp3', 
+    src: 'https://archive.org/download/track2_202511/track2.mp3',
     cover: '/music/cover3.jpg'
   },
 ];
@@ -1095,10 +1095,10 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
   // Auto-switch to player if a track is selected while modal is open
   useEffect(() => {
-     if (currentTrack && isOpen && view === 'list') {
-         // Optional: You can uncomment this if you want it to auto-jump to player on click
-         // setView('player');
-     }
+    if (currentTrack && isOpen && view === 'list') {
+      // Optional: You can uncomment this if you want it to auto-jump to player on click
+      // setView('player');
+    }
   }, [currentTrack]);
 
   const formatTime = (time) => {
@@ -1107,15 +1107,15 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
     const h = Math.floor(totalSeconds / 3600);
     const m = Math.floor((totalSeconds % 3600) / 60);
     const s = totalSeconds % 60;
-    
+
     let timeString = `${m}:${s.toString().padStart(2, '0')}`;
-    
+
     if (h > 0) {
-        timeString = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      timeString = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     } else {
-        timeString = `${m}:${s.toString().padStart(2, '0')}`;
+      timeString = `${m}:${s.toString().padStart(2, '0')}`;
     }
-    
+
     return timeString;
   };
 
@@ -1124,143 +1124,143 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[90vw] md:w-[24rem] shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
-            
+
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
-               {view === 'player' ? (
-                   <button onClick={() => setView('list')} className="p-2 -ml-2 text-white/50 hover:text-white transition-colors flex items-center gap-1">
-                       <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Library</span>
-                   </button>
-               ) : (
-                   <h3 className="text-xl font-medium text-white flex items-center gap-2"><Music size={20} /> Music</h3>
-               )}
+              {view === 'player' ? (
+                <button onClick={() => setView('list')} className="p-2 -ml-2 text-white/50 hover:text-white transition-colors flex items-center gap-1">
+                  <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Library</span>
+                </button>
+              ) : (
+                <h3 className="text-xl font-medium text-white flex items-center gap-2"><Music size={20} /> Music</h3>
+              )}
               <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
             </div>
 
             {/* VIEWS SWITCHER */}
             <div className="relative w-full h-[320px]">
-                <AnimatePresence mode="wait">
-                    {view === 'list' ? (
-                        <motion.div 
-                            key="list"
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="absolute inset-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1"
+              <AnimatePresence mode="wait">
+                {view === 'list' ? (
+                  <motion.div
+                    key="list"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="absolute inset-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1"
+                  >
+                    {MUSIC_TRACKS.map((track) => {
+                      const isActive = currentTrack?.id === track.id;
+                      return (
+                        <div
+                          key={track.id}
+                          onClick={() => { onPlay(track); setView('player'); }}
+                          className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
                         >
-                            {MUSIC_TRACKS.map((track) => {
-                                const isActive = currentTrack?.id === track.id;
-                                return (
-                                    <div 
-                                        key={track.id} 
-                                        onClick={() => { onPlay(track); setView('player'); }}
-                                        className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
-                                    >
-                                        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
-                                            {track.cover ? (
-                                                <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
-                                            )}
-                                            {isActive && isPlaying && (
-                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                                    <div className="flex gap-0.5 items-end h-3">
-                                                        <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
-                                                        <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
-                                                        <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
-                                            <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
-                                        </div>
-                                        {isActive && (
-                                            <div className="text-white/80">
-                                                {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </motion.div>
-                    ) : (
-                        <motion.div 
-                            key="player"
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="absolute inset-0 flex flex-col items-center justify-center text-center"
-                        >
-                            {/* Cover Art */}
-                            <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group">
-                                {currentTrack?.cover ? (
-                                    <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
-                                )}
-                                {/* Play/Pause Overlay on Cover (Optional) */}
-                            </div>
-
-                            {/* Title */}
-                            <div className="mb-6 w-full px-4">
-                                <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
-                                <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="w-full flex items-center gap-3 mb-6 px-2">
-                                <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
-                                <div className="flex-1 relative h-1 bg-white/10 rounded-full group cursor-pointer" onClick={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    const percent = (e.clientX - rect.left) / rect.width;
-                                    onSeek(percent * duration);
-                                }}>
-                                    <div 
-                                        className="absolute top-0 left-0 h-full bg-white rounded-full transition-all duration-100" 
-                                        style={{ width: `${(progress / duration) * 100}%` }}
-                                    />
-                                    <div 
-                                        className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                        style={{ left: `${(progress / duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
-                                    />
+                          <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                            {track.cover ? (
+                              <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
+                            )}
+                            {isActive && isPlaying && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <div className="flex gap-0.5 items-end h-3">
+                                  <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
+                                  <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
+                                  <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
                                 </div>
-                                <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
+                            <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
+                          </div>
+                          {isActive && (
+                            <div className="text-white/80">
+                              {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
                             </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="player"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center text-center"
+                  >
+                    {/* Cover Art */}
+                    <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group">
+                      {currentTrack?.cover ? (
+                        <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
+                      )}
+                      {/* Play/Pause Overlay on Cover (Optional) */}
+                    </div>
 
-                            {/* Controls */}
-                            <div className="flex items-center gap-6">
-                                <button 
-                                    onClick={() => isPlaying ? onPause() : onPlay(currentTrack)}
-                                    className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-                                >
-                                    {isLoading ? (
-                                        <Loader2 size={24} className="animate-spin text-black" />
-                                    ) : (
-                                        isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
-                                    )}
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                    {/* Title */}
+                    <div className="mb-6 w-full px-4">
+                      <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
+                      <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full flex items-center gap-3 mb-6 px-2">
+                      <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
+                      <div className="flex-1 relative h-1 bg-white/10 rounded-full group cursor-pointer" onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const percent = (e.clientX - rect.left) / rect.width;
+                        onSeek(percent * duration);
+                      }}>
+                        <div
+                          className="absolute top-0 left-0 h-full bg-white rounded-full transition-all duration-100"
+                          style={{ width: `${(progress / duration) * 100}%` }}
+                        />
+                        <div
+                          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                          style={{ left: `${(progress / duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
+                    </div>
+
+                    {/* Controls */}
+                    <div className="flex items-center gap-6">
+                      <button
+                        onClick={() => isPlaying ? onPause() : onPlay(currentTrack)}
+                        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                      >
+                        {isLoading ? (
+                          <Loader2 size={24} className="animate-spin text-black" />
+                        ) : (
+                          isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
-            
+
             {/* Mini Player / Now Playing Indicator in List View */}
             {view === 'list' && currentTrack && (
-                 <button onClick={() => setView('player')} className="absolute bottom-6 left-6 right-6 h-14 bg-[#1a1a1a] border border-white/10 rounded-xl flex items-center px-3 gap-3 animate-fade-in-up hover:bg-[#222] transition-colors shadow-lg z-10">
-                    <div className="w-10 h-10 rounded-lg bg-white/10 overflow-hidden flex-shrink-0">
-                         {currentTrack.cover && <img src={currentTrack.cover} className="w-full h-full object-cover" />}
-                    </div>
-                    <div className="flex-1 text-left min-w-0">
-                        <span className="text-xs font-bold text-white block truncate">{currentTrack.title}</span>
-                        <span className="text-[10px] text-white/50 block truncate">{isPlaying ? 'Playing' : 'Paused'}</span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
-                        {isLoading ? <Loader2 size={12} className="animate-spin text-white" /> : (isPlaying ? <Pause size={12} fill="white" /> : <Play size={12} fill="white" />)}
-                    </div>
-                 </button>
+              <button onClick={() => setView('player')} className="absolute bottom-6 left-6 right-6 h-14 bg-[#1a1a1a] border border-white/10 rounded-xl flex items-center px-3 gap-3 animate-fade-in-up hover:bg-[#222] transition-colors shadow-lg z-10">
+                <div className="w-10 h-10 rounded-lg bg-white/10 overflow-hidden flex-shrink-0">
+                  {currentTrack.cover && <img src={currentTrack.cover} className="w-full h-full object-cover" />}
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <span className="text-xs font-bold text-white block truncate">{currentTrack.title}</span>
+                  <span className="text-[10px] text-white/50 block truncate">{isPlaying ? 'Playing' : 'Paused'}</span>
+                </div>
+                <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
+                  {isLoading ? <Loader2 size={12} className="animate-spin text-white" /> : (isPlaying ? <Pause size={12} fill="white" /> : <Play size={12} fill="white" />)}
+                </div>
+              </button>
             )}
 
           </motion.div>
@@ -1338,7 +1338,7 @@ export default function App() {
     lastActiveDate: null
   };
   const [stats, setStats] = useState(DEFAULT_STATS);
-  
+
   // --- FOCUS MODE STATE ---
   const [focusMode, setFocusMode] = useState(false);
 
@@ -1383,10 +1383,10 @@ export default function App() {
   const syncTimerState = async (newState) => {
     if (!user) return;
     const payload = {
-        timerState: {
-            ...newState,
-            lastUpdated: Date.now()
-        }
+      timerState: {
+        ...newState,
+        lastUpdated: Date.now()
+      }
     };
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
     await setDoc(doc(db, "users", user.uid), payload, { merge: true });
@@ -1401,14 +1401,14 @@ export default function App() {
       if (currentUser) {
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
-        
+
         // --- SOCIAL: Ensure email is saved for discovery ---
-        if(currentUser.email) {
-            await setDoc(doc(db, "users", currentUser.uid), { 
-                email: currentUser.email,
-                displayName: currentUser.displayName,
-                photoURL: currentUser.photoURL
-            }, { merge: true });
+        if (currentUser.email) {
+          await setDoc(doc(db, "users", currentUser.uid), {
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL
+          }, { merge: true });
         }
 
         if (storedName) { setShowLoginBtn(false); setTimeout(() => { setOnboardingStep(3); }, 2000); } else { if (onboardingStep === 0) { handleNameTransition(firstName); } }
@@ -1420,249 +1420,249 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-// --- SOCIAL: Friends Logic (UPDATED) ---
-  
+  // --- SOCIAL: Friends Logic (UPDATED) ---
+
   // 1. Listen to my friends list AND their metadata (pinned status)
   useEffect(() => {
-      if(!user) return;
-      const friendsRef = collection(db, "users", user.uid, "friends");
-      const unsub = onSnapshot(friendsRef, (snapshot) => {
-          const config = {};
-          const uids = [];
-          snapshot.forEach(doc => {
-              uids.push(doc.id);
-              config[doc.id] = { isPinned: doc.data().isPinned || false };
-          });
-          setFriendUids(uids);
-          setFriendConfig(config);
+    if (!user) return;
+    const friendsRef = collection(db, "users", user.uid, "friends");
+    const unsub = onSnapshot(friendsRef, (snapshot) => {
+      const config = {};
+      const uids = [];
+      snapshot.forEach(doc => {
+        uids.push(doc.id);
+        config[doc.id] = { isPinned: doc.data().isPinned || false };
       });
-      return () => unsub();
+      setFriendUids(uids);
+      setFriendConfig(config);
+    });
+    return () => unsub();
   }, [user]);
 
   // 2. Listen to friend profiles and merge with Pin status
   useEffect(() => {
-      if(!user || friendUids.length === 0) {
-          setFriends([]);
-          return;
-      }
-      
-      const unsubscribers = [];
-      const currentFriendsData = {};
+    if (!user || friendUids.length === 0) {
+      setFriends([]);
+      return;
+    }
 
-      friendUids.forEach(friendId => {
-          const unsub = onSnapshot(doc(db, "users", friendId), (doc) => {
-              if (doc.exists()) {
-                  const data = doc.data();
-                  // Process Real-time Status
-                  let isOnline = false;
-                  let isActive = false;
-                  let statusText = "Offline";
-                  let mode = 'focus';
-                  let timeLeft = 0;
+    const unsubscribers = [];
+    const currentFriendsData = {};
 
-                  if (data.timerState) {
-                      const now = Date.now();
-                      const lastUpdated = data.timerState.lastUpdated;
-                      if (now - lastUpdated < 300000) { // 5 mins
-                          isOnline = true;
-                          mode = data.timerState.mode;
-                          if (data.timerState.isActive) {
-                              isActive = true;
-                              const target = data.timerState.targetEndTime;
-                              timeLeft = Math.max(0, Math.ceil((target - now) / 1000));
-                              statusText = `${mode === 'focus' ? 'Focusing' : 'Break'} • ${Math.floor(timeLeft/60)}m`;
-                          } else {
-                              statusText = "Paused";
-                          }
-                      } else {
-                          statusText = "Away";
-                      }
-                  }
+    friendUids.forEach(friendId => {
+      const unsub = onSnapshot(doc(db, "users", friendId), (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          // Process Real-time Status
+          let isOnline = false;
+          let isActive = false;
+          let statusText = "Offline";
+          let mode = 'focus';
+          let timeLeft = 0;
 
-                  currentFriendsData[friendId] = {
-                      uid: friendId,
-                      displayName: data.displayName || "Unknown Friend",
-                      email: data.email,
-                      photoURL: data.photoURL,
-                      isOnline,
-                      isActive,
-                      statusText,
-                      mode,
-                      timeLeft,
-                      // Merge Pinned Status
-                      isPinned: friendConfig[friendId]?.isPinned || false 
-                  };
-                  
-                  setFriends(Object.values(currentFriendsData));
+          if (data.timerState) {
+            const now = Date.now();
+            const lastUpdated = data.timerState.lastUpdated;
+            if (now - lastUpdated < 300000) { // 5 mins
+              isOnline = true;
+              mode = data.timerState.mode;
+              if (data.timerState.isActive) {
+                isActive = true;
+                const target = data.timerState.targetEndTime;
+                timeLeft = Math.max(0, Math.ceil((target - now) / 1000));
+                statusText = `${mode === 'focus' ? 'Focusing' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+              } else {
+                statusText = "Paused";
               }
-          });
-          unsubscribers.push(unsub);
+            } else {
+              statusText = "Away";
+            }
+          }
+
+          currentFriendsData[friendId] = {
+            uid: friendId,
+            displayName: data.displayName || "Unknown Friend",
+            email: data.email,
+            photoURL: data.photoURL,
+            isOnline,
+            isActive,
+            statusText,
+            mode,
+            timeLeft,
+            // Merge Pinned Status
+            isPinned: friendConfig[friendId]?.isPinned || false
+          };
+
+          setFriends(Object.values(currentFriendsData));
+        }
       });
+      unsubscribers.push(unsub);
+    });
 
-      // 3. Local Timer for Friends (Countdown smoothly)
-      const interval = setInterval(() => {
-          setFriends(prevFriends => {
-              return prevFriends.map(f => {
-                 if(f.isActive && f.timeLeft > 0) {
-                     const newTime = f.timeLeft - 1;
-                     const mins = Math.floor(newTime / 60);
-                     const secs = newTime % 60;
-                     const timeString = `${mins}:${secs.toString().padStart(2, '0')}`;
-                     return { 
-                         ...f, 
-                         timeLeft: Math.max(0, newTime),
-                         statusText: `${f.mode === 'focus' ? 'Focusing' : 'Break'} • ${timeString}`
-                     };
-                 }
-                 return f;
-              });
-          });
-      }, 1000);
+    // 3. Local Timer for Friends (Countdown smoothly)
+    const interval = setInterval(() => {
+      setFriends(prevFriends => {
+        return prevFriends.map(f => {
+          if (f.isActive && f.timeLeft > 0) {
+            const newTime = f.timeLeft - 1;
+            const mins = Math.floor(newTime / 60);
+            const secs = newTime % 60;
+            const timeString = `${mins}:${secs.toString().padStart(2, '0')}`;
+            return {
+              ...f,
+              timeLeft: Math.max(0, newTime),
+              statusText: `${f.mode === 'focus' ? 'Focusing' : 'Break'} • ${timeString}`
+            };
+          }
+          return f;
+        });
+      });
+    }, 1000);
 
-      return () => {
-          unsubscribers.forEach(u => u());
-          clearInterval(interval);
-      };
+    return () => {
+      unsubscribers.forEach(u => u());
+      clearInterval(interval);
+    };
   }, [user, friendUids, friendConfig]);
 
-// REPLACE your existing handleAddFriend function with this:
+  // REPLACE your existing handleAddFriend function with this:
 
-const handleAddFriend = async (email) => {
-  if(!user) return { success: false, error: "Not logged in" };
-  
-  // 1. Sanitize input: remove spaces and force lowercase
-  const cleanEmail = email.trim().toLowerCase();
+  const handleAddFriend = async (email) => {
+    if (!user) return { success: false, error: "Not logged in" };
 
-  if (!cleanEmail) return { success: false, error: "Please enter an email" };
+    // 1. Sanitize input: remove spaces and force lowercase
+    const cleanEmail = email.trim().toLowerCase();
 
-  try {
+    if (!cleanEmail) return { success: false, error: "Please enter an email" };
+
+    try {
       console.log(`Searching for user with email: "${cleanEmail}"`); // Debug log
 
       // 2. Query the users collection
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("email", "==", cleanEmail));
       const snapshot = await getDocs(q);
-      
-      if(snapshot.empty) {
-          console.warn("Query returned no results.");
-          return { success: false, error: "User not found. Ask them to log in again to sync their email." };
+
+      if (snapshot.empty) {
+        console.warn("Query returned no results.");
+        return { success: false, error: "User not found. Ask them to log in again to sync their email." };
       }
-      
+
       const friendDoc = snapshot.docs[0];
       const friendId = friendDoc.id;
-      
+
       // 3. Prevent adding yourself
-      if(friendId === user.uid) {
-          return { success: false, error: "You can't add yourself as a friend." };
+      if (friendId === user.uid) {
+        return { success: false, error: "You can't add yourself as a friend." };
       }
 
       // 4. Check if already friends (Optional check to prevent overwriting/redundancy)
       const friendRef = doc(db, "users", user.uid, "friends", friendId);
       const friendSnap = await getDoc(friendRef);
       if (friendSnap.exists()) {
-          return { success: false, error: "User is already in your friends list." };
+        return { success: false, error: "User is already in your friends list." };
       }
 
       // 5. Add to friends collection
       await setDoc(friendRef, {
-          addedAt: Date.now()
+        addedAt: Date.now()
       });
-      
+
       return { success: true };
-  } catch(e) {
+    } catch (e) {
       console.error("Add Friend Error:", e);
       // Check specifically for permission errors
       if (e.code === 'permission-denied') {
-          return { success: false, error: "Database permission denied. Check Firestore Rules." };
+        return { success: false, error: "Database permission denied. Check Firestore Rules." };
       }
       return { success: false, error: "Error adding friend. See console for details." };
-  }
-};
+    }
+  };
 
   const handleRemoveFriend = async (friendId) => {
-    if(!user) return;
+    if (!user) return;
     try {
-        await deleteDoc(doc(db, "users", user.uid, "friends", friendId));
-    } catch(e) {
-        console.error("Error removing friend", e);
+      await deleteDoc(doc(db, "users", user.uid, "friends", friendId));
+    } catch (e) {
+      console.error("Error removing friend", e);
     }
   };
   const handleViewFriendStats = (friend) => {
-      setViewingFriendStats(friend);
-      setShowStats(true);
-      setShowFriends(false);
+    setViewingFriendStats(friend);
+    setShowStats(true);
+    setShowFriends(false);
   };
   // --- NEW: Toggle Pin Function ---
   const handleTogglePin = async (friendId, currentStatus) => {
-    if(!user) return;
+    if (!user) return;
     const friendRef = doc(db, "users", user.uid, "friends", friendId);
     await setDoc(friendRef, { isPinned: !currentStatus }, { merge: true });
-};
+  };
 
-// --- UPDATED: Robust Search (Name Casing + Email Prefix) ---
-const handleSearchUsers = useCallback(async (queryText) => {
-  if(!queryText) return [];
-  const term = queryText.trim();
-  
-  const termLower = term.toLowerCase();
-  const termUpper = term.toUpperCase();
-  const termCapitalized = term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
+  // --- UPDATED: Robust Search (Name Casing + Email Prefix) ---
+  const handleSearchUsers = useCallback(async (queryText) => {
+    if (!queryText) return [];
+    const term = queryText.trim();
 
-  const usersRef = collection(db, "users");
-  const resultsMap = new Map(); 
+    const termLower = term.toLowerCase();
+    const termUpper = term.toUpperCase();
+    const termCapitalized = term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
 
-  const queries = [];
+    const usersRef = collection(db, "users");
+    const resultsMap = new Map();
 
-  // 1. Email Search
-  queries.push(query(usersRef, 
-      where("email", ">=", termLower), 
-      where("email", "<=", termLower + '\uf8ff'), 
+    const queries = [];
+
+    // 1. Email Search
+    queries.push(query(usersRef,
+      where("email", ">=", termLower),
+      where("email", "<=", termLower + '\uf8ff'),
       limit(5)
-  ));
+    ));
 
-  // 2. Name Search: As Typed
-  queries.push(query(usersRef, 
-      where("displayName", ">=", term), 
-      where("displayName", "<=", term + '\uf8ff'), 
+    // 2. Name Search: As Typed
+    queries.push(query(usersRef,
+      where("displayName", ">=", term),
+      where("displayName", "<=", term + '\uf8ff'),
       limit(5)
-  ));
+    ));
 
-  // 3. Name Search: ALL CAPS
-  if (term !== termUpper) {
-      queries.push(query(usersRef, 
-          where("displayName", ">=", termUpper), 
-          where("displayName", "<=", termUpper + '\uf8ff'), 
-          limit(5)
+    // 3. Name Search: ALL CAPS
+    if (term !== termUpper) {
+      queries.push(query(usersRef,
+        where("displayName", ">=", termUpper),
+        where("displayName", "<=", termUpper + '\uf8ff'),
+        limit(5)
       ));
-  }
+    }
 
-  // 4. Name Search: Capitalized
-  if (term !== termCapitalized && termCapitalized !== termUpper) {
-      queries.push(query(usersRef, 
-          where("displayName", ">=", termCapitalized), 
-          where("displayName", "<=", termCapitalized + '\uf8ff'), 
-          limit(5)
+    // 4. Name Search: Capitalized
+    if (term !== termCapitalized && termCapitalized !== termUpper) {
+      queries.push(query(usersRef,
+        where("displayName", ">=", termCapitalized),
+        where("displayName", "<=", termCapitalized + '\uf8ff'),
+        limit(5)
       ));
-  }
+    }
 
-  try {
+    try {
       const snapshots = await Promise.all(queries.map(q => getDocs(q)));
 
       snapshots.forEach(snap => {
-          snap.forEach(doc => {
-              if (doc.id !== user.uid) { 
-                  resultsMap.set(doc.id, { uid: doc.id, ...doc.data() });
-              }
-          });
+        snap.forEach(doc => {
+          if (doc.id !== user.uid) {
+            resultsMap.set(doc.id, { uid: doc.id, ...doc.data() });
+          }
+        });
       });
 
       return Array.from(resultsMap.values());
 
-  } catch (e) {
+    } catch (e) {
       console.error("Search error", e);
       return [];
-  }
-}, [user]); // <--- Dependency ensures function stays stable unless user changes
+    }
+  }, [user]); // <--- Dependency ensures function stays stable unless user changes
 
   // --- End Social Logic ---
 
@@ -1672,85 +1672,85 @@ const handleSearchUsers = useCallback(async (queryText) => {
       const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          
+
           // --- SYNC TIMER LOGIC ---
           if (data.timerState) {
             const remote = data.timerState;
             // Only apply if remote is newer than our last write
             if (remote.lastUpdated > lastRemoteUpdate.current) {
-                lastRemoteUpdate.current = remote.lastUpdated;
-                
-                setMode(remote.mode);
-                setSessionName(remote.sessionName);
-                
-                if (remote.isActive) {
-                    const now = Date.now();
-                    const target = remote.targetEndTime;
-                    const remaining = Math.max(0, Math.ceil((target - now) / 1000));
-                    
-                    if (remaining > 0) {
-                        setTimeLeft(remaining);
-                        setIsActive(true);
-                        endTimeRef.current = target;
-                    } else {
-                        setIsActive(false);
-                        setTimeLeft(0);
-                        endTimeRef.current = null;
-                    }
+              lastRemoteUpdate.current = remote.lastUpdated;
+
+              setMode(remote.mode);
+              setSessionName(remote.sessionName);
+
+              if (remote.isActive) {
+                const now = Date.now();
+                const target = remote.targetEndTime;
+                const remaining = Math.max(0, Math.ceil((target - now) / 1000));
+
+                if (remaining > 0) {
+                  setTimeLeft(remaining);
+                  setIsActive(true);
+                  endTimeRef.current = target;
                 } else {
-                    setIsActive(false);
-                    setTimeLeft(remote.timeLeft);
-                    endTimeRef.current = null;
+                  setIsActive(false);
+                  setTimeLeft(0);
+                  endTimeRef.current = null;
                 }
+              } else {
+                setIsActive(false);
+                setTimeLeft(remote.timeLeft);
+                endTimeRef.current = null;
+              }
             }
           }
 
           let loadedTasks = data.tasks || [];
-          
+
           // Handle daily reset logic
           const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
-          
+
           const today = new Date();
           let currentStreak = loadedStats.currentStreak;
           let lastActiveDate = loadedStats.lastActiveDate ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate)) : null;
-          
+
           let shouldResetDaily = false;
 
           if (lastActiveDate) {
-             if (!isSameDay(lastActiveDate, today)) {
-                shouldResetDaily = true;
-                if (!isYesterday(today, lastActiveDate)) {
-                   currentStreak = 0; 
-                }
-             }
+            if (!isSameDay(lastActiveDate, today)) {
+              shouldResetDaily = true;
+              if (!isYesterday(today, lastActiveDate)) {
+                currentStreak = 0;
+              }
+            }
           } else {
-             shouldResetDaily = true;
-             currentStreak = 0;
+            shouldResetDaily = true;
+            currentStreak = 0;
           }
 
           if (shouldResetDaily) {
-             // ARCHIVE OLD STATS TO HISTORY SUBCOLLECTION
-             if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
-                 // We archive the *loaded* stats which represent the previous day
-                 // Calculate the date ID from the last active date (which should be yesterday or older)
-                 const archiveDate = lastActiveDate || new Date(Date.now() - 86400000); // Fallback to yesterday if null
-                 const dateId = formatDateId(archiveDate);
-                 const historyRef = doc(db, "users", user.uid, "history", dateId);
-                 // Fire and forget archive
-                 setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
-             }
+            // ARCHIVE OLD STATS TO HISTORY SUBCOLLECTION
+            if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
+              // We archive the *loaded* stats which represent the previous day
+              // Calculate the date ID from the last active date (which should be yesterday or older)
+              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000); // Fallback to yesterday if null
+              const dateId = formatDateId(archiveDate);
+              const historyRef = doc(db, "users", user.uid, "history", dateId);
+              // Fire and forget archive
+              setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
+            }
 
-             loadedStats.dailyFocusTime = 0;
-             loadedStats.dailyBreakTime = 0;
-             loadedStats.dailySessions = 0;
-             loadedStats.dailyTasksCompleted = 0;
-             const cleanCompleted = (taskList) => { return taskList.filter(t => !t.completed).map(t => ({ ...t, subtasks: t.subtasks ? cleanCompleted(t.subtasks) : [] })); };
-             loadedTasks = cleanCompleted(loadedTasks);
+            loadedStats.dailyFocusTime = 0;
+            loadedStats.dailyBreakTime = 0;
+            loadedStats.dailySessions = 0;
+            loadedStats.dailyTasksCompleted = 0;
+            const cleanCompleted = (taskList) => { return taskList.filter(t => !t.completed).map(t => ({ ...t, subtasks: t.subtasks ? cleanCompleted(t.subtasks) : [] })); };
+            loadedTasks = cleanCompleted(loadedTasks);
           }
-          
+
           setStats({ ...loadedStats, currentStreak });
           setTasks(loadedTasks);
-          
+
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
           setSettings(mergedSettings);
           if (data.sessionName && !sessionName) setSessionName(data.sessionName);
@@ -1764,38 +1764,38 @@ const handleSearchUsers = useCallback(async (queryText) => {
 
   useEffect(() => {
     if (!user || !dataLoaded) return;
-    
+
     const isDifferent = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
     const hasCriticalChanges = isDifferent(settings, prevSettings.current) || isDifferent(tasks, prevTasks.current) || sessionName !== prevSessionName.current;
     const timeSinceLastStatSave = Date.now() - lastStatSaveTime.current;
     const shouldSaveStats = timeSinceLastStatSave > 60000; // Save every minute
-    
+
     if (hasCriticalChanges || shouldSaveStats) {
       const saveData = async () => {
         const userDocRef = doc(db, "users", user.uid);
-        
+
         const today = new Date();
         let newStats = { ...stats };
         let lastActiveDate = newStats.lastActiveDate ? (newStats.lastActiveDate.toDate ? newStats.lastActiveDate.toDate() : new Date(newStats.lastActiveDate)) : null;
-        
+
         if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
-           if (lastActiveDate && isYesterday(today, lastActiveDate)) {
-              newStats.currentStreak += 1;
-           } else if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
-              newStats.currentStreak = 1;
-           }
-           newStats.lastActiveDate = today;
-           setStats(newStats);
+          if (lastActiveDate && isYesterday(today, lastActiveDate)) {
+            newStats.currentStreak += 1;
+          } else if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
+            newStats.currentStreak = 1;
+          }
+          newStats.lastActiveDate = today;
+          setStats(newStats);
         }
 
-        const payload = { 
-            tasks, 
-            settings, 
-            sessionName, 
-            lastUpdated: today,
-            stats: newStats
+        const payload = {
+          tasks,
+          settings,
+          sessionName,
+          lastUpdated: today,
+          stats: newStats
         };
-        
+
         await setDoc(userDocRef, payload, { merge: true });
         prevSettings.current = settings; prevTasks.current = tasks; prevSessionName.current = sessionName;
         if (shouldSaveStats) { lastStatSaveTime.current = Date.now(); }
@@ -1807,17 +1807,17 @@ const handleSearchUsers = useCallback(async (queryText) => {
 
   useEffect(() => {
     if (!isActive && user && dataLoaded) {
-      const saveFinal = async () => { 
-          const userDocRef = doc(db, "users", user.uid); 
-          const today = new Date();
-          const payload = { tasks, settings, sessionName, lastUpdated: today, stats }; 
-          await setDoc(userDocRef, payload, { merge: true }); 
-          lastStatSaveTime.current = Date.now(); 
+      const saveFinal = async () => {
+        const userDocRef = doc(db, "users", user.uid);
+        const today = new Date();
+        const payload = { tasks, settings, sessionName, lastUpdated: today, stats };
+        await setDoc(userDocRef, payload, { merge: true });
+        lastStatSaveTime.current = Date.now();
       };
       saveFinal();
     }
   }, [isActive]);
-  
+
   // --- FOCUS MODE LOGIC ---
   useEffect(() => {
     let timeout;
@@ -1831,13 +1831,13 @@ const handleSearchUsers = useCallback(async (queryText) => {
 
   useEffect(() => {
     const audio = musicAudioRef.current;
-    
+
     const updateProgress = () => setMusicProgress(audio.currentTime);
     const updateDuration = () => setMusicDuration(audio.duration);
     const handleEnded = () => setIsMusicPlaying(false);
     const handleWaiting = () => setMusicLoading(true);
     const handleCanPlay = () => setMusicLoading(false);
-    
+
     audio.addEventListener('timeupdate', updateProgress);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
@@ -1856,29 +1856,29 @@ const handleSearchUsers = useCallback(async (queryText) => {
   }, []);
 
   const handlePlayMusic = (track) => {
-      if (currentTrack?.id === track.id) {
-          // Resume
-          musicAudioRef.current.play();
-          setIsMusicPlaying(true);
-      } else {
-          // New Track
-          setCurrentTrack(track);
-          setMusicLoading(true);
-          musicAudioRef.current.src = track.src;
-          musicAudioRef.current.load();
-          musicAudioRef.current.play().catch(e => console.error("Play failed", e));
-          setIsMusicPlaying(true);
-      }
+    if (currentTrack?.id === track.id) {
+      // Resume
+      musicAudioRef.current.play();
+      setIsMusicPlaying(true);
+    } else {
+      // New Track
+      setCurrentTrack(track);
+      setMusicLoading(true);
+      musicAudioRef.current.src = track.src;
+      musicAudioRef.current.load();
+      musicAudioRef.current.play().catch(e => console.error("Play failed", e));
+      setIsMusicPlaying(true);
+    }
   };
 
   const handlePauseMusic = () => {
-      musicAudioRef.current.pause();
-      setIsMusicPlaying(false);
+    musicAudioRef.current.pause();
+    setIsMusicPlaying(false);
   };
 
   const handleSeekMusic = (time) => {
-      musicAudioRef.current.currentTime = time;
-      setMusicProgress(time);
+    musicAudioRef.current.currentTime = time;
+    setMusicProgress(time);
   };
 
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
@@ -1917,63 +1917,63 @@ const handleSearchUsers = useCallback(async (queryText) => {
         if (now - lastHeartbeatRef.current > 60000) {
           lastHeartbeatRef.current = now;
           syncTimerState({
-              isActive: true,
-              targetEndTime: endTimeRef.current,
-              mode: mode,
-              timeLeft: secondsRemaining,
-              sessionName: sessionName
+            isActive: true,
+            targetEndTime: endTimeRef.current,
+            mode: mode,
+            timeLeft: secondsRemaining,
+            sessionName: sessionName
           });
-      }
-        
-        const delta = now - lastTickTime; 
+        }
+
+        const delta = now - lastTickTime;
         accumulatedTimeRef.current += delta;
-        
+
         const elapsedSeconds = Math.floor(accumulatedTimeRef.current / 1000);
-        
-        if (elapsedSeconds > 0) { 
-            accumulatedTimeRef.current -= (elapsedSeconds * 1000); 
-            
-            if (!devMode) {
-                setStats(prevStats => {
-                    const newStats = { ...prevStats };
-                    if (mode === 'focus') {
-                        newStats.dailyFocusTime += elapsedSeconds;
-                    } else {
-                        newStats.dailyBreakTime += elapsedSeconds;
-                    }
-                    return newStats;
-                });
-            }
+
+        if (elapsedSeconds > 0) {
+          accumulatedTimeRef.current -= (elapsedSeconds * 1000);
+
+          if (!devMode) {
+            setStats(prevStats => {
+              const newStats = { ...prevStats };
+              if (mode === 'focus') {
+                newStats.dailyFocusTime += elapsedSeconds;
+              } else {
+                newStats.dailyBreakTime += elapsedSeconds;
+              }
+              return newStats;
+            });
+          }
         }
         lastTickTime = now;
 
         if (secondsRemaining <= 0) {
           setIsActive(false); endTimeRef.current = null; clearInterval(intervalId); playAlarm(mode);
-          
-          if (mode === 'focus') { 
-              if (!devMode) {
-                  setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
-              }
-              const newPomoCount = pomoCount + 1; 
-              setPomoCount(newPomoCount); 
-              if (newPomoCount >= settings.pomosBeforeLongBreak) { setMode('longBreak'); setTimeLeft(settings.longBreak * 60); setPomoCount(0); if (settings.autoStartBreaks) setIsActive(true); } else { setMode('shortBreak'); setTimeLeft(settings.shortBreak * 60); if (settings.autoStartBreaks) setIsActive(true); } 
-          } else { 
-              setMode('focus'); setTimeLeft(settings.focus * 60); if (settings.autoStartWork) setIsActive(true); 
+
+          if (mode === 'focus') {
+            if (!devMode) {
+              setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
+            }
+            const newPomoCount = pomoCount + 1;
+            setPomoCount(newPomoCount);
+            if (newPomoCount >= settings.pomosBeforeLongBreak) { setMode('longBreak'); setTimeLeft(settings.longBreak * 60); setPomoCount(0); if (settings.autoStartBreaks) setIsActive(true); } else { setMode('shortBreak'); setTimeLeft(settings.shortBreak * 60); if (settings.autoStartBreaks) setIsActive(true); }
+          } else {
+            setMode('focus'); setTimeLeft(settings.focus * 60); if (settings.autoStartWork) setIsActive(true);
           }
-          
+
           // Sync completion state
           syncTimerState({
-              isActive: false,
-              targetEndTime: null,
-              mode: mode === 'focus' ? (pomoCount + 1 >= settings.pomosBeforeLongBreak ? 'longBreak' : 'shortBreak') : 'focus',
-              timeLeft: 0,
-              sessionName
+            isActive: false,
+            targetEndTime: null,
+            mode: mode === 'focus' ? (pomoCount + 1 >= settings.pomosBeforeLongBreak ? 'longBreak' : 'shortBreak') : 'focus',
+            timeLeft: 0,
+            sessionName
           });
         }
       }, 100);
     } else { endTimeRef.current = null; clearInterval(intervalId); }
     return () => clearInterval(intervalId);
-  }, [isActive, mode, settings, pomoCount, devMode]); 
+  }, [isActive, mode, settings, pomoCount, devMode]);
 
   useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
   useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
@@ -1989,120 +1989,120 @@ const handleSearchUsers = useCallback(async (queryText) => {
 
     if (newIsActive) {
       lastHeartbeatRef.current = Date.now();
-  }
-    
+    }
+
     let stateToSync = {
-        isActive: newIsActive,
-        mode,
-        sessionName,
-        timeLeft
+      isActive: newIsActive,
+      mode,
+      sessionName,
+      timeLeft
     };
 
     if (newIsActive) {
-        const target = Date.now() + timeLeft * 1000;
-        endTimeRef.current = target;
-        stateToSync.targetEndTime = target;
+      const target = Date.now() + timeLeft * 1000;
+      endTimeRef.current = target;
+      stateToSync.targetEndTime = target;
     } else {
-        stateToSync.targetEndTime = null;
+      stateToSync.targetEndTime = null;
     }
-    
+
     syncTimerState(stateToSync);
   };
 
   const handleRequestReset = () => { setShowResetConfirm(true); };
-  
-  const handleConfirmReset = () => { 
-      setIsActive(false); 
-      setMode('focus'); 
-      setTimeLeft(settings['focus'] * 60); 
-      setPomoCount(0); 
-      endTimeRef.current = null; 
-      setShowResetConfirm(false); 
-      
-      // Sync Reset
-      syncTimerState({
-          isActive: false,
-          targetEndTime: null,
-          mode: 'focus',
-          timeLeft: settings['focus'] * 60,
-          sessionName
-      });
+
+  const handleConfirmReset = () => {
+    setIsActive(false);
+    setMode('focus');
+    setTimeLeft(settings['focus'] * 60);
+    setPomoCount(0);
+    endTimeRef.current = null;
+    setShowResetConfirm(false);
+
+    // Sync Reset
+    syncTimerState({
+      isActive: false,
+      targetEndTime: null,
+      mode: 'focus',
+      timeLeft: settings['focus'] * 60,
+      sessionName
+    });
   };
-  
-  const handleModeChange = (newMode) => { 
-      setMode(newMode); 
-      setIsActive(false); 
-      setTimeLeft(settings[newMode] * 60);
-      
-      // Sync Mode Change
-      syncTimerState({
-          isActive: false,
-          targetEndTime: null,
-          mode: newMode,
-          timeLeft: settings[newMode] * 60,
-          sessionName
-      });
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    setIsActive(false);
+    setTimeLeft(settings[newMode] * 60);
+
+    // Sync Mode Change
+    syncTimerState({
+      isActive: false,
+      targetEndTime: null,
+      mode: newMode,
+      timeLeft: settings[newMode] * 60,
+      sessionName
+    });
   };
-  
+
   const isTimerRunning = isActive || (timeLeft < settings[mode] * 60 && timeLeft > 0);
-  
-  const handleSettingsSave = (newSettings) => { 
-      setSettings(newSettings); 
-      setShowSettings(false); 
-      setIsActive(false); 
-      setTimeLeft(newSettings[mode] * 60); 
-      endTimeRef.current = null; 
-      
-      // Sync after settings change (resets timer)
-      const timerStatePayload = {
-          isActive: false,
-          targetEndTime: null,
-          mode: mode,
-          timeLeft: newSettings[mode] * 60,
-          sessionName
+
+  const handleSettingsSave = (newSettings) => {
+    setSettings(newSettings);
+    setShowSettings(false);
+    setIsActive(false);
+    setTimeLeft(newSettings[mode] * 60);
+    endTimeRef.current = null;
+
+    // Sync after settings change (resets timer)
+    const timerStatePayload = {
+      isActive: false,
+      targetEndTime: null,
+      mode: mode,
+      timeLeft: newSettings[mode] * 60,
+      sessionName
+    };
+
+    // Update Firestore immediately to prevent race condition
+    if (user) {
+      const payload = {
+        settings: newSettings, // Save settings immediately
+        timerState: {
+          ...timerStatePayload,
+          lastUpdated: Date.now()
+        }
       };
-      
-      // Update Firestore immediately to prevent race condition
-      if (user) {
-          const payload = {
-              settings: newSettings, // Save settings immediately
-              timerState: {
-                  ...timerStatePayload,
-                  lastUpdated: Date.now()
-              }
-          };
-          lastRemoteUpdate.current = payload.timerState.lastUpdated;
-          setDoc(doc(db, "users", user.uid), payload, { merge: true });
-      }
+      lastRemoteUpdate.current = payload.timerState.lastUpdated;
+      setDoc(doc(db, "users", user.uid), payload, { merge: true });
+    }
   };
-  
+
   const handleBackgroundChange = (bgSrc) => { setSettings(prev => ({ ...prev, background: bgSrc })); };
   const handleAddCustomBackground = (newBg) => { setCustomBackgrounds(prev => [...prev, newBg]); };
   const handleDeleteCustomBackground = (bgId) => { const bgToDelete = customBackgrounds.find(b => b.id === bgId); if (bgToDelete && settings.background === bgToDelete.src) { setSettings(prev => ({ ...prev, background: '' })); } setCustomBackgrounds(prev => prev.filter(bg => bg.id !== bgId)); };
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
   useEffect(() => { if (isEditingName && nameInputRef.current) nameInputRef.current.focus(); }, [isEditingName]);
-  
+
   const toggleTask = (id) => {
-      setTasks(prev => {
-          const newTasks = prev.map(t => {
-              if (t.id === id) {
-                  const isNowCompleted = !t.completed;
-                  if (isNowCompleted && !devMode) {
-                      setStats(s => ({ ...s, dailyTasksCompleted: s.dailyTasksCompleted + 1 }));
-                  }
-                  return { ...t, completed: isNowCompleted };
-              }
-              return t;
-          });
-          return newTasks;
+    setTasks(prev => {
+      const newTasks = prev.map(t => {
+        if (t.id === id) {
+          const isNowCompleted = !t.completed;
+          if (isNowCompleted && !devMode) {
+            setStats(s => ({ ...s, dailyTasksCompleted: s.dailyTasksCompleted + 1 }));
+          }
+          return { ...t, completed: isNowCompleted };
+        }
+        return t;
       });
+      return newTasks;
+    });
   };
 
   const deleteTask = (id) => setTasks(prev => prev.filter(item => item.id !== id));
   const editTask = (id, newText) => setTasks(prev => prev.map(item => item.id === id ? { ...item, text: newText } : item));
   const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: [...(item.subtasks || []), newSubtask], completed: false } : item)); };
   const handleUpdateSubtasks = (parentId, newSubtasks) => setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: newSubtasks } : item));
-  
+
   // Show friends if they are Active OR Pinned
   const dashboardFriends = friends.filter(f => (f.isOnline && f.isActive) || f.isPinned);
 
@@ -2110,10 +2110,10 @@ const handleSearchUsers = useCallback(async (queryText) => {
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
       {settings.background && (<div className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out" style={{ backgroundImage: `url(${settings.background})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 1 }} />)}
-      
+
       {/* Background Overlay: Brightens (lowers opacity) when in focus mode */}
       <div className={`fixed inset-0 z-0 transition-all duration-1000 ease-in-out ${settings.background ? (focusMode ? 'bg-black/50' : 'bg-black/60') : 'bg-transparent'}`} />
-      
+
       {!settings.background && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
 
       <div className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-all duration-1000 ${onboardingStep === 0 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
@@ -2153,7 +2153,7 @@ const handleSearchUsers = useCallback(async (queryText) => {
             </button>
             {/* ----------------------- */}
             <button onClick={() => setShowFriends(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
-                <Users size={22} />
+              <Users size={22} />
             </button>
             <button onClick={() => setShowStats(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <BarChart2 size={22} />
@@ -2182,42 +2182,42 @@ const handleSearchUsers = useCallback(async (queryText) => {
             </button>
           </div>
         </div>
-        
-{/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
-<div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-            {/* Live Friend Indicators */}
-            {dashboardFriends.length > 0 && (
-                <div className="flex flex-col gap-2 mb-3">
-                    {dashboardFriends.map(f => (
-                        <button key={f.uid} onClick={() => handleViewFriendStats(f)} className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full animate-fade-in-up hover:bg-white/10 transition-colors text-left group/pill">
-                             <div className={`w-1.5 h-1.5 rounded-full ${f.isOnline && f.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`}></div>
-                             <div className="flex flex-col">
-                                <span className="text-xs font-medium text-white flex items-center gap-1">
-                                    {f.displayName}
-                                    {/* Changed from Emoji to Icon */}
-                                    {f.isPinned && <Pin size={10} className="text-white/50 fill-white/50 opacity-0 group-hover/pill:opacity-100" />}
-                                </span>
-                             </div>
-                        </button>
-                    ))}
-                </div>
-            )}
-            
-            {/* New wrapper for Friends and Music buttons */}
-            <div className="flex items-center gap-3">
-                {/* Friends Button (Existing) */}
-                <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
-                    <Users size={20} />
-                    <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
-                </button>
 
-                {/* Music Button (New/Moved) */}
-                <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
-                    <Music size={20} />
-                    <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
+        {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
+        <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+          {/* Live Friend Indicators */}
+          {dashboardFriends.length > 0 && (
+            <div className="flex flex-col gap-2 mb-3">
+              {dashboardFriends.map(f => (
+                <button key={f.uid} onClick={() => handleViewFriendStats(f)} className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full animate-fade-in-up hover:bg-white/10 transition-colors text-left group/pill">
+                  <div className={`w-1.5 h-1.5 rounded-full ${f.isOnline && f.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`}></div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-white flex items-center gap-1">
+                      {f.displayName}
+                      {/* Changed from Emoji to Icon */}
+                      {f.isPinned && <Pin size={10} className="text-white/50 fill-white/50 opacity-0 group-hover/pill:opacity-100" />}
+                    </span>
+                  </div>
                 </button>
+              ))}
             </div>
-        </div>  
+          )}
+
+          {/* New wrapper for Friends and Music buttons */}
+          <div className="flex items-center gap-3">
+            {/* Friends Button (Existing) */}
+            <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
+              <Users size={20} />
+              <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
+            </button>
+
+            {/* Music Button (New/Moved) */}
+            <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
+              <Music size={20} />
+              <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
+            </button>
+          </div>
+        </div>
 
         {/* --- DESKTOP LOGO (Changed) --- */}
         <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? (focusMode ? 'opacity-0 hover:opacity-100 transition-opacity duration-700' : 'opacity-100') : 'opacity-0 pointer-events-none'}`}>
@@ -2269,9 +2269,9 @@ const handleSearchUsers = useCallback(async (queryText) => {
             </div>
 
             {/* Quote (Mobile Only) */}
-             <div className={`md:hidden w-full flex flex-col items-center mt-8 px-6 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-                <p className="font-serif-display italic text-lg text-white/60 text-center leading-snug w-full">"{quote}"</p>
-             </div>
+            <div className={`md:hidden w-full flex flex-col items-center mt-8 px-6 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+              <p className="font-serif-display italic text-lg text-white/60 text-center leading-snug w-full">"{quote}"</p>
+            </div>
 
           </div>
         </main>
@@ -2290,9 +2290,9 @@ const handleSearchUsers = useCallback(async (queryText) => {
       <StatsModal isOpen={showStats} onClose={() => { setShowStats(false); setViewingFriendStats(null); }} stats={stats} user={user} targetUser={viewingFriendStats} />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
       {/* --- ADD THIS LINE --- */}
-      <MusicModal 
-        isOpen={showMusic} 
-        onClose={() => setShowMusic(false)} 
+      <MusicModal
+        isOpen={showMusic}
+        onClose={() => setShowMusic(false)}
         currentTrack={currentTrack}
         isPlaying={isMusicPlaying}
         onPlay={handlePlayMusic}
@@ -2303,16 +2303,16 @@ const handleSearchUsers = useCallback(async (queryText) => {
         onSeek={handleSeekMusic}
       />
       {/* --------------------- */}
-      <SocialModal 
-          isOpen={showFriends} 
-          onClose={() => setShowFriends(false)} 
-          user={user} 
-          friends={friends} 
-          onAddFriend={handleAddFriend} 
-          onViewStats={handleViewFriendStats} 
-          onTogglePin={handleTogglePin}        // <--- NEW
-          onSearchUsers={handleSearchUsers}   
-          onRemoveFriend={handleRemoveFriend} // <--- NEW
+      <SocialModal
+        isOpen={showFriends}
+        onClose={() => setShowFriends(false)}
+        user={user}
+        friends={friends}
+        onAddFriend={handleAddFriend}
+        onViewStats={handleViewFriendStats}
+        onTogglePin={handleTogglePin}        // <--- NEW
+        onSearchUsers={handleSearchUsers}
+        onRemoveFriend={handleRemoveFriend} // <--- NEW
       />
       <ConfirmationModal isOpen={showResetConfirm} onClose={() => setShowResetConfirm(false)} onConfirm={handleConfirmReset} title="Reset Timer?" message="This will reset the current timer back to the beginning." warning="⚠️ Warning: This will also reset your completed Pomodoros tally for this session." />
       <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
