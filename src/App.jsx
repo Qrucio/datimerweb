@@ -1046,7 +1046,7 @@ const UpdateNotificationCard = () => {
               <div className="flex items-center gap-3">
                 <Music size={20} className="text-white fill-white/10" />
                 <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">ZenTunes is Here! Stats still broken.</h4>
+                  <h4 className="text-sm font-bold text-white mb-0.5">Tunes are here! Stats still broken.</h4>
                   <p className="text-xs text-white/70">Background music to power your focus. Stats are still broken though, will be fixed soon.</p>
                 </div>
               </div>
@@ -1748,7 +1748,7 @@ export default function App() {
             loadedTasks = cleanCompleted(loadedTasks);
           }
 
-          setats({ ...loadedStats, currentStreak });
+          setSats({ ...loadedStats, currentStreak });
           setTasks(loadedTasks);
 
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
@@ -1790,8 +1790,7 @@ export default function App() {
 
         const payload = {
           tasks,
-          settin,
-          s,
+          settings, // <--- Fixed
           sessionName,
           lastUpdated: today,
           stats: newStats
