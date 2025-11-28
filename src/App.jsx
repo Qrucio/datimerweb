@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
@@ -753,6 +753,86 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
   );
 };
 
+
+const StrictConfirmationModal = ({ isOpen, onClose, onConfirm }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
+          <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 mx-auto">
+            <Lock size={24} className="text-white" />
+          </div>
+          <h3 className="text-xl font-medium text-white text-center mb-2">Enable Strict Mode?</h3>
+          <p className="text-white/60 text-sm text-center mb-6 leading-relaxed">
+            This will force full-screen during Focus sessions. If you try to exit or switch tabs, the timer will pause and a warning will appear.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 bg-white/5 hover:bg-white/10 text-white text-sm font-bold py-3 rounded-xl transition-colors">Cancel</button>
+            <button onClick={onConfirm} className="flex-1 bg-white text-black hover:bg-gray-200 text-sm font-bold py-3 rounded-xl transition-colors">Enable</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+const StrictWarningModal = ({ isOpen, onResume, onDisable }) => {
+  useEffect(() => {
+    if (isOpen) {
+      const audio = new Audio('/sounds/strict-mode.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log("Audio play failed", e));
+    }
+  }, [isOpen]);
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black text-center p-6">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center max-w-md">
+            <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center mb-6 animate-pulse">
+              <ShieldAlert size={48} className="text-red-500" />
+            </div>
+
+            <h2 className="text-3xl md:text-4xl font-serif-display text-white mb-4">Strict Mode Active</h2>
+            <p className="text-white/50 mb-8 leading-relaxed">
+              Focus is paused. Return to your session to resume.
+            </p>
+
+            <button onClick={onResume} className="px-8 py-4 bg-white text-black font-bold rounded-full hover:bg-gray-200 transition-all active:scale-95 flex items-center gap-2 mb-4">
+              <Play size={18} fill="black" />
+              <span>Resume Focus</span>
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
+  <AnimatePresence>
+    {isOpen && (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
+          <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 mx-auto">
+            <Unlock size={24} className="text-white" />
+          </div>
+          <h3 className="text-xl font-medium text-white text-center mb-2">Turn off Strict Mode?</h3>
+          <p className="text-white/60 text-sm text-center mb-6 leading-relaxed">
+            Disabling this means the app will no longer force full-screen or block distractions during this session.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 bg-white/5 hover:bg-white/10 text-white text-sm font-bold py-3 rounded-xl transition-colors">Cancel</button>
+            <button onClick={onConfirm} className="flex-1 bg-white text-black hover:bg-gray-200 text-sm font-bold py-3 rounded-xl transition-colors">Turn Off</button>
+          </div>
+        </motion.div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
+
 const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFriend, onTogglePin, onViewStats, onSearchUsers }) => {
   const [searchText, setSearchText] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -1161,62 +1241,108 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
 
 
 
-// --- ADD THIS NEW SECTION: UPDATE CARD COMPONENT ---
+// --- NOTIFICATION SYSTEM ---
+const UPDATES = [
+  {
+    id: 'zen_update_music_v1', // Keeps history consistent
+    title: "Tunes & Visuals",
+    description: "Background music and animated scenes to power your focus.",
+    icon: Music,
+    color: "text-cyan-400",
+    bg: "bg-cyan-500/10"
+  },
+  {
+    id: 'zen_update_strict_v1', // New Strict Mode notification
+    title: "Strict Mode",
+    description: "Lock in your focus. Blocks tab switching and fullscreen exits.",
+    icon: ShieldAlert,
+    color: "text-red-400",
+    bg: "bg-red-500/10"
+  }
+];
 
-const UPDATE_KEY = 'zen_update_music_v1'; // Unique key for this update
-
-const UpdateNotificationCard = () => {
+const NotificationCenter = () => {
+  const [activeUpdates, setActiveUpdates] = useState([]);
   const [isVisible, setIsVisible] = useState(false);
-  const [isDismissing, setIsDismissing] = useState(false);
 
-  // Check localStorage on component mount
   useEffect(() => {
-    const hasSeen = localStorage.getItem(UPDATE_KEY);
-    if (!hasSeen) {
-      setIsVisible(true);
+    // 1. Filter updates that haven't been seen yet
+    const unseen = UPDATES.filter(update => !localStorage.getItem(update.id));
+    if (unseen.length > 0) {
+      setActiveUpdates(unseen);
+      // Small delay for smooth entrance after app load
+      setTimeout(() => setIsVisible(true), 1000);
     }
   }, []);
 
   const handleDismiss = () => {
-    setIsDismissing(true);
-    // Mark as dismissed in local storage
-    localStorage.setItem(UPDATE_KEY, 'true');
+    if (activeUpdates.length === 0) return;
 
-    // Wait for exit animation before unmounting
+    const current = activeUpdates[0];
+    // Mark as seen
+    localStorage.setItem(current.id, 'true');
+
+    // Animate out current card
+    setIsVisible(false);
+
+    // Wait for animation, then remove from queue and show next if available
     setTimeout(() => {
-      setIsVisible(false);
-    }, 400); // Matches the exit animation duration
+      setActiveUpdates(prev => prev.slice(1));
+      if (activeUpdates.length > 1) {
+        setIsVisible(true);
+      }
+    }, 400);
   };
 
-  if (!isVisible && !isDismissing) return null;
+  if (activeUpdates.length === 0) return null;
+
+  const currentUpdate = activeUpdates[0];
+  const Icon = currentUpdate.icon;
 
   return (
-    <AnimatePresence>
-      {isVisible && !isDismissing && (
+    <AnimatePresence mode="wait">
+      {isVisible && (
         <motion.div
-          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-          transition={{ duration: 0.4 }}
-          className="fixed bottom-4 md:bottom-8 right-4 md:right-8 z-50 w-[90vw] max-w-sm"
+          key="notification-card"
+          initial={{ opacity: 0, x: 20, y: 0 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
+          exit={{ opacity: 0, x: 20, scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="fixed bottom-8 right-8 z-40 w-[90vw] max-w-sm hidden md:block" // Hidden on mobile to avoid clutter, visible on desktop
         >
-          <div className="bg-[#1a1a1a] border border-white/20 p-4 rounded-xl shadow-2xl backdrop-blur-md">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <Music size={20} className="text-white fill-white/10" />
-                <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">Tunes are here, and animated backgrounds!</h4>
-                  <p className="text-xs text-white/70">Background music and videos to power your focus.</p>
+          <div className="bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden group">
+            {/* Glossy Effect */}
+            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+            <div className="flex items-start gap-4 relative z-10">
+              {/* Icon Bubble */}
+              <div className={`w-10 h-10 rounded-full ${currentUpdate.bg} flex items-center justify-center flex-shrink-0 border border-white/5`}>
+                <Icon size={20} className={currentUpdate.color} />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start mb-1">
+                  <h4 className="text-sm font-bold text-white tracking-wide">
+                    {currentUpdate.title}
+                  </h4>
+                  <span className="text-[10px] font-mono text-white/30 bg-white/5 px-1.5 py-0.5 rounded">
+                    {activeUpdates.length > 1 ? `1 / ${activeUpdates.length}` : 'NEW'}
+                  </span>
+                </div>
+                <p className="text-xs text-white/60 leading-relaxed mb-3">
+                  {currentUpdate.description}
+                </p>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleDismiss}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    {activeUpdates.length > 1 ? 'Next' : 'Got it'}
+                    {activeUpdates.length > 1 && <ArrowRight size={10} />}
+                  </button>
                 </div>
               </div>
-              <button onClick={handleDismiss} className="p-1 text-white/50 hover:text-white transition-colors flex-shrink-0 ml-2">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <button onClick={handleDismiss} className="text-xs font-medium text-white/50 hover:text-white transition-colors underline">
-                Got it
-              </button>
             </div>
           </div>
         </motion.div>
@@ -1474,6 +1600,95 @@ export default function App() {
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
   const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // --- STRICT MODE STATE & LOGIC ---
+  const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
+  const [showStrictConfirm, setShowStrictConfirm] = useState(false);
+  const [showStrictWarning, setShowStrictWarning] = useState(false);
+  const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false); // <--- NEW STATE
+  const wasMusicPlayingRef = useRef(false);
+  const strictModeRef = useRef(strictMode);
+  const modeRef = useRef(mode);
+
+  // Keep Refs in sync
+  useEffect(() => {
+    strictModeRef.current = strictMode;
+    localStorage.setItem('zen_strict_mode', strictMode);
+  }, [strictMode]);
+
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+
+  // The Strict Mode "Trap" Listeners
+  useEffect(() => {
+    const triggerWarning = () => {
+      // Pause Timer
+      setIsActive(false);
+      // Pause Music if playing
+      if (musicAudioRef.current) musicAudioRef.current.pause();
+      // Show Warning
+      setShowStrictWarning(true);
+    };
+
+    const handleVisibilityChange = () => {
+      // Trigger ONLY if: Hidden + Strict Mode ON + In Focus Mode
+      if (document.hidden && strictModeRef.current && modeRef.current === 'focus') {
+        triggerWarning();
+      }
+    };
+
+    const handleFullscreenChange = () => {
+      // Trigger ONLY if: Exited Fullscreen + Strict Mode ON + In Focus Mode
+      if (!document.fullscreenElement && strictModeRef.current && modeRef.current === 'focus') {
+        triggerWarning();
+      }
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    // Initial check on mount (e.g. reload)
+    if (strictMode && mode === 'focus' && onboardingStep === 3 && !document.fullscreenElement) {
+      triggerWarning();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []); // Empty dependency array, relies on Refs
+
+  const enableStrictMode = () => {
+    setStrictMode(true);
+    setShowStrictConfirm(false);
+    if (mode === 'focus') {
+      document.documentElement.requestFullscreen().catch(e => console.log(e));
+    }
+  };
+
+  const handleStrictResume = () => {
+    document.documentElement.requestFullscreen().catch(e => console.log(e));
+    setIsActive(true);
+
+    // RESUME MUSIC (If it was playing before)
+    if (wasMusicPlayingRef.current && musicAudioRef.current) {
+      musicAudioRef.current.play().catch(e => console.log("Resume music failed", e));
+    }
+
+    setShowStrictWarning(false);
+  };
+
+  const handleStrictDisable = () => {
+    setStrictMode(false);
+    setShowStrictWarning(false);
+    setShowStrictDisableConfirm(false);
+
+    // INSTANTLY EXIT FULLSCREEN
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(e => console.log("Exit fullscreen failed", e));
+    }
+  };
+
   const unsavedSecondsRef = useRef(0);
   const timerIntervalRef = useRef(null);
 
@@ -2203,12 +2418,20 @@ export default function App() {
           playAlarm(mode);
 
           if (mode === 'focus') {
+            // --- 1. STATS LOGIC (PRESERVED) ---
             if (!devMode) {
               // Update sessions count locally
               setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
               // We don't need to sync sessions count here, the flushUnsavedTime handled the seconds,
               // and the next save loop will handle the session count.
             }
+
+            // --- 2. STRICT MODE: EXIT FULLSCREEN ON BREAK ---
+            if (strictMode) {
+              document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
+            }
+            // ------------------------------------------------
+
             const newPomoCount = pomoCount + 1;
             setPomoCount(newPomoCount);
             if (newPomoCount >= settings.pomosBeforeLongBreak) {
@@ -2222,7 +2445,13 @@ export default function App() {
               if (settings.autoStartBreaks) setIsActive(true);
             }
           } else {
+            // --- 3. STRICT MODE: ENTER FULLSCREEN ON FOCUS ---
             setMode('focus');
+            if (strictMode) {
+              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
+            }
+            // -------------------------------------------------
+
             setTimeLeft(settings.focus * 60);
             if (settings.autoStartWork) setIsActive(true);
           }
@@ -2246,7 +2475,7 @@ export default function App() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, mode, settings, pomoCount, devMode]);
+  }, [isActive, mode, settings, pomoCount, devMode, strictMode]); // Added strictMode to dependencies
 
   useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
   useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
@@ -2518,14 +2747,6 @@ export default function App() {
           </div>
         </div>
 
-        Here are the changes needed to move the fullscreen button inline with the Music/Friends buttons, style it to match, and remove the version text.
-
-        1. Update the "Desktop Footer Left" Section
-
-        Locate the section commented /* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */. You need to add the Fullscreen button inside the div that holds the Friends and Music buttons.
-
-        Replace that entire block (approx lines 1667-1704) with this:
-        JavaScript
 
         {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
         <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
@@ -2546,19 +2767,49 @@ export default function App() {
             </div>
           )}
 
-          {/* New wrapper for Friends, Music, and Fullscreen buttons */}
+          {/* New wrapper for Friends, Music, and Strict Mode */}
           <div className="flex items-center gap-3">
-            {/* Friends Button */}
+
+            {/* Friends Button (Existing) */}
             <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
               <Users size={20} />
               <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
             </button>
 
-            {/* Music Button */}
+            {/* Music Button (Existing) */}
             <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
               <Music size={20} />
               <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
             </button>
+
+            {/* --- STRICT MODE PILL --- */}
+            <button
+              onClick={() => {
+                // 1. Enable Strict Mode
+                if (!strictMode) {
+                  setShowStrictConfirm(true);
+                  return;
+                }
+
+                // 2. Disable Strict Mode Logic
+                // LOCK if: We are in Focus Mode AND the timer has started (time is not full)
+                const fullDuration = settings.focus * 60;
+                if (mode === 'focus' && timeLeft !== fullDuration) {
+                  return; // Locked
+                }
+
+                // Otherwise (Break Mode OR Not Started Yet), allow disabling
+                setShowStrictDisableConfirm(true);
+              }}
+              className={`cursor-pointer p-2 rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group flex items-center gap-2 border ${strictMode ? 'bg-white border-white text-black' : 'bg-transparent border-transparent hover:bg-white/10 text-white/70 hover:text-white'}`}
+            >
+              {strictMode ? <Lock size={20} /> : <Unlock size={20} />}
+
+              <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${strictMode ? 'max-w-[100px] opacity-100 ml-0' : 'max-w-0 opacity-0 -ml-2 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0'}`}>
+                {strictMode ? (mode === 'focus' ? 'Strict On' : 'Strict (Break)') : 'Strict Mode'}
+              </span>
+            </button>
+            {/* ------------------------- */}
           </div>
         </div>
 
@@ -2623,17 +2874,6 @@ export default function App() {
         <div className={`w-full flex justify-center z-20 transition-all duration-700 ease-in-out md:absolute md:top-8 md:left-12 md:p-0 md:justify-start md:w-auto md:max-h-none overflow-hidden ${onboardingStep === 3 ? (focusMode ? 'max-h-0 p-0 opacity-0 md:opacity-0 md:hover:opacity-100' : 'max-h-[30vh] p-6 opacity-100') : 'max-h-0 p-0 opacity-0 pointer-events-none'}`}>
           <TaskList tasks={tasks} setTasks={setTasks} pendingTask={pendingTask} setPendingTask={setPendingTask} showProgressBar={true} autoFocus={false} />
         </div>
-
-        {/* --- FOOTER RIGHT (Desktop Only): Fullscreen --- */}
-        <div className={`hidden md:flex flex-col items-end absolute bottom-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white"
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-          >
-            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-          </button>
-        </div>
       </div >
 
       <StatsModal isOpen={showStats} onClose={() => { setShowStats(false); setViewingFriendStats(null); }} stats={stats} user={user} targetUser={viewingFriendStats} />
@@ -2652,6 +2892,28 @@ export default function App() {
         onSeek={handleSeekMusic}
       />
       {/* --------------------- */}
+
+      {/* --- ADD STRICT MODE MODALS HERE --- */}
+      <StrictConfirmationModal
+        isOpen={showStrictConfirm}
+        onClose={() => setShowStrictConfirm(false)}
+        onConfirm={enableStrictMode}
+      />
+      <StrictWarningModal
+        isOpen={showStrictWarning}
+        onResume={handleStrictResume}
+        onDisable={handleStrictDisable}
+      />
+      <StrictDisableModal
+        isOpen={showStrictDisableConfirm}
+        onClose={() => setShowStrictDisableConfirm(false)}
+        onConfirm={handleStrictDisable}
+      />
+      {/* ----------------------------------- */}
+
+      <NotificationCenter />
+
+
       <SocialModal
         isOpen={showFriends}
         onClose={() => setShowFriends(false)}
@@ -2663,11 +2925,9 @@ export default function App() {
         onSearchUsers={handleSearchUsers}
         onRemoveFriend={handleRemoveFriend} // <--- NEW
       />
+
       <ConfirmationModal isOpen={showResetConfirm} onClose={() => setShowResetConfirm(false)} onConfirm={handleConfirmReset} title="Reset Timer?" message="This will reset the current timer back to the beginning." warning="⚠️ Warning: This will also reset your completed Pomodoros tally for this session." />
       <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
-      <UpdateNotificationCard />
-
-      {/* Fullscreen Toggle Button */}
     </div>
   );
 }
