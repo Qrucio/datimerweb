@@ -1256,8 +1256,8 @@ const UPDATES = [
     title: "Animated Backgrounds!",
     description: "Get breathtaking scenes as your background to keep you inspired.",
     icon: ImageIcon,
-    color: "text-red-400",
-    bg: "bg-red-500/10"
+    color: "text-green-400",
+    bg: "bg-green-500/10"
   },
   {
     id: 'zen_update_strict_v1', // New Strict Mode notification
