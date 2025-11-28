@@ -1255,7 +1255,7 @@ const UPDATES = [
     id: 'zen_update_strict_v1', // New Strict Mode notification
     title: "Strict Mode",
     description: "Lock in your focus. Blocks tab switching and fullscreen exits.",
-    icon: ShieldAlert,
+    icon: Unlock,
     color: "text-red-400",
     bg: "bg-red-500/10"
   }
