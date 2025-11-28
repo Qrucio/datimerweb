@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize } from 'lucide-react';
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot, Timestamp, increment, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc } from "firebase/firestore";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
+import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
 import { Reorder, useDragControls, AnimatePresence, motion } from 'framer-motion';
 
 // --- FIREBASE CONFIGURATION ---
@@ -331,7 +331,8 @@ const TaskItem = ({ task, index, onToggle, onDelete, onBreakdown, onAddSubtask, 
   );
 };
 
-const TaskList = ({ tasks, setTasks, pendingTask, setPendingTask, showProgressBar = true, autoFocus = false }) => {
+// --- REPLACE ENTIRE TaskList COMPONENT ---
+const TaskList = ({ tasks, setTasks, pendingTask, setPendingTask, showProgressBar = true, autoFocus = false, onTaskComplete }) => {
   const [loadingTaskId, setLoadingTaskId] = useState(null);
   const [isInputIndented, setIsInputIndented] = useState(false);
   const addTaskInputRef = useRef(null);
@@ -352,7 +353,37 @@ const TaskList = ({ tasks, setTasks, pendingTask, setPendingTask, showProgressBa
   const editTaskRecursive = (items, id, newText) => items.map(item => { if (item.id === id) return { ...item, text: newText }; if (item.subtasks && item.subtasks.length > 0) return { ...item, subtasks: editTaskRecursive(item.subtasks, id, newText) }; return item; });
   const updateSubtasksRecursive = (items, parentId, newSubtasks) => items.map(item => { if (item.id === parentId) return { ...item, subtasks: newSubtasks }; if (item.subtasks && item.subtasks.length > 0) return { ...item, subtasks: updateSubtasksRecursive(item.subtasks, parentId, newSubtasks) }; return item; });
 
-  const toggleTask = (id) => setTasks(prev => toggleTaskRecursive(prev, id));
+  // --- NEW LOGIC START ---
+  const findTask = (list, id) => {
+    for (let t of list) {
+      if (t.id === id) return t;
+      if (t.subtasks && t.subtasks.length > 0) {
+        const found = findTask(t.subtasks, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const toggleTask = (id) => {
+    // 1. Calculate points
+    const task = findTask(tasks, id);
+    if (task && !task.completed && onTaskComplete) {
+      let points = 0;
+      if (task.subtasks && task.subtasks.length > 0) {
+        // Count uncompleted subtasks
+        points = task.subtasks.filter(st => !st.completed).length;
+      } else {
+        // Count main task if no subtasks
+        points = 1;
+      }
+      if (points > 0) onTaskComplete(points);
+    }
+    // 2. Toggle State
+    setTasks(prev => toggleTaskRecursive(prev, id));
+  };
+  // --- NEW LOGIC END ---
+
   const deleteTask = (id) => setTasks(prev => deleteTaskRecursive(prev, id));
   const editTask = (id, newText) => setTasks(prev => editTaskRecursive(prev, id, newText));
   const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => addSubtasksRecursive(prev, parentId, [newSubtask])); };
@@ -948,11 +979,39 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               <div className="space-y-4 md:space-y-5">
                 <h4 className="text-xs uppercase tracking-widest text-white/50 font-medium mb-3 md:mb-4">Timer Configuration</h4>
-                {['focus', 'shortBreak', 'longBreak'].map((mode) => (<div key={mode} className="flex justify-between items-center group gap-4"><label className={`text-sm capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>{mode.replace(/([A-Z])/g, ' $1').trim()} (min)</label><input type="text" inputMode="numeric" value={localSettings[mode]} onChange={(e) => handleChange(e, mode)} className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors[mode] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`} placeholder={settings[mode]} /></div>))}
+
+                {['focus', 'shortBreak', 'longBreak'].map((mode) => (
+                  <React.Fragment key={mode}>
+                    {/* Standard Time Input */}
+                    <div className="flex justify-between items-center group gap-4">
+                      <label className={`text-sm capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>{mode.replace(/([A-Z])/g, ' $1').trim()} (min)</label>
+                      <input type="text" inputMode="numeric" value={localSettings[mode]} onChange={(e) => handleChange(e, mode)} className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors[mode] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`} placeholder={settings[mode]} />
+                    </div>
+
+                    {/* MOVED: Sessions Before Long Break (Only shows under Long Break) */}
+                    {mode === 'longBreak' && (
+                      <div className="flex justify-between items-center group gap-4">
+                        <label className={`text-sm transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>
+                          Sessions before long break
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={localSettings.pomosBeforeLongBreak}
+                          onChange={(e) => handleChange(e, 'pomosBeforeLongBreak')}
+                          className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors['pomosBeforeLongBreak'] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+
                 <div className="w-full h-px bg-white/10 my-4"></div>
                 <Toggle label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} /><Toggle label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
                 {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (<><div className="w-full h-px bg-white/10 my-4"></div><Toggle label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} /></>)}
-                <div className="flex justify-between items-center group pt-2 gap-4"><label className={`text-sm transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>Long Break Interval</label><input type="text" inputMode="numeric" value={localSettings.pomosBeforeLongBreak} onChange={(e) => handleChange(e, 'pomosBeforeLongBreak')} className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors['pomosBeforeLongBreak'] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`} /></div>
+
+                {/* OLD INPUT REMOVED FROM HERE */}
+
               </div>
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 mb-2"><ImageIcon size={14} className="text-white/70" /><label className="text-xs uppercase tracking-widest text-white/50 font-medium">Environment</label></div>
@@ -1314,6 +1373,32 @@ export default function App() {
   const [friendUids, setFriendUids] = useState([]); // Just the IDs for listening
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
   const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const unsavedSecondsRef = useRef(0);
+  const timerIntervalRef = useRef(null);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const beginBtnRef = useRef(null);
   const playBtnRef = useRef(null);
@@ -1378,6 +1463,32 @@ export default function App() {
 
   const playAlarm = (currentMode) => { const audio = audioRefs.current[currentMode]; if (audio) { audio.currentTime = 0; const playPromise = audio.play(); if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Audio play failed, falling back to beep:", error); fallbackBeep(); }); } } else { fallbackBeep(); } };
   const fallbackBeep = () => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (AudioContext) { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 440; osc.type = 'sine'; gain.gain.value = 0.1; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1); osc.stop(ctx.currentTime + 1); } } catch (e) { console.error("Audio fallback failed", e); } };
+
+
+  const flushUnsavedTime = async () => {
+    const amount = unsavedSecondsRef.current;
+    if (amount === 0 || !user) return;
+
+    // Reset immediately to prevent double-counting
+    unsavedSecondsRef.current = 0;
+
+    const userRef = doc(db, "users", user.uid);
+    try {
+      await setDoc(userRef, {
+        stats: {
+          // Atomic increment: This adds to the server value safely
+          dailyFocusTime: mode === 'focus' ? increment(amount) : increment(0),
+          dailyBreakTime: mode !== 'focus' ? increment(amount) : increment(0)
+        },
+        lastUpdated: new Date()
+      }, { merge: true });
+    } catch (e) {
+      console.error("Failed to sync time:", e);
+      // If fail, put the time back in the buffer
+      unsavedSecondsRef.current += amount;
+    }
+  };
+
 
   // --- NEW: Sync Timer State Helper ---
   const syncTimerState = async (newState) => {
@@ -1748,7 +1859,23 @@ export default function App() {
             loadedTasks = cleanCompleted(loadedTasks);
           }
 
-          setStats({ ...loadedStats, currentStreak });
+          setStats(prevStats => {
+            const newStats = { ...loadedStats, currentStreak };
+
+            // ANTI-REVERT LOGIC:
+            // If local stats are higher than what the server sent (due to lag),
+            // keep the local version. This prevents the "9s" glitch.
+            if (!shouldResetDaily) {
+              if (prevStats.dailyFocusTime > newStats.dailyFocusTime) {
+                newStats.dailyFocusTime = prevStats.dailyFocusTime;
+              }
+              if (prevStats.dailyBreakTime > newStats.dailyBreakTime) {
+                newStats.dailyBreakTime = prevStats.dailyBreakTime;
+              }
+            }
+            return newStats;
+          });
+
           setTasks(loadedTasks);
 
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
@@ -1903,17 +2030,28 @@ export default function App() {
 
   const refreshQuote = async () => { setIsQuoteLoading(true); const prompt = `Context: You are a strict, high-performance coach (Elon Musk persona). Task: Generate a short, original, direct message to the user about their session "${sessionName || 'work'}". Rules: Be strict, demanding. Speak directly. Max 15 words. No quotes. No bold/markdown.`; const newQuote = await callGemini(prompt); if (newQuote) setQuote(cleanText(newQuote)); setIsQuoteLoading(false); };
 
-  // --- TIMER EFFECT WITH DELTA TIME & STATS ---
   useEffect(() => {
-    let intervalId; let lastTickTime = Date.now();
+    // 1. Safety Clear: Ensure no rogue timers exist
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+    let lastTickTime = Date.now();
+
     if (isActive) {
       if (!endTimeRef.current) { endTimeRef.current = Date.now() + timeLeft * 1000; }
-      lastTickTime = Date.now(); accumulatedTimeRef.current = 0;
-      intervalId = setInterval(() => {
-        const now = Date.now(); const diff = endTimeRef.current - now;
-        const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
-        setTimeLeft(prev => { if (prev !== secondsRemaining) return secondsRemaining; return prev; });
+      lastTickTime = Date.now();
 
+      // 2. Start new timer and assign to Ref
+      timerIntervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const diff = endTimeRef.current - now;
+        const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
+
+        setTimeLeft(prev => {
+          if (prev !== secondsRemaining) return secondsRemaining;
+          return prev;
+        });
+
+        // Sync heartbeat to server every minute
         if (now - lastHeartbeatRef.current > 60000) {
           lastHeartbeatRef.current = now;
           syncTimerState({
@@ -1925,6 +2063,7 @@ export default function App() {
           });
         }
 
+        // --- PRECISE TIME TRACKING ---
         const delta = now - lastTickTime;
         accumulatedTimeRef.current += delta;
 
@@ -1933,35 +2072,62 @@ export default function App() {
         if (elapsedSeconds > 0) {
           accumulatedTimeRef.current -= (elapsedSeconds * 1000);
 
+          // Buffer for DB
           if (!devMode) {
-            setStats(prevStats => {
-              const newStats = { ...prevStats };
-              if (mode === 'focus') {
-                newStats.dailyFocusTime += elapsedSeconds;
-              } else {
-                newStats.dailyBreakTime += elapsedSeconds;
-              }
-              return newStats;
-            });
+            unsavedSecondsRef.current += elapsedSeconds;
           }
+
+          // Update UI
+          setStats(prevStats => {
+            const newStats = { ...prevStats };
+            if (mode === 'focus') {
+              newStats.dailyFocusTime += elapsedSeconds;
+            } else {
+              newStats.dailyBreakTime += elapsedSeconds;
+            }
+            return newStats;
+          });
         }
+
         lastTickTime = now;
 
+        // Timer Finished Logic
         if (secondsRemaining <= 0) {
-          setIsActive(false); endTimeRef.current = null; clearInterval(intervalId); playAlarm(mode);
+          setIsActive(false);
+          endTimeRef.current = null;
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+          // CRITICAL: Flush any remaining seconds when timer ends
+          flushUnsavedTime();
+
+          playAlarm(mode);
 
           if (mode === 'focus') {
             if (!devMode) {
+              // Update sessions count locally
               setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
+              // We don't need to sync sessions count here, the flushUnsavedTime handled the seconds,
+              // and the next save loop will handle the session count.
             }
             const newPomoCount = pomoCount + 1;
             setPomoCount(newPomoCount);
-            if (newPomoCount >= settings.pomosBeforeLongBreak) { setMode('longBreak'); setTimeLeft(settings.longBreak * 60); setPomoCount(0); if (settings.autoStartBreaks) setIsActive(true); } else { setMode('shortBreak'); setTimeLeft(settings.shortBreak * 60); if (settings.autoStartBreaks) setIsActive(true); }
+            if (newPomoCount >= settings.pomosBeforeLongBreak) {
+              setMode('longBreak');
+              setTimeLeft(settings.longBreak * 60);
+              setPomoCount(0);
+              if (settings.autoStartBreaks) setIsActive(true);
+            } else {
+              setMode('shortBreak');
+              setTimeLeft(settings.shortBreak * 60);
+              if (settings.autoStartBreaks) setIsActive(true);
+            }
           } else {
-            setMode('focus'); setTimeLeft(settings.focus * 60); if (settings.autoStartWork) setIsActive(true);
+            setMode('focus');
+            setTimeLeft(settings.focus * 60);
+            if (settings.autoStartWork) setIsActive(true);
           }
 
-          // Sync completion state
+          // Sync completion state to server
           syncTimerState({
             isActive: false,
             targetEndTime: null,
@@ -1971,12 +2137,29 @@ export default function App() {
           });
         }
       }, 100);
-    } else { endTimeRef.current = null; clearInterval(intervalId); }
-    return () => clearInterval(intervalId);
+    } else {
+      endTimeRef.current = null;
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
   }, [isActive, mode, settings, pomoCount, devMode]);
 
   useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
   useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
+
+  useEffect(() => {
+    let syncInterval;
+    if (isActive) {
+      syncInterval = setInterval(() => {
+        flushUnsavedTime();
+      }, 60000); // Run every 10 seconds
+    }
+    return () => clearInterval(syncInterval);
+  }, [isActive, mode, user]);
 
   const isInitialMount = useRef(true);
   const prevDurationRef = useRef(settings[mode] * 60);
@@ -1984,6 +2167,8 @@ export default function App() {
 
   // --- UPDATED TOGGLE TIMER ---
   const toggleTimer = () => {
+    if (isActive) flushUnsavedTime();
+
     const newIsActive = !isActive;
     setIsActive(newIsActive);
 
@@ -2012,6 +2197,17 @@ export default function App() {
   const handleRequestReset = () => { setShowResetConfirm(true); };
 
   const handleConfirmReset = () => {
+    // FIX: Only save pending time if the timer is CURRENTLY running.
+    // If it's paused, we assume we already saved when you clicked pause.
+    // We discard any "ghost" seconds to prevent the stats from jumping unexpectedly.
+    if (isActive) {
+      flushUnsavedTime();
+    } else {
+      unsavedSecondsRef.current = 0; // Discard buffer if paused
+    }
+
+    accumulatedTimeRef.current = 0; // Clear partial milliseconds on full reset
+
     setIsActive(false);
     setMode('focus');
     setTimeLeft(settings['focus'] * 60);
@@ -2019,7 +2215,6 @@ export default function App() {
     endTimeRef.current = null;
     setShowResetConfirm(false);
 
-    // Sync Reset
     syncTimerState({
       isActive: false,
       targetEndTime: null,
@@ -2030,6 +2225,8 @@ export default function App() {
   };
 
   const handleModeChange = (newMode) => {
+    flushUnsavedTime();
+    accumulatedTimeRef.current = 0;
     setMode(newMode);
     setIsActive(false);
     setTimeLeft(settings[newMode] * 60);
@@ -2082,26 +2279,20 @@ export default function App() {
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
   useEffect(() => { if (isEditingName && nameInputRef.current) nameInputRef.current.focus(); }, [isEditingName]);
 
-  const toggleTask = (id) => {
-    setTasks(prev => {
-      const newTasks = prev.map(t => {
-        if (t.id === id) {
-          const isNowCompleted = !t.completed;
-          if (isNowCompleted && !devMode) {
-            setStats(s => ({ ...s, dailyTasksCompleted: s.dailyTasksCompleted + 1 }));
-          }
-          return { ...t, completed: isNowCompleted };
-        }
-        return t;
-      });
-      return newTasks;
-    });
-  };
-
   const deleteTask = (id) => setTasks(prev => prev.filter(item => item.id !== id));
   const editTask = (id, newText) => setTasks(prev => prev.map(item => item.id === id ? { ...item, text: newText } : item));
   const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: [...(item.subtasks || []), newSubtask], completed: false } : item)); };
   const handleUpdateSubtasks = (parentId, newSubtasks) => setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: newSubtasks } : item));
+
+  const handleTaskComplete = (count) => {
+    // Safety check: Dev Mode off and positive count
+    if (!devMode && count > 0) {
+      setStats(prev => ({
+        ...prev,
+        dailyTasksCompleted: prev.dailyTasksCompleted + count
+      }));
+    }
+  };
 
   // Show friends if they are Active OR Pinned
   const dashboardFriends = friends.filter(f => (f.isOnline && f.isActive) || f.isPinned);
@@ -2126,7 +2317,15 @@ export default function App() {
       </div>
 
       <div className={`fixed inset-0 z-30 bg-black flex flex-col items-center justify-center transition-all duration-500 ${onboardingStep === 2 && !isMorphing ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}>
-        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6"><h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-4">{onboardingStep === 2 && <StaggeredText text="Let's go specific" />}</h2><div className="w-full bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl animate-fade-in" style={{ animationDelay: '0.5s' }}><TaskList tasks={tasks} setTasks={setTasks} pendingTask={pendingTask} setPendingTask={setPendingTask} showProgressBar={false} autoFocus={onboardingStep === 2} /></div>{!isMorphing && (<button ref={beginBtnRef} onClick={handleBeginSession} className="mt-4 group flex items-center justify-center gap-3 px-8 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-all hover:px-10 animate-fade-in relative overflow-hidden" style={{ animationDelay: '0.8s' }}><span className="relative z-10 flex items-center justify-center w-full">Begin Session</span></button>)}</div>
+        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6"><h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-4">{onboardingStep === 2 && <StaggeredText text="Let's go specific" />}</h2><div className="w-full bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl animate-fade-in" style={{ animationDelay: '0.5s' }}><TaskList
+          tasks={tasks}
+          setTasks={setTasks}
+          pendingTask={pendingTask}
+          setPendingTask={setPendingTask}
+          showProgressBar={true}
+          autoFocus={false}
+          onTaskComplete={handleTaskComplete} // <--- THIS CONNECTS THE WIRE
+        /></div>{!isMorphing && (<button ref={beginBtnRef} onClick={handleBeginSession} className="mt-4 group flex items-center justify-center gap-3 px-8 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-all hover:px-10 animate-fade-in relative overflow-hidden" style={{ animationDelay: '0.8s' }}><span className="relative z-10 flex items-center justify-center w-full">Begin Session</span></button>)}</div>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -z-10 opacity-0"><div className="flex flex-col items-center w-full"><div className="mb-4 md:mb-6 h-[28px] md:h-[28px] w-[200px]"></div><div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-8 h-[28px] md:h-[32px]"></div><div className="font-digital text-[18vw] md:text-[10rem] lg:text-[12rem] leading-none font-bold tracking-widest select-none tabular-nums text-transparent">00:00</div><div className="flex items-center gap-6 mt-6 md:mt-10"><div ref={playBtnRef} className="w-16 h-16 md:w-20 md:h-20 rounded-full"></div><div className="w-10 h-10"></div></div></div></div>
       </div>
 
@@ -2183,6 +2382,15 @@ export default function App() {
           </div>
         </div>
 
+        Here are the changes needed to move the fullscreen button inline with the Music/Friends buttons, style it to match, and remove the version text.
+
+        1. Update the "Desktop Footer Left" Section
+
+        Locate the section commented /* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */. You need to add the Fullscreen button inside the div that holds the Friends and Music buttons.
+
+        Replace that entire block (approx lines 1667-1704) with this:
+        JavaScript
+
         {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
         <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
           {/* Live Friend Indicators */}
@@ -2194,7 +2402,6 @@ export default function App() {
                   <div className="flex flex-col">
                     <span className="text-xs font-medium text-white flex items-center gap-1">
                       {f.displayName}
-                      {/* Changed from Emoji to Icon */}
                       {f.isPinned && <Pin size={10} className="text-white/50 fill-white/50 opacity-0 group-hover/pill:opacity-100" />}
                     </span>
                   </div>
@@ -2203,15 +2410,15 @@ export default function App() {
             </div>
           )}
 
-          {/* New wrapper for Friends and Music buttons */}
+          {/* New wrapper for Friends, Music, and Fullscreen buttons */}
           <div className="flex items-center gap-3">
-            {/* Friends Button (Existing) */}
+            {/* Friends Button */}
             <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
               <Users size={20} />
               <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
             </button>
 
-            {/* Music Button (New/Moved) */}
+            {/* Music Button */}
             <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
               <Music size={20} />
               <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
@@ -2281,9 +2488,15 @@ export default function App() {
           <TaskList tasks={tasks} setTasks={setTasks} pendingTask={pendingTask} setPendingTask={setPendingTask} showProgressBar={true} autoFocus={false} />
         </div>
 
-        {/* --- FOOTER (Desktop Only) --- */}
-        <div className={`hidden md:flex w-full pb-8 justify-end absolute bottom-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-          <span className="text-[15px] font-mono text-white/30 opacity-0 hover:opacity-100 transition-opacity duration-500 cursor-default select-none">v2.3 Made with ❤️ by Divyansh</span>
+        {/* --- FOOTER RIGHT (Desktop Only): Fullscreen --- */}
+        <div className={`hidden md:flex flex-col items-end absolute bottom-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+          </button>
         </div>
       </div >
 
@@ -2317,6 +2530,8 @@ export default function App() {
       <ConfirmationModal isOpen={showResetConfirm} onClose={() => setShowResetConfirm(false)} onConfirm={handleConfirmReset} title="Reset Timer?" message="This will reset the current timer back to the beginning." warning="⚠️ Warning: This will also reset your completed Pomodoros tally for this session." />
       <KeyboardHelpModal isOpen={showKeyboardHelp} onClose={() => setShowKeyboardHelp(false)} />
       <UpdateNotificationCard />
+
+      {/* Fullscreen Toggle Button */}
     </div>
   );
 }
