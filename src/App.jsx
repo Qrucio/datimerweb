@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
@@ -1223,7 +1223,16 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, warning
 };
 
 const KeyboardHelpModal = ({ isOpen, onClose }) => {
-  const shortcuts = [{ key: 'Space', description: 'Play / Pause timer' }, { key: 'Tab', description: 'Cycle timer modes (when not started)' }, { key: 'T', description: 'Focus on task input' }, { key: 'O', description: 'Edit objective/session name' }, { key: 'S', description: 'Open / Close settings' }, { key: 'Esc', description: 'Exit from input fields or close modals' }, { key: 'Shift + ?', description: 'Toggle this help' },];
+  const shortcuts = [
+    { key: 'Space', description: 'Play / Pause timer' },
+    { key: 'Tab', description: 'Cycle timer modes (when not started)' },
+    { key: 'P', description: 'Toggle Music' }, // <--- Added this line
+    { key: 'T', description: 'Focus on task input' },
+    { key: 'O', description: 'Edit objective/session name' },
+    { key: 'S', description: 'Open / Close settings' },
+    { key: 'Esc', description: 'Exit from input fields or close modals' },
+    { key: 'Shift + ?', description: 'Toggle this help' },
+  ];
   return (
     <AnimatePresence>
       {isOpen && (
@@ -1362,54 +1371,42 @@ const NotificationCenter = () => {
 const MUSIC_TRACKS = [
 
   {
-    id: 'track-3',
+    id: 'lofi',
     title: 'Lofi Study',
     src: 'https://archive.org/download/track1_202511/track1.mp3',
-    cover: '/music/cover1.jpg'
+    cover: 'https://i.pinimg.com/736x/9c/76/23/9c7623f7939be1725435bef4dea604f8.jpg'
   },
 
   {
-    id: 'track-1',
+    id: 'binaural',
     title: 'Binaural Beats',
     src: 'https://archive.org/download/track2_202511/track1.mp3',
-    cover: '/music/cover2.jpg'
+    cover: 'https://i.pinimg.com/736x/96/03/ce/9603cee1ddcce4c184587c66532fbc63.jpg'
   },
 
   {
-    id: 'track-2',
+    id: 'ambient',
     title: 'Deep Focus Ambient',
     src: 'https://archive.org/download/track2_202511/track2.mp3',
-    cover: '/music/cover3.jpg'
+    cover: 'https://i.pinimg.com/736x/e2/4e/0d/e24e0d3d5f5f07c562f08a5ebfc4c776.jpg'
   },
 ];
 
-const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek }) => {
-  const [view, setView] = useState('list'); // 'list' | 'player'
+const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek, volume, onVolumeChange }) => {
+  const [view, setView] = useState('list');
 
-  // Auto-switch to player if a track is selected while modal is open
   useEffect(() => {
     if (currentTrack && isOpen && view === 'list') {
-      // Optional: You can uncomment this if you want it to auto-jump to player on click
-      // setView('player');
+      // Optional: Auto-jump to player logic
     }
   }, [currentTrack]);
 
   const formatTime = (time) => {
     if (isNaN(time)) return "0:00";
     const totalSeconds = Math.floor(time);
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
+    const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
-
-    let timeString = `${m}:${s.toString().padStart(2, '0')}`;
-
-    if (h > 0) {
-      timeString = `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    } else {
-      timeString = `${m}:${s.toString().padStart(2, '0')}`;
-    }
-
-    return timeString;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -1431,7 +1428,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
             </div>
 
             {/* VIEWS SWITCHER */}
-            <div className="relative w-full h-[320px]">
+            <div className="relative w-full h-[360px]">
               <AnimatePresence mode="wait">
                 {view === 'list' ? (
                   <motion.div
@@ -1446,15 +1443,18 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                       return (
                         <div
                           key={track.id}
+                          // Clicking the row still opens the player
                           onClick={() => { onPlay(track); setView('player'); }}
                           className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
                         >
                           <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                            {/* ... (Cover Image Logic remains the same) ... */}
                             {track.cover ? (
                               <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
                             )}
+                            {/* ... (Visualizer Logic remains the same) ... */}
                             {isActive && isPlaying && (
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                 <div className="flex gap-0.5 items-end h-3">
@@ -1465,15 +1465,26 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                               </div>
                             )}
                           </div>
+
                           <div className="flex-1 min-w-0">
                             <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
                             <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
                           </div>
+
+                          {/* --- UPDATED SECTION: FUNCTIONAL BUTTON --- */}
                           {isActive && (
-                            <div className="text-white/80">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Stops the row click (opening player)
+                                isPlaying ? onPause() : onPlay(track); // Toggles playback
+                              }}
+                              className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-all z-10"
+                            >
                               {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
-                            </div>
+                            </button>
                           )}
+                          {/* ------------------------------------------ */}
+
                         </div>
                       );
                     })}
@@ -1487,13 +1498,12 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                     className="absolute inset-0 flex flex-col items-center justify-center text-center"
                   >
                     {/* Cover Art */}
-                    <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group">
+                    <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group bg-white/5">
                       {currentTrack?.cover ? (
                         <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-white/5 flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
+                        <div className="w-full h-full flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
                       )}
-                      {/* Play/Pause Overlay on Cover (Optional) */}
                     </div>
 
                     {/* Title */}
@@ -1502,31 +1512,45 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                       <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
                     </div>
 
-                    {/* Progress Bar */}
+                    {/* Progress Bar - Draggable & Taller Hit Area */}
                     <div className="w-full flex items-center gap-3 mb-6 px-2">
                       <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
-                      <div className="flex-1 relative h-1 bg-white/10 rounded-full group cursor-pointer" onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const percent = (e.clientX - rect.left) / rect.width;
-                        onSeek(percent * duration);
-                      }}>
+
+                      <div className="flex-1 relative h-6 flex items-center group">
+                        {/* Visual Track */}
+                        <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-white transition-all duration-100 ease-out"
+                            style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }}
+                          />
+                        </div>
+                        {/* Drag Thumb (Visual Only) */}
                         <div
-                          className="absolute top-0 left-0 h-full bg-white rounded-full transition-all duration-100"
-                          style={{ width: `${(progress / duration) * 100}%` }}
+                          className="absolute h-3 w-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                          style={{ left: `${duration ? (progress / duration) * 100 : 0}%`, transform: 'translateX(-50%)' }}
                         />
-                        <div
-                          className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                          style={{ left: `${(progress / duration) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                        {/* Interactive Input (Invisible but Draggable) */}
+                        <input
+                          type="range"
+                          min="0"
+                          max={duration || 100}
+                          step="0.1"
+                          value={progress}
+                          onChange={(e) => onSeek(Number(e.target.value))}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                       </div>
+
                       <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
                     </div>
 
-                    {/* Controls */}
-                    <div className="flex items-center gap-6">
+                    {/* Controls & Volume */}
+                    <div className="flex items-center justify-center gap-8 w-full px-4">
+                      {/* Play Button */}
                       <button
-                        onClick={() => isPlaying ? onPause() : onPlay(currentTrack)}
-                        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                        onClick={() => isPlaying ? onPause() : (currentTrack && onPlay(currentTrack))}
+                        disabled={!currentTrack}
+                        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
                       >
                         {isLoading ? (
                           <Loader2 size={24} className="animate-spin text-black" />
@@ -1534,27 +1558,38 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                           isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
                         )}
                       </button>
+
+                      {/* Volume Slider */}
+                      <div className="flex items-center gap-2 w-28">
+                        <Volume2 size={16} className="text-white/50 flex-shrink-0" />
+                        <div className="flex-1 relative h-6 flex items-center group">
+                          {/* Visual Track */}
+                          <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-white transition-all duration-100 ease-out"
+                              style={{ width: `${volume * 100}%` }}
+                            />
+                          </div>
+                          {/* Interactive Input */}
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={volume}
+                            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                        </div>
+                      </div>
                     </div>
+
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
-            {/* Mini Player / Now Playing Indicator in List View */}
-            {view === 'list' && currentTrack && (
-              <button onClick={() => setView('player')} className="absolute bottom-6 left-6 right-6 h-14 bg-[#1a1a1a] border border-white/10 rounded-xl flex items-center px-3 gap-3 animate-fade-in-up hover:bg-[#222] transition-colors shadow-lg z-10">
-                <div className="w-10 h-10 rounded-lg bg-white/10 overflow-hidden flex-shrink-0">
-                  {currentTrack.cover && <img src={currentTrack.cover} className="w-full h-full object-cover" />}
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <span className="text-xs font-bold text-white block truncate">{currentTrack.title}</span>
-                  <span className="text-[10px] text-white/50 block truncate">{isPlaying ? 'Playing' : 'Paused'}</span>
-                </div>
-                <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
-                  {isLoading ? <Loader2 size={12} className="animate-spin text-white" /> : (isPlaying ? <Pause size={12} fill="white" /> : <Play size={12} fill="white" />)}
-                </div>
-              </button>
-            )}
+            {/* REMOVED: Redundant Mini Player Block was here */}
 
           </motion.div>
         </motion.div>
@@ -1564,6 +1599,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 };
 
 export default function App() {
+  const [volume, setVolume] = useState(0.5);
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
@@ -1582,7 +1618,7 @@ export default function App() {
   const [pendingTask, setPendingTask] = useState('');
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [pomoCount, setPomoCount] = useState(0);
-  const [quote, setQuote] = useState("Comfort is the enemy of progress.");
+
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [isMorphing, setIsMorphing] = useState(false);
@@ -1593,7 +1629,6 @@ export default function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [isQuoteLoading, setIsQuoteLoading] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -1601,6 +1636,11 @@ export default function App() {
   const [musicProgress, setMusicProgress] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
   const musicAudioRef = useRef(new Audio());
+  useEffect(() => {
+    if (musicAudioRef.current) {
+      musicAudioRef.current.volume = volume;
+    }
+  }, [volume]);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
@@ -1759,30 +1799,65 @@ export default function App() {
     const handleKeyPress = (e) => {
       const activeElement = document.activeElement;
       const isInputFocused = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
+
       if (e.ctrlKey || e.altKey || e.metaKey) return;
+
       if (e.key === 'Escape') {
         if (showKeyboardHelp) { setShowKeyboardHelp(false); return; }
         if (showSettings) { setShowSettings(false); return; }
         if (showStats) { setShowStats(false); return; }
         if (showFriends) { setShowFriends(false); return; }
-        if (viewingFriendStats) { setViewingFriendStats(null); setShowStats(false); return; } // Close friend stats
+        if (viewingFriendStats) { setViewingFriendStats(null); setShowStats(false); return; }
         if (showResetConfirm) { setShowResetConfirm(false); return; }
         if (isInputFocused) { e.preventDefault(); activeElement.blur(); if (activeElement.id === 'session-name-input') { setIsEditingName(false); } return; }
       }
+
       if (isInputFocused) return;
+
       if (e.shiftKey && e.key === '?') { e.preventDefault(); setShowKeyboardHelp(prev => !prev); return; }
       if (e.key === ' ' && onboardingStep === 3) { e.preventDefault(); setIsActive(!isActive); return; }
       if (e.key === 'Tab' && onboardingStep === 3) {
         const isAtDefaultPosition = !isActive && timeLeft === settings[mode] * 60;
         if (isAtDefaultPosition) { e.preventDefault(); const modeOrder = ['focus', 'shortBreak', 'longBreak']; const currentIndex = modeOrder.indexOf(mode); const nextIndex = (currentIndex + 1) % modeOrder.length; const nextMode = modeOrder[nextIndex]; setMode(nextMode); setTimeLeft(settings[nextMode] * 60); return; }
       }
+
+      // --- NEW SHORTCUT: Toggle Music ('P') ---
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        if (isMusicPlaying) {
+          // Pause
+          musicAudioRef.current.pause();
+          setIsMusicPlaying(false);
+        } else {
+          // Play (Resume current or start default)
+          const trackToPlay = currentTrack || MUSIC_TRACKS[0];
+
+          if (currentTrack?.id === trackToPlay.id) {
+            // Just resume
+            musicAudioRef.current.play().catch(e => console.error("Resume failed", e));
+            setIsMusicPlaying(true);
+          } else {
+            // Load and play new (or default)
+            setCurrentTrack(trackToPlay);
+            setMusicLoading(true);
+            musicAudioRef.current.src = trackToPlay.src;
+            musicAudioRef.current.load();
+            musicAudioRef.current.play().catch(e => console.error("Play failed", e));
+            setIsMusicPlaying(true);
+          }
+        }
+        return;
+      }
+      // ----------------------------------------
+
       if (e.key === 't' || e.key === 'T') { e.preventDefault(); const taskInput = document.getElementById('new-task-input'); if (taskInput) { taskInput.click(); setTimeout(() => { taskInput.focus(); const length = taskInput.value.length; taskInput.setSelectionRange(length, length); }, 0); } }
       if (e.key === 's' || e.key === 'S') { e.preventDefault(); setShowSettings(prev => !prev); }
       if (e.key === 'o' || e.key === 'O') { e.preventDefault(); setIsEditingName(true); setTimeout(() => { const sessionInput = document.getElementById('session-name-input'); if (sessionInput) { sessionInput.focus(); sessionInput.select(); } }, 50); }
     };
+
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isActive, onboardingStep, showSettings, showStats, showFriends, showKeyboardHelp, showResetConfirm, mode, timeLeft, settings, viewingFriendStats]);
+  }, [isActive, onboardingStep, showSettings, showStats, showFriends, showKeyboardHelp, showResetConfirm, mode, timeLeft, settings, viewingFriendStats, isMusicPlaying, currentTrack]); // Added isMusicPlaying & currentTrack to deps
 
   const playAlarm = (currentMode) => { const audio = audioRefs.current[currentMode]; if (audio) { audio.currentTime = 0; const playPromise = audio.play(); if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Audio play failed, falling back to beep:", error); fallbackBeep(); }); } } else { fallbackBeep(); } };
   const fallbackBeep = () => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (AudioContext) { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 440; osc.type = 'sine'; gain.gain.value = 0.1; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1); osc.stop(ctx.currentTime + 1); } } catch (e) { console.error("Audio fallback failed", e); } };
@@ -2333,25 +2408,17 @@ export default function App() {
 
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
   const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
-
-  const generateContextualQuote = async (taskName) => {
-    if (!taskName) return;
-    setIsQuoteLoading(true);
-    const prompt = `Context: User is starting a focus session for "${taskName}". Task: Generate a short, one sentence only, stoic, motivating quote somewhat, but not entirely related to this specific task. Use famous quotes from famous people. Constraints: Max 10 words. No quotes. No Markdown. Direct and powerful.`;
-    const result = await callGemini(prompt);
-    if (result) { setQuote(cleanText(result)); }
-    setIsQuoteLoading(false);
-  };
-
-  const finishSessionInput = (e) => { if (e.key === 'Enter') { setOnboardingStep(2); generateContextualQuote(sessionName); } }
+  const finishSessionInput = (e) => {
+    if (e.key === 'Enter') {
+      setOnboardingStep(2);
+    }
+  }
   useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
 
   const handleBeginSession = () => {
     if (pendingTask.trim()) { setTasks(prev => [...prev, { id: Date.now(), text: pendingTask, completed: false, subtasks: [] }]); setPendingTask(''); }
     if (beginBtnRef.current && playBtnRef.current) { setBeginBtnRect(beginBtnRef.current.getBoundingClientRect()); setTargetPlayBtnRect(playBtnRef.current.getBoundingClientRect()); setIsMorphing(true); setTimeout(() => setOnboardingStep(3), 500); setTimeout(() => setIsMorphing(false), 1020); } else { setOnboardingStep(3); }
   }
-
-  const refreshQuote = async () => { setIsQuoteLoading(true); const prompt = `Context: You are a strict, high-performance coach (Elon Musk persona). Task: Generate a short, original, direct message to the user about their session "${sessionName || 'work'}". Rules: Be strict, demanding. Speak directly. Max 15 words. No quotes. No bold/markdown.`; const newQuote = await callGemini(prompt); if (newQuote) setQuote(cleanText(newQuote)); setIsQuoteLoading(false); };
 
   useEffect(() => {
     // 1. Safety Clear: Ensure no rogue timers exist
@@ -2656,7 +2723,7 @@ export default function App() {
           <div className="fixed inset-0 z-0 overflow-hidden">
             <video
               src={settings.background}
-              autoPlay loop muted playsInline
+              autoPlay loop muted playsInline disablePictureInPicture
               // Fixes:
               // 1. brightness/contrast: Fixes Chrome's washed-out colors to match Firefox
               // 2. translateZ: Forces GPU layer to prevent flickering
@@ -2743,15 +2810,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* --- DESKTOP HEADER: Quote & Settings (Original Position) --- */}
+        {/* --- DESKTOP HEADER: Settings & Stats (Quote Removed) --- */}
         <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
           <div className="flex items-center gap-4">
-            <div className="flex flex-col items-end group relative">
-              <p className="font-serif-display italic text-lg text-white/80 max-w-xs text-right leading-snug">"{quote}"</p>
-              <button onClick={refreshQuote} disabled={isQuoteLoading} className="absolute top-full right-0 flex items-center gap-1 text-[10px] uppercase tracking-widest text-white/40 hover:text-white mt-1 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-20">
-                {isQuoteLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />} Gemini Inspiration
-              </button>
-            </div>
+
+            {/* --- DELETED QUOTE BLOCK FROM HERE --- */}
 
             <button onClick={() => setShowStats(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
               <BarChart2 size={20} />
@@ -2761,7 +2824,6 @@ export default function App() {
             </button>
           </div>
         </div>
-
 
         {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
         <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
@@ -2785,46 +2847,55 @@ export default function App() {
           {/* New wrapper for Friends, Music, and Strict Mode */}
           <div className="flex items-center gap-3">
 
-            {/* Friends Button (Existing) */}
-            <button onClick={() => setShowFriends(true)} className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center gap-2">
+            {/* 1. FRIENDS BUTTON (Updated Transition) */}
+            <button
+              onClick={() => setShowFriends(true)}
+              className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] text-white/70 hover:text-white group flex items-center gap-2"
+            >
               <Users size={20} />
-              <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">Friends</span>
+              <span className="text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-2 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0">
+                Friends
+              </span>
             </button>
 
-            {/* Music Button (Existing) */}
-            <button onClick={() => setShowMusic(true)} className={`cursor-pointer p-2 rounded-full hover:bg-white/10 transition-colors group flex items-center gap-2 ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white/70 hover:text-white'}`}>
-              <Music size={20} />
-              <span className="text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity -ml-2 group-hover:ml-0 overflow-hidden w-0 group-hover:w-auto">{isMusicPlaying ? 'Playing' : 'Music'}</span>
+            {/* 2. MUSIC BUTTON (Updated: Spinning & Highlighted when Active) */}
+            <button
+              onClick={() => setShowMusic(true)}
+              className={`cursor-pointer p-2 rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group flex items-center gap-2 border ${isMusicPlaying
+                ? 'bg-white border-white text-black' // Active Style (Like Strict Mode)
+                : 'bg-transparent border-transparent hover:bg-white/10 text-white/70 hover:text-white' // Default Style
+                }`}
+            >
+              <Music
+                size={20}
+                // slow spin (3s) looks much smoother/calmer than default animate-spin
+                className={isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}
+              />
+
+              {/* Text Label: Only expands if NOT playing */}
+              <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-2 ${!isMusicPlaying
+                ? 'group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0'
+                : '' // If playing, stay collapsed (circular)
+                }`}>
+                Music
+              </span>
             </button>
 
-            {/* --- STRICT MODE PILL --- */}
+            {/* 3. STRICT MODE PILL (Existing Reference) */}
             <button
               onClick={() => {
-                // 1. Enable Strict Mode
-                if (!strictMode) {
-                  setShowStrictConfirm(true);
-                  return;
-                }
-
-                // 2. Disable Strict Mode Logic
-                // LOCK if: We are in Focus Mode AND the timer has started (time is not full)
+                if (!strictMode) { setShowStrictConfirm(true); return; }
                 const fullDuration = settings.focus * 60;
-                if (mode === 'focus' && timeLeft !== fullDuration) {
-                  return; // Locked
-                }
-
-                // Otherwise (Break Mode OR Not Started Yet), allow disabling
+                if (mode === 'focus' && timeLeft !== fullDuration) { return; }
                 setShowStrictDisableConfirm(true);
               }}
               className={`cursor-pointer p-2 rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group flex items-center gap-2 border ${strictMode ? 'bg-white border-white text-black' : 'bg-transparent border-transparent hover:bg-white/10 text-white/70 hover:text-white'}`}
             >
               {strictMode ? <Lock size={20} /> : <Unlock size={20} />}
-
               <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${strictMode ? 'max-w-[100px] opacity-100 ml-0' : 'max-w-0 opacity-0 -ml-2 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0'}`}>
                 {strictMode ? (mode === 'focus' ? 'Strict On' : 'Strict (Break)') : 'Strict Mode'}
               </span>
             </button>
-            {/* ------------------------- */}
           </div>
         </div>
 
@@ -2877,11 +2948,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Quote (Mobile Only) */}
-            <div className={`md:hidden w-full flex flex-col items-center mt-8 px-6 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-              <p className="font-serif-display italic text-lg text-white/60 text-center leading-snug w-full">"{quote}"</p>
-            </div>
-
           </div>
         </main>
 
@@ -2895,6 +2961,8 @@ export default function App() {
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
       {/* --- ADD THIS LINE --- */}
       <MusicModal
+        volume={volume}
+        onVolumeChange={setVolume}
         isOpen={showMusic}
         onClose={() => setShowMusic(false)}
         currentTrack={currentTrack}
