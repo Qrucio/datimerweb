@@ -51,10 +51,10 @@ const BACKGROUND_OPTIONS = [
 
   { id: 'greenforest', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
 
-  { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' },
+  { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_medium.mp4' },
   { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
   { id: 'cloudforest', src: 'https://motionbgs.com/media/2699/forest-in-the-morning-fog.960x540.mp4' },
-  { id: 'beach', src: 'https://cdn.pixabay.com/video/2023/09/02/178807-860734626_large.mp4' },
+  { id: 'lihgting', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
 ];
 
 const cleanText = (text) => {
