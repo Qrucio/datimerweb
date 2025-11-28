@@ -2279,6 +2279,20 @@ export default function App() {
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
   useEffect(() => { if (isEditingName && nameInputRef.current) nameInputRef.current.focus(); }, [isEditingName]);
 
+  useEffect(() => {
+    if (isActive) {
+      document.title = `${formatTime(timeLeft)} | MindGrind`;
+    } else {
+      // Reset title when paused or stopped
+      document.title = "MindGrind";
+    }
+
+    // Cleanup function to ensure title resets when component unmounts
+    return () => {
+      document.title = "MindGrind";
+    };
+  }, [timeLeft, isActive]);
+
   const deleteTask = (id) => setTasks(prev => prev.filter(item => item.id !== id));
   const editTask = (id, newText) => setTasks(prev => prev.map(item => item.id === id ? { ...item, text: newText } : item));
   const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: [...(item.subtasks || []), newSubtask], completed: false } : item)); };
