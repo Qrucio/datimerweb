@@ -1046,8 +1046,8 @@ const UpdateNotificationCard = () => {
               <div className="flex items-center gap-3">
                 <Music size={20} className="text-white fill-white/10" />
                 <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">Music is Here!</h4>
-                  <p className="text-xs text-white/70">Background music to power your focus. Find the music button in the bottom-left corner.</p>
+                  <h4 className="text-sm font-bold text-white mb-0.5">ZenTunes is Here!</h4>
+                  <p className="text-xs text-white/70">Background music to power your focus. Find the button in the bottom-left corner.</p>
                 </div>
               </div>
               <button onClick={handleDismiss} className="p-1 text-white/50 hover:text-white transition-colors flex-shrink-0 ml-2">
@@ -1067,18 +1067,27 @@ const UpdateNotificationCard = () => {
 };
 
 const MUSIC_TRACKS = [
+
+  {
+    id: 'track-3',
+    title: 'Lofi Study',
+    src: 'https://archive.org/download/track1_202511/track1.mp3', 
+    cover: '/music/cover1.jpg'
+  },
+
   {
     id: 'track-1',
     title: 'Binaural Beats',
     src: 'https://archive.org/download/track2_202511/track1.mp3', 
-    cover: '/music/cover1.jpg' 
+    cover: '/music/cover2.jpg' 
   },
+
   {
     id: 'track-2',
     title: 'Deep Focus Ambient',
     src: 'https://archive.org/download/track2_202511/track2.mp3', 
-    cover: '/music/cover2.jpg'
-  }
+    cover: '/music/cover3.jpg'
+  },
 ];
 
 const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek }) => {
@@ -1222,8 +1231,6 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
                             {/* Controls */}
                             <div className="flex items-center gap-6">
-                                <button className="text-white/30 hover:text-white transition-colors" onClick={() => onSeek(Math.max(0, progress - 10))}><SkipBack size={20} /></button>
-                                
                                 <button 
                                     onClick={() => isPlaying ? onPause() : onPlay(currentTrack)}
                                     className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]"
@@ -1234,8 +1241,6 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                         isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
                                     )}
                                 </button>
-                                
-                                <button className="text-white/30 hover:text-white transition-colors" onClick={() => onSeek(Math.min(duration, progress + 10))}><SkipForward size={20} /></button>
                             </div>
                         </motion.div>
                     )}
