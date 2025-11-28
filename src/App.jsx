@@ -47,14 +47,14 @@ const callGemini = async (prompt) => {
 };
 
 const BACKGROUND_OPTIONS = [
-  // Example Image from a link
-  { id: 'bg1', src: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1920&auto=format&fit=crop' },
-  // Example MP4 Video (Rain)
-  { id: 'bg2', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  // Example MP4 Video (Nature)
-  { id: 'bg3', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' },
-  { id: 'bg4', src: 'https://motionbgs.com/media/2438/sunset-shader.960x540.mp4' },
-  { id: 'bg5', src: 'https://motionbgs.com/media/2699/forest-in-the-morning-fog.960x540.mp4' },
+  { id: 'canyonnight', src: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1920&auto=format&fit=crop' },
+
+  { id: 'greenforest', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+
+  { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' },
+  { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+  { id: 'cloudforest', src: 'https://motionbgs.com/media/2699/forest-in-the-morning-fog.960x540.mp4' },
+  { id: 'beach', src: 'https://cdn.pixabay.com/video/2023/09/02/178807-860734626_large.mp4' },
 ];
 
 const cleanText = (text) => {
@@ -1571,7 +1571,7 @@ export default function App() {
   const [isTypingName, setIsTypingName] = useState(false);
   const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
@@ -2653,31 +2653,38 @@ export default function App() {
       <GlobalStyles />
       {settings.background && (
         isVideo(settings.background) ? (
-          <div className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out">
+          <div className="fixed inset-0 z-0 overflow-hidden">
             <video
               src={settings.background}
-              autoPlay
-              loop
-              muted
-              playsInline
+              autoPlay loop muted playsInline
+              // Fixes:
+              // 1. brightness/contrast: Fixes Chrome's washed-out colors to match Firefox
+              // 2. translateZ: Forces GPU layer to prevent flickering
+              style={{
+                filter: 'brightness(0.9) contrast(1.1)',
+                transform: 'translateZ(0)'
+              }}
               className="w-full h-full object-cover"
             />
           </div>
         ) : (
           <div
-            className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out"
-            style={{
-              backgroundImage: `url(${settings.background})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              opacity: 1
-            }}
+            className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+            style={{ backgroundImage: `url(${settings.background})` }}
           />
         )
       )}
-      {/* Background Overlay: Brightens (lowers opacity) when in focus mode */}
-      <div className={`fixed inset-0 z-0 transition-all duration-1000 ease-in-out ${settings.background ? (focusMode ? 'bg-black/50' : 'bg-black/60') : 'bg-transparent'}`} />
 
+      {/* 2. OVERLAY LAYER (z-1) */}
+      {/* We use an inline style for background to ensure the browser paints the alpha channel correctly */}
+      <div
+        className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
+        style={{
+          backgroundColor: focusMode
+            ? 'rgba(0, 0, 0, 0.5)'  // Focus Mode (Brighter)
+            : 'rgba(0, 0, 0, 0.55)' // Default (Darker - increased slightly for Chrome)
+        }}
+      />
       {!settings.background && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
 
       <div className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-all duration-1000 ${onboardingStep === 0 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
