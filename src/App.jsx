@@ -47,11 +47,14 @@ const callGemini = async (prompt) => {
 };
 
 const BACKGROUND_OPTIONS = [
-  { id: 'none', src: '', label: 'Midnight Black' },
-  { id: 'bg1', src: '/Backgrounds/1.jpg', },
-  { id: 'bg2', src: '/Backgrounds/2.jpg', },
-  { id: 'bg3', src: '/Backgrounds/3.jpg', },
-  { id: 'bg4', src: '/Backgrounds/4.jpg', },
+  // Example Image from a link
+  { id: 'bg1', src: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1920&auto=format&fit=crop' },
+  // Example MP4 Video (Rain)
+  { id: 'bg2', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
+  // Example MP4 Video (Nature)
+  { id: 'bg3', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' },
+  { id: 'bg4', src: 'https://motionbgs.com/media/2438/sunset-shader.960x540.mp4' },
+  { id: 'bg5', src: 'https://motionbgs.com/media/2699/forest-in-the-morning-fog.960x540.mp4' },
 ];
 
 const cleanText = (text) => {
@@ -63,6 +66,11 @@ const cleanText = (text) => {
     .replace(/`/g, '')
     .replace(/^["']|["']$/g, '')
     .trim();
+};
+
+const isVideo = (url) => {
+  if (!url) return false;
+  return url.match(/\.(mp4|webm|mov)$/i);
 };
 
 const loadTimerState = () => {
@@ -1016,8 +1024,98 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 mb-2"><ImageIcon size={14} className="text-white/70" /><label className="text-xs uppercase tracking-widest text-white/50 font-medium">Environment</label></div>
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  {allBackgrounds.map((bg) => (<button key={bg.id} onClick={() => { handleToggle('background', bg.src); if (onBackgroundChange) onBackgroundChange(bg.src); }} className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all duration-200 group ${localSettings.background === bg.src ? 'border-white' : 'border-transparent hover:border-white/30'}`}>{bg.src ? (<img src={bg.src} alt={bg.label} className="w-full h-full object-cover" />) : (<div className="w-full h-full bg-[#111] flex items-center justify-center"><span className="text-[10px] text-white/50 uppercase tracking-widest">None</span></div>)}{localSettings.background === bg.src && (<div className="absolute inset-0 bg-white/10 flex items-center justify-center"><Check size={16} className="text-white drop-shadow-md" /></div>)}{bg.id.toString().startsWith('custom-') && (<button onClick={(e) => { e.stopPropagation(); onDeleteCustomBackground(bg.id); }} className="absolute top-1 right-1 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 p-1.5 md:p-1.5 bg-black/60 hover:bg-red-500/80 active:bg-red-500 rounded-full text-white/70 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20 backdrop-blur-sm flex items-center justify-center" title="Remove background"><Trash2 size={10} /></button>)}{bg.label && (<div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><span className="text-[10px] text-white block text-center truncate">{bg.label}</span></div>)}</button>))}
-                  <button onClick={() => fileInputRef.current?.click()} className="relative aspect-video rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-white/50 transition-all duration-200 group flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10"><Plus size={24} className="text-white/40 group-hover:text-white/80 transition-colors" /><span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest">Add Custom</span><input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg" onChange={handleFileSelect} /></button>
+                  {allBackgrounds.map((bg) => (
+                    <button
+                      key={bg.id}
+                      onClick={() => {
+                        handleToggle("background", bg.src);
+                        if (onBackgroundChange) onBackgroundChange(bg.src);
+                      }}
+                      className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all duration-200 group ${localSettings.background === bg.src
+                        ? "border-white"
+                        : "border-transparent hover:border-white/30"
+                        }`}
+                    >
+                      {/* --- CONDITIONAL RENDERING FOR VIDEO VS IMAGE --- */}
+                      {bg.src ? (
+                        isVideo(bg.src) ? (
+                          <video
+                            src={bg.src}
+                            className="w-full h-full object-cover"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={bg.src}
+                            alt={bg.label}
+                            className="w-full h-full object-cover"
+                          />
+                        )
+                      ) : (
+                        <div className="w-full h-full bg-[#111] flex items-center justify-center">
+                          <span className="text-[10px] text-white/50 uppercase tracking-widest">
+                            None
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Selected Indicator */}
+                      {localSettings.background === bg.src && (
+                        <div className="absolute inset-0 bg-white/10 flex items-center justify-center">
+                          <Check size={16} className="text-white drop-shadow-md" />
+                        </div>
+                      )}
+
+                      {isVideo(bg.src) && (<div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white/80 uppercase tracking-widest border border-white/10 z-10 pointer-events-none">Animated</div>)}
+
+                      {/* Delete Button for Custom Uploads */}
+                      {bg.id.toString().startsWith("custom-") && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteCustomBackground(bg.id);
+                          }}
+                          className="absolute top-1 right-1 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 p-1.5 md:p-1.5 bg-black/60 hover:bg-red-500/80 active:bg-red-500 rounded-full text-white/70 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20 backdrop-blur-sm flex items-center justify-center"
+                          title="Remove background"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      )}
+
+                      {/* Label Overlay */}
+                      {bg.label && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="text-[10px] text-white block text-center truncate">
+                            {bg.label}
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+
+                  {/* Add Custom Button */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="relative aspect-video rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-white/50 transition-all duration-200 group flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10"
+                  >
+                    <Plus
+                      size={24}
+                      className="text-white/40 group-hover:text-white/80 transition-colors"
+                    />
+                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest">
+                      Add Custom
+                    </span>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/png, image/jpeg"
+                      onChange={handleFileSelect}
+                    />
+                  </button>
                 </div>
               </div>
             </div>
@@ -1060,6 +1158,8 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
     </AnimatePresence>
   );
 };
+
+
 
 // --- ADD THIS NEW SECTION: UPDATE CARD COMPONENT ---
 
@@ -1105,8 +1205,8 @@ const UpdateNotificationCard = () => {
               <div className="flex items-center gap-3">
                 <Music size={20} className="text-white fill-white/10" />
                 <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">Tunes are here! Stats still seem to be broken</h4>
-                  <p className="text-xs text-white/70">Background music to power your focus. Stats might not show the correct detais. Will be fixed soon</p>
+                  <h4 className="text-sm font-bold text-white mb-0.5">Tunes are here, and animated backgrounds!</h4>
+                  <p className="text-xs text-white/70">Background music and videos to power your focus.</p>
                 </div>
               </div>
               <button onClick={handleDismiss} className="p-1 text-white/50 hover:text-white transition-colors flex-shrink-0 ml-2">
@@ -1337,7 +1437,7 @@ export default function App() {
   const [isTypingName, setIsTypingName] = useState(false);
   const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: '' };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_large.mp4' };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
@@ -2314,8 +2414,30 @@ export default function App() {
   return (
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
-      {settings.background && (<div className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out" style={{ backgroundImage: `url(${settings.background})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 1 }} />)}
-
+      {settings.background && (
+        isVideo(settings.background) ? (
+          <div className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out">
+            <video
+              src={settings.background}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div
+            className="fixed inset-0 z-0 transition-opacity duration-1000 ease-in-out"
+            style={{
+              backgroundImage: `url(${settings.background})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              opacity: 1
+            }}
+          />
+        )
+      )}
       {/* Background Overlay: Brightens (lowers opacity) when in focus mode */}
       <div className={`fixed inset-0 z-0 transition-all duration-1000 ease-in-out ${settings.background ? (focusMode ? 'bg-black/50' : 'bg-black/60') : 'bg-transparent'}`} />
 
