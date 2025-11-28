@@ -1252,13 +1252,21 @@ const UPDATES = [
     bg: "bg-cyan-500/10"
   },
   {
+    id: 'animatedbackground', // New Strict Mode notification
+    title: "Animated Backgrounds!",
+    description: "Get breathtaking scenes as your background to keep you inspired.",
+    icon: ImageIcon,
+    color: "text-red-400",
+    bg: "bg-red-500/10"
+  },
+  {
     id: 'zen_update_strict_v1', // New Strict Mode notification
     title: "Strict Mode",
     description: "Lock in your focus. Blocks tab switching and fullscreen exits.",
     icon: Unlock,
     color: "text-red-400",
     bg: "bg-red-500/10"
-  }
+  },
 ];
 
 const NotificationCenter = () => {
