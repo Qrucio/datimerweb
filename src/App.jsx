@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
-import { Reorder, useDragControls, AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 
 // --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
@@ -302,130 +302,7 @@ const StaggeredText = ({ text, className, delayStart = 0 }) => {
   );
 };
 
-const TaskItem = ({ task, index, onToggle, onDelete, onBreakdown, onAddSubtask, onEdit, onUpdateSubtasks, isLoading, level = 0 }) => {
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-  const [isAdding, setIsAdding] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(task.text);
-  const [newSubtaskText, setNewSubtaskText] = useState('');
-  const dragControls = useDragControls();
 
-  const handleAddSubmit = (e) => { e.preventDefault(); if (!newSubtaskText.trim()) return; onAddSubtask(task.id, newSubtaskText); setNewSubtaskText(''); setIsAdding(false); };
-  const handleEditSubmit = (e) => { e.preventDefault(); if (editText.trim()) { onEdit(task.id, editText); setIsEditing(false); } else { setEditText(task.text); setIsEditing(false); } };
-  const textAreaRef = useRef(null);
-  useEffect(() => { if (isEditing && textAreaRef.current) { textAreaRef.current.style.height = "auto"; textAreaRef.current.style.height = textAreaRef.current.scrollHeight + "px"; } }, [isEditing, editText]);
-
-  return (
-    <Reorder.Item value={task} id={task.id} dragListener={false} dragControls={dragControls} className="w-full relative group" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0, overflow: 'hidden' }} transition={{ duration: 0.2 }} layout>
-      <div className={`flex items-center py-1 md:py-1 ${level > 0 ? 'mt-0.5' : ''} rounded-lg w-full ${task.completed ? 'completed' : ''}`}>
-        <div onPointerDown={(e) => dragControls.start(e)} className="mr-1 text-white/10 hover:text-white/50 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 touch-none select-none"><GripVertical size={14} /></div>
-        <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-          <button onClick={() => onToggle(task.id)} className={`w-5 h-5 md:w-4 md:h-4 flex-shrink-0 rounded-lg border flex items-center justify-center transition-all duration-300 ${task.completed ? 'bg-white border-white' : 'border-white/30 hover:border-white'}`}>{task.completed && <Check size={12} className="text-black" />}</button>
-          {isEditing ? (
-            <form onSubmit={handleEditSubmit} className="flex-1 min-w-0"><textarea ref={textAreaRef} autoFocus rows={1} value={editText} onChange={(e) => setEditText(e.target.value)} onBlur={() => { if (editText.trim()) { onEdit(task.id, editText); setIsEditing(false); } else { setEditText(task.text); setIsEditing(false); } }} className="w-full bg-transparent border-b border-white/50 text-base md:text-sm focus:outline-none text-white resize-none overflow-hidden leading-relaxed" /></form>
-          ) : (
-            <div className="flex-1 min-w-0 break-words"><motion.span layout="position" onClick={() => !task.completed && setIsEditing(true)} className={`strike-text cursor-text text-base md:text-sm transition-colors duration-300 hover:text-white leading-relaxed inline-block`}>{task.text}</motion.span></div>
-          )}
-        </div>
-        <div className="flex items-center gap-1 md:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 flex-shrink-0 ml-2">
-          {!task.completed && level === 0 && (<button onClick={() => setIsAdding(!isAdding)} className={`text-white/40 md:text-white/20 hover:text-white active:text-white/80 p-1.5 md:p-1 transition-colors flex items-center justify-center ${isAdding ? 'text-white' : ''}`} title="Add Subtask"><Plus size={16} /></button>)}
-          {!task.completed && level === 0 && (<button onClick={() => onBreakdown(task)} disabled={isLoading} className="text-white/40 md:text-white/20 hover:text-white active:text-white/80 p-1.5 md:p-1 disabled:opacity-50 transition-colors flex items-center justify-center" title="AI Breakdown">{isLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}</button>)}
-          <button onClick={() => onDelete(task.id)} className="text-white/40 md:text-white/20 hover:text-white active:text-white/80 p-1.5 md:p-1 transition-colors flex items-center justify-center"><Trash2 size={16} /></button>
-        </div>
-      </div>
-      {isAdding && (<form onSubmit={handleAddSubmit} className="ml-6 pl-4 border-l border-white/10 my-1"><div className="relative group"><input autoFocus type="text" value={newSubtaskText} onChange={(e) => setNewSubtaskText(e.target.value)} placeholder="Type subtask..." className="w-full bg-transparent border-b border-white/20 py-1 pr-8 text-sm focus:outline-none focus:border-white/60 transition-colors placeholder-white/30" /><button type="submit" className="absolute right-0 top-1 text-white/40 hover:text-white transition-colors"><Plus size={14} /></button></div></form>)}
-      {hasSubtasks && !task.completed && (<div className="relative ml-6 pl-4 border-l border-white/10 flex flex-col gap-1"><Reorder.Group axis="y" values={task.subtasks} onReorder={(newSubtasks) => onUpdateSubtasks(task.id, newSubtasks)}>{task.subtasks.map((subtask, subIndex) => (<TaskItem key={subtask.id} index={subIndex} task={subtask} onToggle={onToggle} onDelete={onDelete} onBreakdown={onBreakdown} onAddSubtask={onAddSubtask} onEdit={onEdit} onUpdateSubtasks={onUpdateSubtasks} isLoading={isLoading} level={level + 1} />))}</Reorder.Group></div>)}
-    </Reorder.Item >
-  );
-};
-
-// --- REPLACE ENTIRE TaskList COMPONENT ---
-const TaskList = ({ tasks, setTasks, pendingTask, setPendingTask, showProgressBar = true, autoFocus = false, onTaskComplete }) => {
-  const [loadingTaskId, setLoadingTaskId] = useState(null);
-  const [isInputIndented, setIsInputIndented] = useState(false);
-  const addTaskInputRef = useRef(null);
-
-  useEffect(() => { if (autoFocus) { const timer = setTimeout(() => { if (addTaskInputRef.current) addTaskInputRef.current.focus(); }, 150); return () => clearTimeout(timer); } }, [autoFocus]);
-
-  const calculateProgress = () => {
-    if (tasks.length === 0) return 0;
-    let total = 0, completed = 0;
-    tasks.forEach(task => { if (task.subtasks && task.subtasks.length > 0) { total += task.subtasks.length; completed += task.subtasks.filter(st => st.completed).length; } else { total += 1; if (task.completed) completed += 1; } });
-    return total === 0 ? 0 : Math.round((completed / total) * 100);
-  };
-  const progress = calculateProgress();
-
-  const toggleTaskRecursive = (items, id) => items.map(item => { if (item.id === id) { const newCompleted = !item.completed; let newSubtasks = item.subtasks; if (item.subtasks && item.subtasks.length > 0) newSubtasks = item.subtasks.map(sub => ({ ...sub, completed: newCompleted })); return { ...item, completed: newCompleted, subtasks: newSubtasks }; } if (item.subtasks && item.subtasks.length > 0) { const newSubtasks = toggleTaskRecursive(item.subtasks, id); const allSubtasksCompleted = newSubtasks.length > 0 && newSubtasks.every(st => st.completed); return { ...item, subtasks: newSubtasks, completed: allSubtasksCompleted }; } return item; });
-  const deleteTaskRecursive = (items, id) => items.filter(item => item.id !== id).map(item => ({ ...item, subtasks: item.subtasks ? deleteTaskRecursive(item.subtasks, id) : [] }));
-  const addSubtasksRecursive = (items, parentId, newSubtasks) => items.map(item => { if (item.id === parentId) return { ...item, subtasks: [...(item.subtasks || []), ...newSubtasks], completed: false }; if (item.subtasks && item.subtasks.length > 0) return { ...item, subtasks: addSubtasksRecursive(item.subtasks, parentId, newSubtasks) }; return item; });
-  const editTaskRecursive = (items, id, newText) => items.map(item => { if (item.id === id) return { ...item, text: newText }; if (item.subtasks && item.subtasks.length > 0) return { ...item, subtasks: editTaskRecursive(item.subtasks, id, newText) }; return item; });
-  const updateSubtasksRecursive = (items, parentId, newSubtasks) => items.map(item => { if (item.id === parentId) return { ...item, subtasks: newSubtasks }; if (item.subtasks && item.subtasks.length > 0) return { ...item, subtasks: updateSubtasksRecursive(item.subtasks, parentId, newSubtasks) }; return item; });
-
-  // --- NEW LOGIC START ---
-  const findTask = (list, id) => {
-    for (let t of list) {
-      if (t.id === id) return t;
-      if (t.subtasks && t.subtasks.length > 0) {
-        const found = findTask(t.subtasks, id);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-
-  const toggleTask = (id) => {
-    // 1. Calculate points
-    const task = findTask(tasks, id);
-    if (task && !task.completed && onTaskComplete) {
-      let points = 0;
-      if (task.subtasks && task.subtasks.length > 0) {
-        // Count uncompleted subtasks
-        points = task.subtasks.filter(st => !st.completed).length;
-      } else {
-        // Count main task if no subtasks
-        points = 1;
-      }
-      if (points > 0) onTaskComplete(points);
-    }
-    // 2. Toggle State
-    setTasks(prev => toggleTaskRecursive(prev, id));
-  };
-  // --- NEW LOGIC END ---
-
-  const deleteTask = (id) => setTasks(prev => deleteTaskRecursive(prev, id));
-  const editTask = (id, newText) => setTasks(prev => editTaskRecursive(prev, id, newText));
-  const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => addSubtasksRecursive(prev, parentId, [newSubtask])); };
-  const handleUpdateSubtasks = (parentId, newSubtasks) => setTasks(prev => updateSubtasksRecursive(prev, parentId, newSubtasks));
-
-  const breakdownTask = async (task) => {
-    setLoadingTaskId(task.id);
-    const prompt = `Context: You are an expert JEE mentor. Task: Break down the task "${task.text}" into exactly 3 highly specific, rigorous sub-tasks. STRICT OUTPUT RULES: Return EXACTLY 3 lines of text. No bullets/markdown. Short imperative verbs.`;
-    const result = await callGemini(prompt);
-    if (result) {
-      const newSubTasks = result.split('\n').map(line => cleanText(line.replace(/^[\d\-\*\•\)]+\.?\s*/, ''))).filter(l => l.length > 0).slice(0, 3).map((text, index) => ({ id: Date.now() + index, text: text, completed: false, subtasks: [] }));
-      setTasks(prev => addSubtasksRecursive(prev, task.id, newSubTasks));
-    }
-    setLoadingTaskId(null);
-  };
-
-  const handleInputSubmit = (e) => { e.preventDefault(); if (!pendingTask.trim()) return; if (isInputIndented && tasks.length > 0) { const lastTask = tasks[tasks.length - 1]; handleAddSubtask(lastTask.id, pendingTask); setIsInputIndented(false); } else { setTasks(prev => [...prev, { id: Date.now(), text: pendingTask, completed: false, subtasks: [] }]); } setPendingTask(''); setTimeout(() => { if (addTaskInputRef.current) addTaskInputRef.current.focus(); }, 0); };
-  const handleInputKeyDown = (e) => { if (e.key === 'Tab') { e.preventDefault(); if (isInputIndented) setIsInputIndented(false); else if (tasks.length > 0) setIsInputIndented(true); } if (e.key === 'Backspace' && pendingTask === '' && isInputIndented) { e.preventDefault(); setIsInputIndented(false); } };
-
-  return (
-    <div className="flex flex-col w-full h-full text-left md:max-w-[18rem]">
-      {showProgressBar && (<><div className="flex justify-between items-end mb-2"><h2 className="text-sm uppercase tracking-widest text-white/50 font-medium">Tasks</h2><span className="text-xs font-digital text-white/70">{progress}%</span></div><div className="w-full h-1 bg-white/10 rounded-full mb-4 overflow-hidden flex-shrink-0"><div className="h-full bg-white transition-all duration-500 ease-out" style={{ width: `${progress}%` }} /></div></>)}
-      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-1 text-left w-full">
-        <Reorder.Group axis="y" values={tasks} onReorder={setTasks} className="space-y-1">
-          {tasks.map((task, index) => (<TaskItem key={task.id} index={index} task={task} onToggle={toggleTask} onDelete={deleteTask} onBreakdown={breakdownTask} onAddSubtask={handleAddSubtask} onEdit={editTask} onUpdateSubtasks={handleUpdateSubtasks} isLoading={loadingTaskId === task.id} />))}
-        </Reorder.Group>
-        <form onSubmit={handleInputSubmit} className={`flex items-center py-1 md:py-1 animate-fade-in group transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${isInputIndented ? 'ml-10' : ''}`}>
-          <div className="w-[14px] mr-1 flex-shrink-0" />
-          <div className="flex items-center gap-3 flex-1"><button type="submit" className="w-5 h-5 md:w-4 md:h-4 flex-shrink-0 rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors"><Plus size={10} className="text-white/30 group-hover:text-white/70" /></button><input id="new-task-input" ref={addTaskInputRef} type="text" value={pendingTask} onChange={(e) => setPendingTask(e.target.value)} onKeyDown={handleInputKeyDown} placeholder={isInputIndented ? "Add a subtask..." : "Add a new task..."} className="w-full bg-transparent border-b border-transparent group-hover:border-white/10 focus:border-white/40 text-base md:text-sm focus:outline-none text-white/70 placeholder-white/20 transition-colors h-full" /></div>
-        </form>
-      </div>
-    </div>
-  );
-};
 
 // Updated StatCard: Monochrome & Rounded-2xl
 const StatCard = ({ label, value, icon: Icon }) => (
@@ -437,6 +314,45 @@ const StatCard = ({ label, value, icon: Icon }) => (
     <div className="text-lg md:text-xl font-light text-white tracking-wide font-clock">{value}</div>
   </div>
 );
+
+const BendingDivider = ({ activeSide, isDimmed }) => {
+  // activeSide: 'left', 'right', or null
+
+  const variants = {
+    // 1. IDLE: We use a Q (Curve) command even for the straight line.
+    // The control point (middle number) is at x=3 (center), so it looks straight.
+    idle: { d: "M 3 2 Q 3 10 3 18" },
+
+    // 2. BEND RIGHT: Control point moves to x=7 (pushes right)
+    // Used when the left neighbor expands
+    bendRight: { d: "M 3 2 Q 7 10 3 18" },
+
+    // 3. BEND LEFT: Control point moves to x=-1 (pushes left)
+    // Used when the right neighbor expands
+    bendLeft: { d: "M 3 2 Q -1 10 3 18" },
+  };
+
+  return (
+    <div className={`w-3 h-5 flex items-center justify-center transition-opacity duration-300 ${isDimmed ? 'opacity-30' : 'opacity-100'}`}>
+      <svg width="6" height="20" viewBox="0 0 6 20" className="overflow-visible">
+        <motion.path
+          variants={variants}
+          initial="idle"
+          animate={activeSide === 'left' ? 'bendRight' : activeSide === 'right' ? 'bendLeft' : 'idle'}
+          // STIFFNESS/DAMPING FIX:
+          // stiffness: 300 (fast response)
+          // damping: 30 (kills the wobble/oscillation quickly)
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          stroke="white"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+          strokeOpacity="0.5"
+        />
+      </svg>
+    </div>
+  );
+};
 
 // --- CALENDAR VIEW COMPONENT ---
 const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate, selectedDate }) => {
@@ -509,50 +425,56 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
           className="text-base md:text-lg font-medium text-white hover:text-white/80 transition-colors flex items-center gap-1"
         >
           {viewMode === 'days' ? `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}` : selectorYear}
-        </button>
+        </button >
         <div className="flex gap-2">
           <button onClick={handlePrev} className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"><ChevronLeft size={18} /></button>
           <button onClick={handleNext} className="p-1 rounded-full hover:bg-white/10 text-white/70 hover:text-white"><ChevronRight size={18} /></button>
         </div>
-      </div>
+      </div >
 
-      {viewMode === 'days' ? (
-        <div className="grid grid-cols-7 gap-1.5 text-center">
-          {/* FIX: Use index (i) as key instead of day letter (d) */}
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-            <div key={i} className="text-[10px] text-white/30 font-medium py-0.5">{d}</div>
-          ))}
-          {days.map((date, idx) => (
-            <button
-              key={idx}
-              disabled={!date}
-              onClick={() => date && onSelectDate(date)}
-              className={`h-8 w-8 md:h-9 md:w-9 flex items-center justify-center text-xs font-medium transition-all duration-200 mx-auto hover:text-white
+      {
+        viewMode === 'days' ? (
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            {/* FIX: Use index (i) as key instead of day letter (d) */}
+            {
+              ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                <div key={i} className="text-[10px] text-white/30 font-medium py-0.5">{d}</div>
+              ))
+            }
+            {
+              days.map((date, idx) => (
+                <button
+                  key={idx}
+                  disabled={!date}
+                  onClick={() => date && onSelectDate(date)}
+                  className={`h-8 w-8 md:h-9 md:w-9 flex items-center justify-center text-xs font-medium transition-all duration-200 mx-auto hover:text-white
                 ${getDayStyle(date)}
                 `}
-            >
-              {date ? date.getDate() : ''}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-2">
-          {monthNames.map((month, index) => (
-            <button
-              key={month}
-              onClick={() => handleMonthSelect(index)}
-              className={`p-3 rounded-xl text-sm font-medium transition-colors
+                >
+                  {date ? date.getDate() : ''}
+                </button>
+              ))
+            }
+          </div >
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {monthNames.map((month, index) => (
+              <button
+                key={month}
+                onClick={() => handleMonthSelect(index)}
+                className={`p-3 rounded-xl text-sm font-medium transition-colors
                         ${currentMonth.getMonth() === index && selectorYear === currentMonth.getFullYear()
-                  ? 'bg-white text-black'
-                  : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
+                    ? 'bg-white text-black'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}
                     `}
-            >
-              {month.substring(0, 3)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+              >
+                {month.substring(0, 3)}
+              </button>
+            ))}
+          </div>
+        )
+      }
+    </div >
   );
 };
 
@@ -1214,11 +1136,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
   useEffect(() => { if (isOpen) { setLocalSettings(settings); setErrors({}); } }, [isOpen]);
 
   const handleChange = (e, mode) => { const value = e.target.value; if (value === '' || /^\d+$/.test(value)) { setLocalSettings(prev => ({ ...prev, [mode]: value })); if (errors[mode]) { setErrors(prev => ({ ...prev, [mode]: null })); } } };
+
   const handleToggle = (key, value) => { setLocalSettings(prev => ({ ...prev, [key]: value })); }
 
   const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; return { hasError, newErrors, finalSettings }; };
-
-  const handleManualSave = () => { const { hasError, newErrors, finalSettings } = validateSettings(); if (hasError) { setErrors(newErrors); return; } onSave(finalSettings); };
 
   const handleCloseAction = () => {
     const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(settings);
@@ -1242,41 +1163,73 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={handleCloseAction}>
           <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-4 md:p-8 rounded-2xl md:rounded-3xl w-[95vw] md:w-full md:max-w-3xl shadow-2xl overflow-y-auto max-h-[90vh] md:max-h-[85vh] no-scrollbar mx-2 md:mx-0" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4 md:mb-6"><h3 className="text-lg md:text-xl font-medium text-white">Settings</h3><button onClick={handleCloseAction} className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-              <div className="space-y-4 md:space-y-5">
-                <h4 className="text-xs uppercase tracking-widest text-white/50 font-medium mb-3 md:mb-4">Timer Configuration</h4>
+            <div className="flex justify-between items-center mb-6 md:mb-8"><h3 className="text-xl md:text-2xl font-medium text-white tracking-tight">Settings</h3><button onClick={handleCloseAction} className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 text-white/50 hover:text-white active:text-white/70 rounded-full hover:bg-white/10 transition-colors"><X size={24} /></button></div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+              <div className="space-y-6">
+                <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold mb-4">Timer Configuration</h4>
 
                 {['focus', 'shortBreak', 'longBreak'].map((mode) => (
                   <React.Fragment key={mode}>
-                    <div className="flex justify-between items-center group gap-4">
-                      <label className={`text-sm capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>{mode.replace(/([A-Z])/g, ' $1').trim()} (min)</label>
-                      <input type="text" inputMode="numeric" value={localSettings[mode]} onChange={(e) => handleChange(e, mode)} className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors[mode] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`} placeholder={settings[mode]} />
+                    <div className="flex justify-between items-center group py-1">
+                      <label className={`text-sm font-medium capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/80 group-hover:text-white'}`}>
+                        {mode.replace(/([A-Z])/g, ' $1').trim()} (min)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={localSettings[mode]}
+                        onChange={(e) => handleChange(e, mode)}
+                        className={`
+                          w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
+                          font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
+                          ${errors[mode] ? 'bg-red-500/10 ring-2 ring-red-500/50' : ''}
+                        `}
+                        placeholder={settings[mode]}
+                      />
                     </div>
                     {mode === 'longBreak' && (
-                      <div className="flex justify-between items-center group gap-4">
-                        <label className={`text-sm transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>
-                          Sessions before long break
+                      <div className="flex justify-between items-center group py-1">
+                        <label className={`text-sm font-medium transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/80 group-hover:text-white'}`}>
+                          Intervals
                         </label>
                         <input
                           type="text"
                           inputMode="numeric"
                           value={localSettings.pomosBeforeLongBreak}
                           onChange={(e) => handleChange(e, 'pomosBeforeLongBreak')}
-                          className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors['pomosBeforeLongBreak'] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`}
+                          className={`
+                            w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
+                            font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
+                            ${errors['pomosBeforeLongBreak'] ? 'bg-red-500/10 ring-2 ring-red-500/50' : ''}
+                          `}
                         />
                       </div>
                     )}
                   </React.Fragment>
                 ))}
 
-                <div className="w-full h-px bg-white/10 my-4"></div>
-                <Toggle label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} /><Toggle label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
-                {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (<><div className="w-full h-px bg-white/10 my-4"></div><Toggle label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} /></>)}
+                <div className="w-full h-px bg-white/10 my-2"></div>
+
+                <SegmentedToggle id="autoStartBreaks" label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} />
+                <SegmentedToggle id="autoStartWork" label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
+
+                {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (
+                  <>
+                    <div className="w-full h-px bg-white/10 my-2"></div>
+                    <SegmentedToggle id="devMode" label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} />
+                  </>
+                )}
+
               </div>
-              <div className="space-y-3 md:space-y-4">
-                <div className="flex items-center gap-2 mb-2"><ImageIcon size={14} className="text-white/70" /><label className="text-xs uppercase tracking-widest text-white/50 font-medium">Environment</label></div>
-                <div className="grid grid-cols-2 gap-2 md:gap-3">
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <ImageIcon size={16} className="text-white/50" />
+                  <label className="text-xs uppercase tracking-widest text-white/40 font-bold">Environment</label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   {allBackgrounds.map((bg) => (
                     <button
                       key={bg.id}
@@ -1284,9 +1237,9 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                         handleToggle("background", bg.src);
                         if (onBackgroundChange) onBackgroundChange(bg.src);
                       }}
-                      className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all duration-200 group ${localSettings.background === bg.src
-                        ? "border-white"
-                        : "border-transparent hover:border-white/30"
+                      className={`relative aspect-video rounded-xl overflow-hidden transition-all duration-300 group ${localSettings.background === bg.src
+                        ? "ring-2 ring-white scale-[1.02] shadow-xl z-10"
+                        : "opacity-60 hover:opacity-100 hover:scale-[1.02] hover:z-10"
                         }`}
                     >
                       {bg.src ? (
@@ -1296,39 +1249,52 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                           <img src={bg.src} alt={bg.label} className="w-full h-full object-cover" />
                         )
                       ) : (
-                        <div className="w-full h-full bg-[#111] flex items-center justify-center">
-                          <span className="text-[10px] text-white/50 uppercase tracking-widest">None</span>
+                        <div className="w-full h-full bg-[#222] flex items-center justify-center border border-white/10">
+                          <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Empty</span>
                         </div>
                       )}
+
+                      {/* Active Indicator */}
                       {localSettings.background === bg.src && (
-                        <div className="absolute inset-0 bg-white/10 flex items-center justify-center">
-                          <Check size={16} className="text-white drop-shadow-md" />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="bg-white text-black rounded-full p-1 shadow-lg">
+                            <Check size={12} strokeWidth={4} />
+                          </div>
                         </div>
                       )}
-                      {isVideo(bg.src) && (<div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white/80 uppercase tracking-widest border border-white/10 z-10 pointer-events-none">Animated</div>)}
+
+                      {isVideo(bg.src) && (
+                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white/90 uppercase tracking-widest border border-white/10 z-10 pointer-events-none">
+                          Video
+                        </div>
+                      )}
+
                       {bg.id.toString().startsWith("custom-") && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onDeleteCustomBackground(bg.id); }}
-                          className="absolute top-1 right-1 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 p-1.5 md:p-1.5 bg-black/60 hover:bg-red-500/80 active:bg-red-500 rounded-full text-white/70 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20 backdrop-blur-sm flex items-center justify-center"
-                          title="Remove background"
+                          className="absolute top-1 right-1 p-1.5 bg-black/60 hover:bg-red-500 text-white/70 hover:text-white rounded-full transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm z-20"
+                          title="Delete"
                         >
-                          <Trash2 size={10} />
+                          <Trash2 size={12} />
                         </button>
                       )}
                     </button>
                   ))}
+
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="relative aspect-video rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-white/50 transition-all duration-200 group flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10"
+                    className="relative aspect-video rounded-xl overflow-hidden border border-dashed border-white/20 hover:border-white/50 hover:bg-white/5 transition-all duration-300 group flex flex-col items-center justify-center gap-2"
                   >
-                    <Plus size={24} className="text-white/40 group-hover:text-white/80 transition-colors" />
-                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest">Add Custom</span>
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Plus size={16} className="text-white/50 group-hover:text-white transition-colors" />
+                    </div>
+                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest font-bold">Upload</span>
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg" onChange={handleFileSelect} />
                   </button>
                 </div>
               </div>
             </div>
-            {/* FOOTER REMOVED HERE */}
+            {/* Footer removed as requested previously */}
           </motion.div>
         </motion.div>
       )}
@@ -1356,7 +1322,7 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
     { key: 'Space', description: 'Play / Pause timer' },
     { key: 'Tab', description: 'Cycle timer modes (when not started)' },
     { key: 'P', description: 'Toggle Music' }, // <--- Added this line
-    { key: 'T', description: 'Focus on task input' },
+    { key: 'N', description: 'Open notes library' },
     { key: 'O', description: 'Edit objective/session name' },
     { key: 'S', description: 'Open / Close settings' },
     { key: 'Esc', description: 'Exit from input fields or close modals' },
@@ -1382,22 +1348,6 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
 // --- NOTIFICATION SYSTEM ---
 const UPDATES = [
   {
-    id: 'zen_update_music_v1', // Keeps history consistent
-    title: "Tunes & Visuals",
-    description: "Background music and animated scenes to power your focus.",
-    icon: Music,
-    color: "text-cyan-400",
-    bg: "bg-cyan-500/10"
-  },
-  {
-    id: 'animatedbackground', // New Strict Mode notification
-    title: "Animated Backgrounds!",
-    description: "Get breathtaking scenes as your background to keep you inspired.",
-    icon: ImageIcon,
-    color: "text-green-400",
-    bg: "bg-green-500/10"
-  },
-  {
     id: 'zen_update_strict_v1', // New Strict Mode notification
     title: "Strict Mode",
     description: "Lock in your focus. Blocks tab switching and fullscreen exits.",
@@ -1412,6 +1362,14 @@ const UPDATES = [
     icon: StickyNoteIcon,
     color: "text-yellow-400",
     bg: "bg-yellow-500/10"
+  },
+  {
+    id: 'lofigirlupdate', // Keeps history consistent
+    title: "Lofi Girl is here!",
+    description: "Study with Lofi Girl by turning on Music > Lofi Girl",
+    icon: Music,
+    color: "text-red-400",
+    bg: "bg-red-500/10"
   },
 ];
 
@@ -1529,24 +1487,26 @@ const MUSIC_TRACKS = [
   },
 ];
 
-const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek, volume, onVolumeChange }) => {
+const MusicModal = ({
+  isOpen, onClose,
+  currentTrack, isPlaying, onPlay, onPause,
+  isLoading, progress, duration, onSeek,
+  volume, onVolumeChange,
+  isLofiPlaying, onToggleLofi
+}) => {
+  const [activeTab, setActiveTab] = useState('library');
   const [view, setView] = useState('list');
-  const prevVolumeRef = useRef(0.5); // Stores volume before muting
+  const prevVolumeRef = useRef(0.5);
 
   useEffect(() => {
-    if (currentTrack && isOpen && view === 'list') {
-      // Optional: Auto-jump to player logic
-    }
-  }, [currentTrack]);
+    if (isOpen && isLofiPlaying) setActiveTab('lofi');
+  }, [isOpen, isLofiPlaying]);
 
-  // Handle Mute / Unmute
   const toggleMute = () => {
     if (volume > 0) {
-      // Mute: Save current volume and set to 0
       prevVolumeRef.current = volume;
       onVolumeChange(0);
     } else {
-      // Unmute: Restore previous volume (or default to 0.5)
       onVolumeChange(prevVolumeRef.current || 0.5);
     }
   };
@@ -1563,13 +1523,13 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
     <AnimatePresence>
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[90vw] md:w-[24rem] shadow-2xl overflow-hidden relative" onClick={e => e.stopPropagation()}>
+          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[90vw] md:w-[26rem] shadow-2xl overflow-hidden relative flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
 
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-              {view === 'player' ? (
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
+              {activeTab === 'library' && view === 'player' ? (
                 <button onClick={() => setView('list')} className="p-2 -ml-2 text-white/50 hover:text-white transition-colors flex items-center gap-1">
-                  <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Library</span>
+                  <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Back</span>
                 </button>
               ) : (
                 <h3 className="text-xl font-medium text-white flex items-center gap-2"><Music size={20} /> Music</h3>
@@ -1577,163 +1537,175 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
               <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
             </div>
 
-            {/* VIEWS SWITCHER */}
-            <div className="relative w-full h-[360px]">
+            {/* TAB SWITCHER (SLIDING PILL ANIMATION) */}
+            <div className="flex bg-white/5 p-1 rounded-full mb-6 flex-shrink-0 relative">
+              {['library', 'lofi'].map((tab) => {
+                const isActive = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className="relative flex-1 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-full transition-colors z-0"
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="active-tab-pill"
+                        className={`absolute inset-0 rounded-full shadow-lg ${tab === 'lofi' ? 'bg-red-500 shadow-red-500/20' : 'bg-white'
+                          }`}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                      />
+                    )}
+                    <span className={`relative z-10 transition-colors duration-200 ${isActive
+                      ? (tab === 'lofi' ? 'text-white' : 'text-black')
+                      : 'text-white/40 hover:text-white'
+                      }`}>
+                      {tab === 'library' ? 'Focus Sounds' : 'Lofi Girl'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* CONTENT AREA */}
+            <div className="relative w-full flex-1 min-h-[360px] overflow-hidden">
               <AnimatePresence mode="wait">
-                {view === 'list' ? (
+
+                {/* --- TAB 1: LIBRARY --- */}
+                {activeTab === 'library' && (
                   <motion.div
-                    key="list"
+                    key="library"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="absolute inset-0 flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1"
+                    className="absolute inset-0 flex flex-col"
                   >
-                    {MUSIC_TRACKS.map((track) => {
-                      const isActive = currentTrack?.id === track.id;
-                      return (
-                        <div
-                          key={track.id}
-                          onClick={() => { onPlay(track); setView('player'); }}
-                          className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
-                        >
-                          <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
-                            {track.cover ? (
-                              <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
-                            )}
-                            {isActive && isPlaying && (
-                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <div className="flex gap-0.5 items-end h-3">
-                                  <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
-                                  <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
-                                  <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
-                            <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
-                          </div>
-
-                          {isActive && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                isPlaying ? onPause() : onPlay(track);
-                              }}
-                              className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-all z-10"
+                    {view === 'list' ? (
+                      <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
+                        {MUSIC_TRACKS.map((track) => {
+                          const isActive = currentTrack?.id === track.id;
+                          return (
+                            <div
+                              key={track.id}
+                              onClick={() => { onPlay(track); setView('player'); }}
+                              className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
                             >
-                              {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
-                            </button>
+                              <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
+                                {track.cover ? (
+                                  <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
+                                )}
+                                {isActive && isPlaying && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <div className="flex gap-0.5 items-end h-3">
+                                      <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
+                                      <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
+                                      <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
+                                <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : 'Ambient'}</p>
+                              </div>
+                              {isActive && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay(track); }}
+                                  className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-all z-10"
+                                >
+                                  {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      // PLAYER VIEW
+                      <div className="flex flex-col items-center justify-center text-center h-full">
+                        <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group bg-white/5">
+                          {currentTrack?.cover ? (
+                            <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
                           )}
                         </div>
-                      );
-                    })}
+                        <div className="mb-6 w-full px-4">
+                          <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
+                          <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
+                        </div>
+                        {/* Progress Bar */}
+                        <div className="w-full flex items-center gap-3 mb-6 px-2">
+                          <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
+                          <div className="flex-1 relative h-6 flex items-center group">
+                            <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
+                              <div className="h-full bg-white transition-all duration-100 ease-out" style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }} />
+                            </div>
+                            <input type="range" min="0" max={duration || 100} step="0.1" value={progress} onChange={(e) => onSeek(Number(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                          </div>
+                          <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
+                        </div>
+                        {/* Controls */}
+                        <div className="flex items-center justify-center gap-8 w-full px-4">
+                          <button onClick={() => isPlaying ? onPause() : (currentTrack && onPlay(currentTrack))} disabled={!currentTrack} className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
+                            {isLoading ? <Loader2 size={24} className="animate-spin text-black" /> : (isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />)}
+                          </button>
+                          <div className="flex items-center gap-2 w-28">
+                            <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors flex-shrink-0 outline-none" title={volume === 0 ? "Unmute" : "Mute"}>
+                              {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                            </button>
+                            <div className="flex-1 relative h-6 flex items-center group">
+                              <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full bg-white transition-all duration-100 ease-out" style={{ width: `${volume * 100}%` }} />
+                              </div>
+                              <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => onVolumeChange(parseFloat(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </motion.div>
-                ) : (
+                )}
+
+                {/* --- TAB 2: LOFI GIRL (REMOTE CONTROLLER) --- */}
+                {activeTab === 'lofi' && (
                   <motion.div
-                    key="player"
+                    key="lofi"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center text-center"
+                    className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
                   >
-                    {/* Cover Art */}
-                    <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group bg-white/5">
-                      {currentTrack?.cover ? (
-                        <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
+                    {/* Visual Indicator (Updated to Red) */}
+                    <div className="w-24 h-24 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6 relative overflow-hidden">
+                      {/* Simple Pulse Effect */}
+                      {isLofiPlaying && (
+                        <div className="absolute inset-0 bg-red-500/5 animate-pulse" />
                       )}
-                    </div>
-
-                    {/* Title */}
-                    <div className="mb-6 w-full px-4">
-                      <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
-                      <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full flex items-center gap-3 mb-6 px-2">
-                      <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
-
-                      <div className="flex-1 relative h-6 flex items-center group">
-                        <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-white transition-all duration-100 ease-out"
-                            style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }}
-                          />
-                        </div>
-                        <div
-                          className="absolute h-3 w-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                          style={{ left: `${duration ? (progress / duration) * 100 : 0}%`, transform: 'translateX(-50%)' }}
-                        />
-                        <input
-                          type="range"
-                          min="0"
-                          max={duration || 100}
-                          step="0.1"
-                          value={progress}
-                          onChange={(e) => onSeek(Number(e.target.value))}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                      </div>
-
-                      <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
-                    </div>
-
-                    {/* Controls & Volume */}
-                    <div className="flex items-center justify-center gap-8 w-full px-4">
-                      {/* Play Button */}
-                      <button
-                        onClick={() => isPlaying ? onPause() : (currentTrack && onPlay(currentTrack))}
-                        disabled={!currentTrack}
-                        className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:scale-100 disabled:shadow-none"
-                      >
-                        {isLoading ? (
-                          <Loader2 size={24} className="animate-spin text-black" />
-                        ) : (
-                          isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />
-                        )}
-                      </button>
-
-                      {/* Volume Slider - UPDATED */}
-                      <div className="flex items-center gap-2 w-28">
-                        <button
-                          onClick={toggleMute}
-                          className="text-white/50 hover:text-white transition-colors flex-shrink-0 outline-none"
-                          title={volume === 0 ? "Unmute" : "Mute"}
-                        >
-                          {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                        </button>
-
-                        <div className="flex-1 relative h-6 flex items-center group">
-                          {/* Visual Track */}
-                          <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-white transition-all duration-100 ease-out"
-                              style={{ width: `${volume * 100}%` }}
-                            />
-                          </div>
-                          {/* Interactive Input */}
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={volume}
-                            onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                          />
-                        </div>
+                      <div className="relative z-10 flex items-center justify-center w-full h-full">
+                        <ImageIcon size={32} className="text-red-500" />
                       </div>
                     </div>
 
+                    <h4 className="text-xl font-medium text-white mb-2">Lofi Girl Radio</h4>
+                    <p className="text-white/50 text-xs leading-relaxed mb-8 max-w-[200px] mx-auto">
+                      Lofi Girl will appear at the bottom right. All hail Lofi Girl!
+                    </p>
+
+                    {/* Toggle Button (Updated to Red) */}
+                    <button
+                      onClick={onToggleLofi}
+                      className={`px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg hover:scale-105 active:scale-95 ${isLofiPlaying
+                        ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20'
+                        : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                    >
+                      {isLofiPlaying ? 'Turn Off' : 'Turn On'}
+                    </button>
                   </motion.div>
                 )}
+
               </AnimatePresence>
             </div>
           </motion.div>
@@ -1871,8 +1843,10 @@ const parseRichText = (text, onToggleLine) => {
       const content = checkboxMatch[3];
       return (
         <div key={index} className="flex items-start gap-2 my-1 group">
-          <div
-            // Make clickable if onToggleLine is provided
+          <button
+            type="button"
+            // FIX: Stop pointer events from bubbling to Framer Motion's onTap
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               if (onToggleLine) {
                 e.stopPropagation();
@@ -1880,13 +1854,13 @@ const parseRichText = (text, onToggleLine) => {
               }
             }}
             className={`
-              mt-1 w-3 h-3 border border-black/40 rounded-[3px] flex items-center justify-center transition-colors
+              mt-1 w-3 h-3 border border-black/40 rounded-[3px] flex items-center justify-center transition-colors flex-shrink-0
               ${isChecked ? 'bg-black/60 border-transparent' : 'bg-transparent'}
               ${onToggleLine ? 'cursor-pointer hover:border-black' : ''}
             `}
           >
             {isChecked && <Check size={8} className="text-white" />}
-          </div>
+          </button>
           <span className={`flex-1 leading-relaxed ${isChecked ? 'line-through opacity-50' : ''} whitespace-pre-wrap`}>
             {indent}{parseInlineStyles(content)}
           </span>
@@ -2057,6 +2031,97 @@ const LiquidDeleteBtn = ({ onDelete }) => {
   );
 };
 
+const LiquidCloseBtn = ({ onClose }) => {
+  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+
+  // Auto-reset if not confirmed within 3 seconds
+  useEffect(() => {
+    let timer;
+    if (status === 'confirming') {
+      timer = setTimeout(() => setStatus('idle'), 3000);
+    }
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (status === 'idle') {
+      setStatus('confirming');
+    } else {
+      onClose();
+    }
+  };
+
+  return (
+    <motion.button
+      layout
+      onClick={handleClick}
+      initial={false}
+      animate={status === 'confirming'
+        ? { width: 80, height: 32, borderRadius: 16, backgroundColor: "#b91c1c" } // Darker Red (Red-700) on confirm
+        : { width: 32, height: 32, borderRadius: 16, backgroundColor: "#ef4444" } // Bright Red (Red-500) on idle
+      }
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      className="absolute top-2 right-2 border border-white/10 flex items-center justify-center overflow-hidden z-[100] shadow-lg group/btn"
+    >
+      <AnimatePresence mode="popLayout">
+        {status === 'idle' ? (
+          <motion.div
+            key="icon"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="flex items-center justify-center"
+          >
+            <X size={14} className="text-white font-bold" strokeWidth={3} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="text"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex items-center gap-1"
+          >
+            <span className="text-[10px] font-bold text-white uppercase tracking-wider">Close?</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+};
+
+// --- APPLE-STYLE SEGMENTED TOGGLE (Defined Outside to fix animation glitches) ---
+// --- APPLE-STYLE TOGGLE (No Text, Click-to-Flip) ---
+const SegmentedToggle = ({ label, checked, onChange, id }) => (
+  <div className="flex justify-between items-center w-full group py-2">
+    <span className="text-sm text-white/70 group-hover:text-white transition-colors font-medium">{label}</span>
+
+    <div className="flex bg-white/5 p-1 rounded-full w-14 h-8 relative flex-shrink-0">
+      {[false, true].map((val) => {
+        const isActive = checked === val;
+        return (
+          <button
+            key={String(val)}
+            // FIX: Always flip state, regardless of which side is clicked
+            onClick={() => onChange(!checked)}
+            className="relative flex-1 h-full rounded-full z-0 flex items-center justify-center outline-none"
+          >
+            {isActive && (
+              <motion.div
+                layoutId={`pill-${id}`}
+                className={`absolute inset-0 rounded-full shadow-sm ${val ? 'bg-[#4ade80]' : 'bg-white/20'
+                  }`}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  </div>
+);
+
 const NoteSystemModals = ({
   notes,
   isLibraryOpen,
@@ -2090,6 +2155,7 @@ const NoteSystemModals = ({
   const bodyInputRef = useRef(null);
   const tagInputRef = useRef(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
 
   // --- HANDLERS ---
   const handleSave = () => {
@@ -2107,6 +2173,44 @@ const NoteSystemModals = ({
     }
     setEditingNote(null);
     setShowSlashMenu(false);
+  };
+
+  // --- CHECKBOX TOGGLE HANDLER (FOR LIBRARY VIEW) ---
+  const handleToggleLine = (note, index, newStatus) => {
+    let lines = note.text.split('\n');
+    if (lines[index]) {
+      const line = lines[index];
+      // Toggle [ ] <-> [x]
+      const newLine = newStatus
+        ? line.replace(/^(\s*)\[ \]/, '$1[x]')
+        : line.replace(/^(\s*)\[x\]/i, '$1[ ]');
+
+      lines[index] = newLine;
+
+      // --- AUTO-SORT LOGIC ---
+      if (/^(\s*)\[([ x])\]/i.test(newLine)) {
+        let start = index;
+        while (start > 0 && /^(\s*)\[([ x])\]/i.test(lines[start - 1])) start--;
+
+        let end = index;
+        while (end < lines.length - 1 && /^(\s*)\[([ x])\]/i.test(lines[end + 1])) end++;
+
+        const group = lines.slice(start, end + 1);
+        const isChecked = (l) => /^(\s*)\[x\]/i.test(l);
+
+        group.sort((a, b) => {
+          const aChecked = isChecked(a);
+          const bChecked = isChecked(b);
+          if (aChecked === bChecked) return 0;
+          return aChecked ? 1 : -1;
+        });
+
+        lines.splice(start, group.length, ...group);
+      }
+      // -------------------------------
+
+      onSave({ ...note, text: lines.join('\n'), updatedAt: Date.now() });
+    }
   };
 
   // --- SHORTCUTS ---
@@ -2298,6 +2402,7 @@ const NoteSystemModals = ({
 
   // --- DRAG & LOGIC ---
   const handleDragStart = (id, e) => {
+    isDraggingRef.current = true;
     setDraggingId(id);
     draggingIdRef.current = id;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
@@ -2331,6 +2436,7 @@ const NoteSystemModals = ({
   };
 
   const handleDragEnd = () => {
+    setTimeout(() => { isDraggingRef.current = false; }, 50);
     setDraggingId(null);
     draggingIdRef.current = null;
     if (onSaveOrder) onSaveOrder();
@@ -2398,7 +2504,6 @@ const NoteSystemModals = ({
                 </motion.div>
 
                 {/* NOTES GRID */}
-                {/* 1. CHANGED: Removed mode="popLayout" so the note holds its space while shrinking */}
                 <AnimatePresence>
                   {filteredNotes.map((note) => (
                     <motion.div
@@ -2418,6 +2523,7 @@ const NoteSystemModals = ({
                       onMouseMove={handleGlowMove}
 
                       onTap={(e) => {
+                        if (isDraggingRef.current) return;
                         if (e.target.closest('button') || e.target.closest('[data-layout-id]')) return;
                         handleNoteTap(e, note);
                       }}
@@ -2438,13 +2544,13 @@ const NoteSystemModals = ({
 
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
 
-                      // --- UPDATED EXIT ANIMATION ---
+                      // --- EXIT ANIMATION ---
                       exit={{
-                        scale: 0,            // Shrink to nothing
-                        opacity: 0,          // Fade out
+                        scale: 0,
+                        opacity: 0,
                         transition: {
-                          duration: 0.35,    // Takes 0.35s to shrink
-                          ease: "backIn"     // "Pulls back" slightly before shrinking (the suck effect)
+                          duration: 0.35,
+                          ease: "backIn"
                         }
                       }}
                     >
@@ -2458,7 +2564,14 @@ const NoteSystemModals = ({
                       <div className="relative z-10 flex flex-col h-full pointer-events-none">
                         {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
                         <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
-                          <RichTextRenderer text={note.text} className="text-xs md:text-sm" onToggle={(index, status) => handleToggleLine(note, index, status)} />
+
+                          {/* UPDATED: Pass toggle handler for checkboxes */}
+                          <RichTextRenderer
+                            text={note.text}
+                            className="text-xs md:text-sm"
+                            onToggle={(index, status) => handleToggleLine(note, index, status)}
+                          />
+
                         </div>
                         {note.tags && note.tags.length > 0 && (
                           <div className="mt-2 flex gap-1 flex-wrap">
@@ -2564,6 +2677,45 @@ const NoteSystemModals = ({
   );
 };
 
+// A visible, compliant mini-player for Desktop
+// A visible, compliant mini-player for Desktop
+const MiniLofiPlayer = ({ isPlaying, onToggle }) => {
+  return (
+    <AnimatePresence>
+      {isPlaying && (
+        <motion.div
+          initial={{ y: 100, opacity: 0, scale: 0.9 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 100, opacity: 0, scale: 0.9 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="fixed bottom-6 right-6 z-[80] hidden md:block"
+        >
+          {/* Main Wrapper */}
+          <div className="relative w-80 aspect-video shadow-2xl group">
+
+            {/* 1. VIDEO CONTAINER (Clipped) */}
+            <div className="absolute inset-0 rounded-2xl overflow-hidden border border-white/20 bg-black">
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/jfKfPfyJRdk?si=VOqYg_-rlvqd_dMH&autoplay=1&controls=1&mute=0&loop=1&modestbranding=1"
+                title="Lofi Girl Mini"
+                frameBorder="0"
+                disablePictureInPicture
+                // Ensure 'picture-in-picture' is missing from allow list
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+              />
+            </div>
+
+            {/* 2. LIQUID CLOSE BUTTON (Sitting on top, unclipped) */}
+            <LiquidCloseBtn onClose={onToggle} />
+
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export default function App() {
   // ... inside App component
 
@@ -2601,6 +2753,8 @@ export default function App() {
     }
   };
 
+
+
   const handleDeleteNote = async (noteId) => {
     // Filter out the note to delete
     const updatedNotes = notes.filter(n => n.id !== noteId);
@@ -2611,8 +2765,7 @@ export default function App() {
       await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
     }
   };
-
-
+  const [isLofiPlaying, setIsLofiPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -2633,6 +2786,7 @@ export default function App() {
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [pomoCount, setPomoCount] = useState(0);
+  const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
 
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
@@ -2794,7 +2948,6 @@ export default function App() {
     dailyFocusTime: 0,
     dailyBreakTime: 0,
     dailySessions: 0,
-    dailyTasksCompleted: 0,
     currentStreak: 0,
     lastActiveDate: null
   };
@@ -2840,8 +2993,6 @@ export default function App() {
           e.preventDefault();
           activeElement.blur();
           if (activeElement.id === 'session-name-input') { setIsEditingName(false); }
-          if (activeElement.id === 'new-task-input') { setPendingTask(''); } // Optional: clear task input
-          return;
         }
 
         // D. Close Note Editor
@@ -2896,8 +3047,8 @@ export default function App() {
         return;
       }
 
-      // T: Focus Task/Note Input (Using Library now?)
-      if (e.key === 't' || e.key === 'T') {
+      // Note Library
+      if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         // If you want T to open Notes Library:
         setIsNoteLibraryOpen(true);
@@ -2999,7 +3150,7 @@ export default function App() {
         if (storedName) { setShowLoginBtn(false); setTimeout(() => { setOnboardingStep(3); }, 2000); } else { if (onboardingStep === 0) { handleNameTransition(firstName); } }
       } else {
         if (storedName) { setGreetingText("Hello, stranger"); setShowLoginBtn(true); localStorage.removeItem('pomodoro_user_name'); } else { setGreetingText("Hello, stranger"); setShowLoginBtn(true); }
-        setTasks([]); setSessionName(""); setDataLoaded(false);
+        setSessionName(""); setDataLoaded(false);
       }
     });
     return () => unsubscribe();
@@ -3318,7 +3469,7 @@ export default function App() {
           }
 
           if (shouldResetDaily) {
-            if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
+            if (loadedStats.dailyFocusTime > 0) {
               const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
               const dateId = formatDateId(archiveDate);
               const historyRef = doc(db, "users", user.uid, "history", dateId);
@@ -3327,7 +3478,6 @@ export default function App() {
             loadedStats.dailyFocusTime = 0;
             loadedStats.dailyBreakTime = 0;
             loadedStats.dailySessions = 0;
-            loadedStats.dailyTasksCompleted = 0;
           }
 
           setStats(prevStats => {
@@ -3413,7 +3563,6 @@ export default function App() {
       const saveFinal = async () => {
         const userDocRef = doc(db, "users", user.uid);
         const today = new Date();
-        // Replace 'tasks' with 'notes'
         const payload = { notes, settings, sessionName, lastUpdated: today, stats };
         await setDoc(userDocRef, payload, { merge: true });
         lastStatSaveTime.current = Date.now();
@@ -3459,13 +3608,19 @@ export default function App() {
     };
   }, []);
 
+  // 1. Play Local Music (Stops Lofi if running)
   const handlePlayMusic = (track) => {
+    // Always stop Lofi first
+    if (isLofiPlaying) {
+      setIsLofiPlaying(false);
+    }
+
     if (currentTrack?.id === track.id) {
-      // Resume
+      // Resume existing track
       musicAudioRef.current.play();
       setIsMusicPlaying(true);
     } else {
-      // New Track
+      // Start new track
       setCurrentTrack(track);
       setMusicLoading(true);
       musicAudioRef.current.src = track.src;
@@ -3475,11 +3630,25 @@ export default function App() {
     }
   };
 
+  // 2. Pause Local Music (Standard)
   const handlePauseMusic = () => {
-    musicAudioRef.current.pause();
+    if (musicAudioRef.current) {
+      musicAudioRef.current.pause();
+    }
     setIsMusicPlaying(false);
   };
 
+  // 3. Toggle Lofi (Stops Local Music if starting Lofi)
+  const toggleLofi = () => {
+    if (isLofiPlaying) {
+      // Turn off Lofi
+      setIsLofiPlaying(false);
+    } else {
+      // Turn on Lofi -> Stop Local Music first
+      handlePauseMusic();
+      setIsLofiPlaying(true);
+    }
+  };
   const handleSeekMusic = (time) => {
     musicAudioRef.current.currentTime = time;
     setMusicProgress(time);
@@ -3505,10 +3674,6 @@ export default function App() {
   }
   useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
 
-  const handleBeginSession = () => {
-    if (pendingTask.trim()) { setTasks(prev => [...prev, { id: Date.now(), text: pendingTask, completed: false, subtasks: [] }]); setPendingTask(''); }
-    if (beginBtnRef.current && playBtnRef.current) { setBeginBtnRect(beginBtnRef.current.getBoundingClientRect()); setTargetPlayBtnRect(playBtnRef.current.getBoundingClientRect()); setIsMorphing(true); setTimeout(() => setOnboardingStep(3), 500); setTimeout(() => setIsMorphing(false), 1020); } else { setOnboardingStep(3); }
-  }
 
   useEffect(() => {
     // 1. Safety Clear: Ensure no rogue timers exist
@@ -3829,22 +3994,6 @@ export default function App() {
     };
   }, [timeLeft, isActive]);
 
-  const deleteTask = (id) => setTasks(prev => prev.filter(item => item.id !== id));
-  const editTask = (id, newText) => setTasks(prev => prev.map(item => item.id === id ? { ...item, text: newText } : item));
-  const handleAddSubtask = (parentId, text) => { const newSubtask = { id: Date.now(), text: text, completed: false, subtasks: [] }; setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: [...(item.subtasks || []), newSubtask], completed: false } : item)); };
-  const handleUpdateSubtasks = (parentId, newSubtasks) => setTasks(prev => prev.map(item => item.id === parentId ? { ...item, subtasks: newSubtasks } : item));
-
-  const handleTaskComplete = (count) => {
-    // Safety check: Dev Mode off and positive count
-    if (!devMode && count > 0) {
-      setStats(prev => ({
-        ...prev,
-        dailyTasksCompleted: prev.dailyTasksCompleted + count
-      }));
-    }
-  };
-
-  // Show friends if they are Active OR Pinned
   const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
 
   return (
@@ -3963,16 +4112,18 @@ export default function App() {
             </div>
           )}
 
-          {/* THE DYNAMIC DOCK */}
+          {/* THE DYNAMIC DOCK (With Bending Dividers) */}
           <motion.div
             layout
+            onMouseLeave={() => setHoveredDockIndex(null)} // Reset when leaving entire dock
             transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="flex items-center gap-1 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl"
+            className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl"
           >
 
-            {/* 1. FRIENDS BUTTON */}
+            {/* 1. FRIENDS BUTTON (Index 0) */}
             <motion.button
               layout
+              onMouseEnter={() => setHoveredDockIndex(0)}
               onClick={() => setShowFriends(true)}
               className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center"
             >
@@ -3982,13 +4133,17 @@ export default function App() {
               </motion.span>
             </motion.button>
 
-            {/* Divider */}
-            <div className="w-px h-4 bg-white/10 mx-0.5" />
+            {/* DIVIDER 1 (Between 0 and 1) */}
+            <BendingDivider
+              activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null}
+              isDimmed={isMusicPlaying}
+            />
 
-            {/* 2. MUSIC BUTTON */}
+            {/* 2. MUSIC BUTTON (Index 1) */}
             <motion.div
               layout
               role="button"
+              onMouseEnter={() => setHoveredDockIndex(1)}
               onClick={() => setShowMusic(true)}
               className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
@@ -4008,12 +4163,16 @@ export default function App() {
               </motion.div>
             </motion.div>
 
-            {/* Divider */}
-            <div className="w-px h-4 bg-white/10 mx-0.5" />
+            {/* DIVIDER 2 (Between 1 and 2) */}
+            <BendingDivider
+              activeSide={hoveredDockIndex === 1 ? 'left' : hoveredDockIndex === 2 ? 'right' : null}
+              isDimmed={isMusicPlaying || strictMode}
+            />
 
-            {/* 3. STRICT MODE BUTTON */}
+            {/* 3. STRICT MODE BUTTON (Index 2) */}
             <motion.button
               layout
+              onMouseEnter={() => setHoveredDockIndex(2)}
               onClick={() => {
                 if (!strictMode) { setShowStrictConfirm(true); return; }
                 const fullDuration = settings.focus * 60;
@@ -4126,7 +4285,9 @@ export default function App() {
         friend={viewingFriendStats}
       />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
-      {/* --- ADD THIS LINE --- */}
+
+      <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} />
+
       <MusicModal
         volume={volume}
         onVolumeChange={setVolume}
@@ -4140,6 +4301,8 @@ export default function App() {
         progress={musicProgress}
         duration={musicDuration}
         onSeek={handleSeekMusic}
+        isLofiPlaying={isLofiPlaying}
+        onToggleLofi={toggleLofi}
       />
       {/* --------------------- */}
 
