@@ -558,42 +558,59 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
 
 // Helper Component for consistent avatars
 // 1. IMPROVED AVATAR COMPONENT (With Referrer Fix)
-const Avatar = ({ photoURL, name, size = "md", isPinned = false }) => {
+const Avatar = ({ photoURL, name, size = "md", isPinned = false, isPro = false }) => {
   const [imageError, setImageError] = useState(false);
 
-  // Reset error if the URL changes (important for search lists)
-  useEffect(() => {
-    setImageError(false);
-  }, [photoURL]);
+  useEffect(() => { setImageError(false); }, [photoURL]);
 
   const sizeClasses = {
     sm: "w-6 h-6 text-[10px]",
     md: "w-10 h-10 text-xs",
-    lg: "w-12 h-12 text-sm"
+    lg: "w-12 h-12 text-sm",
+    full: "w-full h-full"
   };
 
   return (
-    <div className={`relative flex-shrink-0 ${sizeClasses[size]}`}>
-      {photoURL && !imageError ? (
-        <img
-          src={photoURL}
-          alt={name}
-          // --- FIX: This allows Google Images to load ---
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            console.warn("Avatar load failed", e);
-            setImageError(true);
-          }}
-          className="w-full h-full rounded-full object-cover border border-white/10"
-        />
-      ) : (
-        <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase border border-white/10 select-none">
-          {name ? name.charAt(0) : '?'}
+    // Added 'group' to container for potential hover effects
+    <div className={`relative flex-shrink-0 ${sizeClasses[size]} select-none group`}>
+
+      {/* --- PRO GLOW EFFECT (Layer 0) --- */}
+      {/* 1. -inset-1: Pushes the ring 4px outside the image.
+          2. blur-sm: Softens the edges for a "glow" look. 
+          3. animate-[spin_3s...]: Rotates the gradient.
+      */}
+      {isPro && (
+        <div className="absolute -inset-1 rounded-full overflow-hidden z-0">
+          <div className="w-full h-full animate-[spin_3s_linear_infinite] rounded-full"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent 0deg, #FDE047 180deg, transparent 360deg)',
+              opacity: 0.8
+            }}
+          />
         </div>
       )}
 
+      {/* --- MAIN IMAGE CONTAINER (Layer 10) --- */}
+      {/* Z-10 ensures image sits ON TOP of the glow */}
+      <div className={`relative z-10 w-full h-full rounded-full overflow-hidden bg-[#111] ${isPro ? 'border-2 border-transparent bg-clip-padding' : 'border border-white/10'}`}>
+        {photoURL && !imageError ? (
+          <img
+            src={photoURL}
+            alt={name}
+            referrerPolicy="no-referrer"
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase">
+            {name ? name.charAt(0) : '?'}
+          </div>
+        )}
+      </div>
+
+      {/* --- PIN INDICATOR (Layer 20) --- */}
       {isPinned && (
-        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-10">
+        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-20">
           <Pin size={8} className="text-black fill-black" />
         </div>
       )}
@@ -601,8 +618,83 @@ const Avatar = ({ photoURL, name, size = "md", isPinned = false }) => {
   );
 };
 
+// 1. Accept 'user' prop
+const ProCelebrationModal = ({ isPro, user }) => {
+  const [isOpen, setIsOpen] = useState(false);
 
-const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
+  useEffect(() => {
+    if (isPro) {
+      const hasSeenCelebration = localStorage.getItem('zen_pro_celebration_seen');
+      if (!hasSeenCelebration) {
+        const timer = setTimeout(() => setIsOpen(true), 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isPro]);
+
+  const handleDismiss = () => {
+    setIsOpen(false);
+    localStorage.setItem('zen_pro_celebration_seen', 'true');
+  };
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md"
+          onClick={handleDismiss}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: -20 }}
+            transition={{ type: "spring", duration: 0.8, bounce: 0.4 }}
+            className="relative w-full max-w-sm p-8 bg-[#0a0a0a] border border-yellow-500/30 rounded-3xl text-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-yellow-500/10 blur-[50px] pointer-events-none" />
+
+            {/* --- UPDATED ICON: USER PROFILE PIC --- */}
+            <div className="relative z-10 w-24 h-24 mx-auto mb-6 rounded-full border-4 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.4)] overflow-hidden">
+              {user?.photoURL ? (
+                <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-yellow-500 flex items-center justify-center text-black font-bold text-3xl">
+                  {user?.displayName ? user.displayName.charAt(0) : 'P'}
+                </div>
+              )}
+            </div>
+            {/* --------------------------------------- */}
+
+            <h2 className="relative z-10 text-3xl font-serif-display text-white mb-2">
+              Welcome to <span className="text-yellow-400">Pro</span>
+            </h2>
+
+            {/* --- UPDATED TEXT --- */}
+            <p className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-2">
+              Since the owner is your friend, you do get some prowess.
+            </p>
+
+            {/* --- UPDATED BUTTON TEXT --- */}
+            <button
+              onClick={handleDismiss}
+              className="relative z-10 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-yellow-500/20"
+            >
+              Thanks Divyansh
+            </button>
+
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// Remember to update the prop list: { ..., isPro }
+const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -641,7 +733,7 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
           <motion.div
-            layout // <--- SMOOTH RESIZE MAGIC
+            layout
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -652,12 +744,29 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
             {/* LEFT COLUMN */}
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative group">
-                <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
+
+              {/* --- AVATAR WITH PRO RING --- */}
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full p-1 mb-6 relative group">
+                <Avatar
+                  photoURL={user?.photoURL}
+                  name={user?.displayName}
+                  size="full"
+                  isPro={isPro} // <--- PASSED HERE
+                />
                 <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
+              {/* --------------------------- */}
+
               <h2 className="text-2xl font-bold text-white mb-1">{user?.displayName || "Guest User"}</h2>
               <p className="text-white/40 text-xs mb-8 font-mono">{user?.email || "No email linked"}</p>
+
+              {/* PRO BADGE (Optional visual reinforcement) */}
+              {isPro && (
+                <div className="mb-6 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles size={10} /> PRO MEMBER
+                </div>
+              )}
+
               <div className="w-full space-y-3">
                 <button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group">
                   <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out
@@ -666,7 +775,7 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
               <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">MINDGRIND ID: {user?.uid?.slice(0, 8)}...</div>
             </motion.div>
 
-            {/* RIGHT COLUMN */}
+            {/* RIGHT COLUMN (Same as before) */}
             <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
               <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                 <div className="flex gap-6">
@@ -708,7 +817,6 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
     </AnimatePresence>
   );
 };
-
 // --- FRIEND PROFILE MODAL (Read Only, No Email, Smooth Transition) ---
 const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const [activeTab, setActiveTab] = useState('today');
@@ -717,10 +825,8 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const [historyData, setHistoryData] = useState({});
   const [stats, setStats] = useState({ dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: 0 });
 
-  // 1. Listen to Friend's Real-time Stats & History
   useEffect(() => {
     if (isOpen && friend) {
-      // Fetch their latest stats (live)
       const userDocRef = doc(db, "users", friend.uid);
       const unsubUser = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -734,7 +840,6 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
         }
       });
 
-      // Fetch their history if tab is active
       if (activeTab === 'history') {
         const historyRef = collection(db, 'users', friend.uid, 'history');
         const q = query(historyRef, orderBy('date', 'desc'));
@@ -744,7 +849,6 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
           setHistoryData(data);
         });
       }
-
       return () => unsubUser();
     }
   }, [isOpen, friend, activeTab]);
@@ -770,7 +874,7 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
           <motion.div
-            layout // <--- THE MAGIC PROP FOR SMOOTH RESIZING
+            layout
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
@@ -782,38 +886,36 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
 
-              <div className="w-32 h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative flex items-center justify-center">
-                <Avatar photoURL={friend?.photoURL} name={friend?.displayName} size="full" className="w-full h-full rounded-full" />
+              <div className="w-32 h-32 rounded-full p-1 mb-6 relative flex items-center justify-center">
+                {/* --- UPDATED AVATAR --- */}
+                <Avatar
+                  photoURL={friend?.photoURL}
+                  name={friend?.displayName}
+                  size="full"
+                  isPro={friend?.isPro} // <--- READ FROM FRIEND
+                />
+                {/* ---------------------- */}
 
                 {friend?.isOnline && (
-                  // 1. The Orbit Track (Spins continuously)
                   <div className="absolute inset-[-6px] rounded-full animate-[spin_8s_linear_infinite] pointer-events-none">
-                    {/* 2. The Star/Dot (Fixed to the edge of the spinning track) */}
                     <div
-                      className={`absolute top-1/2 -right-[1px] w-4 h-4 rounded-full border-2 border-[#111] shadow-[0_0_15px_currentColor] transition-colors ${friend.isActive ? 'bg-green-500 text-green-500' : 'bg-yellow-500 text-yellow-500'
-                        }`}
-                      style={{ transform: 'translate(50%, -50%)' }} // Centers the dot perfectly on the orbit line
+                      className={`absolute top-1/2 -right-[1px] w-4 h-4 rounded-full border-2 border-[#111] shadow-[0_0_15px_currentColor] transition-colors ${friend.isActive ? 'bg-green-500 text-green-500' : 'bg-yellow-500 text-yellow-500'}`}
+                      style={{ transform: 'translate(50%, -50%)' }}
                     />
                   </div>
                 )}
               </div>
 
               <h2 className="text-2xl font-bold text-white mb-2">{friend?.displayName}</h2>
-
-              {/* STATUS BADGE INSTEAD OF EMAIL */}
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-8">
                 <div className={`w-1.5 h-1.5 rounded-full ${friend?.isOnline ? (friend.isActive ? 'bg-green-500' : 'bg-yellow-500') : 'bg-gray-500'}`} />
                 <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">{friend?.statusText || "Offline"}</span>
               </div>
-
-              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">
-                FRIEND ID: {friend?.uid?.slice(0, 8)}...
-              </div>
+              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">FRIEND ID: {friend?.uid?.slice(0, 8)}...</div>
             </motion.div>
 
             {/* RIGHT COLUMN: STATS */}
             <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
-              {/* Header */}
               <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                 <div className="flex gap-6">
                   <button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
@@ -822,35 +924,17 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
                 <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
               </div>
 
-              {/* Content Area - ANIMATED HEIGHT */}
-              <motion.div
-                layout
-                className="overflow-y-auto custom-scrollbar p-6"
-              >
+              <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
                 {activeTab === 'history' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-8"
-                  >
-                    <CalendarView
-                      historyData={getEffectiveHistory()}
-                      currentMonth={currentMonth}
-                      setCurrentMonth={setCurrentMonth}
-                      onSelectDate={setSelectedDate}
-                      selectedDate={selectedDate}
-                    />
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8">
+                    <CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} />
                   </motion.div>
                 )}
-
                 <div className={`grid grid-cols-2 gap-4`}>
                   <StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} />
                   <StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} />
                   <StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />
-                  {activeTab === 'today' && (
-                    <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />
-                  )}
+                  {activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}
                 </div>
               </motion.div>
             </div>
@@ -860,7 +944,6 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
     </AnimatePresence>
   );
 };
-
 
 const StrictConfirmationModal = ({ isOpen, onClose, onConfirm }) => (
   <AnimatePresence>
@@ -942,13 +1025,13 @@ const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
 
 
 const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFriend, onTogglePin, onViewStats, onSearchUsers }) => {
+  // ... (Search logic remains the same) ...
   const [searchText, setSearchText] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [rawSearchResults, setRawSearchResults] = useState([]); // Store raw DB results
-  const [searchPerformed, setSearchPerformed] = useState(false); // Track if we have tried searching
+  const [rawSearchResults, setRawSearchResults] = useState([]);
+  const [searchPerformed, setSearchPerformed] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Reset when modal opens
   useEffect(() => {
     if (isOpen) {
       setSearchText("");
@@ -958,7 +1041,6 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
     }
   }, [isOpen]);
 
-  // Live Search Logic
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!searchText.trim()) {
@@ -966,22 +1048,15 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
         setSearchPerformed(false);
         return;
       }
-
       setIsSearching(true);
-
       const results = await onSearchUsers(searchText);
-
       setIsSearching(false);
       setRawSearchResults(results);
       setSearchPerformed(true);
-
     }, 500);
-
     return () => clearTimeout(timer);
   }, [searchText, onSearchUsers]);
 
-  // --- FILTER LOGIC ---
-  // We filter here so it updates instantly if `friends` list changes (e.g. after adding someone)
   const filteredSearchResults = rawSearchResults.filter(result =>
     !friends.some(friend => friend.uid === result.uid)
   );
@@ -992,7 +1067,6 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
       setSearchText("");
       setRawSearchResults([]);
       setSearchPerformed(false);
-
       setSuccessMsg(`Added friend successfully!`);
       setTimeout(() => setSuccessMsg(null), 3000);
     }
@@ -1042,16 +1116,12 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
 
             {successMsg && <p className="text-green-400 text-xs mb-4 ml-1">{successMsg}</p>}
 
-            {/* LOGIC: If we searched, and aren't loading, and the FILTERED result is empty 
-                 (Meaning either no matches, OR the matches were already friends) 
-              */}
             {searchText && searchPerformed && !isSearching && filteredSearchResults.length === 0 && (
               <div className="mb-6 text-center py-4 border border-white/5 rounded-xl bg-white/5">
                 <p className="text-white/40 text-xs">No new users found.</p>
               </div>
             )}
 
-            {/* Render Filtered Results */}
             {filteredSearchResults.length > 0 && (
               <div className="mb-6 animate-fade-in">
                 <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
@@ -1088,12 +1158,15 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
                     className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative"
                   >
                     <div className="flex items-center gap-3 pointer-events-none">
+                      {/* --- UPDATED AVATAR --- */}
                       <Avatar
                         photoURL={friend.photoURL}
                         name={friend.displayName}
                         size="md"
                         isPinned={friend.isPinned}
+                        isPro={friend.isPro} // <--- READ FROM FRIEND OBJECT
                       />
+                      {/* ---------------------- */}
                       <div>
                         <div className="text-sm font-medium text-white leading-none mb-1 flex items-center gap-2">
                           {friend.displayName}
@@ -2563,9 +2636,6 @@ export default function App() {
 
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
-  const [isMorphing, setIsMorphing] = useState(false);
-  const [beginBtnRect, setBeginBtnRect] = useState(null);
-  const [targetPlayBtnRect, setTargetPlayBtnRect] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -2577,6 +2647,7 @@ export default function App() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicProgress, setMusicProgress] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
+  const [isPro, setIsPro] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const musicAudioRef = useRef(new Audio());
   useEffect(() => {
@@ -2706,7 +2777,6 @@ export default function App() {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  const beginBtnRef = useRef(null);
   const playBtnRef = useRef(null);
   const sessionInputRef = useRef(null);
   const nameInputRef = useRef(null);
@@ -3188,12 +3258,16 @@ export default function App() {
         if (docSnap.exists()) {
           const data = docSnap.data();
 
-          // 1. LOAD NOTES (Sort by updated time if needed)
+          // --- 1. PRO STATUS CHECK ---
+          const userIsPro = data.subscription?.plan === 'pro';
+          setIsPro(userIsPro);
+          // ---------------------------
+
+          // 2. LOAD NOTES
           let loadedNotes = data.notes || [];
-          // Optional: Sort by most recently updated
           setNotes(loadedNotes);
 
-          // 2. SYNC TIMER LOGIC (Preserved from your working version)
+          // 3. SYNC TIMER LOGIC
           if (data.timerState) {
             const remote = data.timerState;
             if (remote.lastUpdated > lastRemoteUpdate.current) {
@@ -3223,7 +3297,7 @@ export default function App() {
             }
           }
 
-          // 3. STATS & DAILY RESET LOGIC
+          // 4. STATS & DAILY RESET LOGIC
           const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
           const today = new Date();
           let currentStreak = loadedStats.currentStreak;
@@ -3244,43 +3318,37 @@ export default function App() {
           }
 
           if (shouldResetDaily) {
-            // ARCHIVE OLD STATS
             if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
               const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
               const dateId = formatDateId(archiveDate);
               const historyRef = doc(db, "users", user.uid, "history", dateId);
               setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
             }
-
-            // RESET DAILY COUNTERS
             loadedStats.dailyFocusTime = 0;
             loadedStats.dailyBreakTime = 0;
             loadedStats.dailySessions = 0;
-            loadedStats.dailyTasksCompleted = 0; // Keeping this 0 as tasks are gone
+            loadedStats.dailyTasksCompleted = 0;
           }
 
           setStats(prevStats => {
             const newStats = { ...loadedStats, currentStreak };
-            // Anti-revert logic for Focus Time
             if (!shouldResetDaily) {
-              if (prevStats.dailyFocusTime > newStats.dailyFocusTime) {
-                newStats.dailyFocusTime = prevStats.dailyFocusTime;
-              }
-              if (prevStats.dailyBreakTime > newStats.dailyBreakTime) {
-                newStats.dailyBreakTime = prevStats.dailyBreakTime;
-              }
+              if (prevStats.dailyFocusTime > newStats.dailyFocusTime) newStats.dailyFocusTime = prevStats.dailyFocusTime;
+              if (prevStats.dailyBreakTime > newStats.dailyBreakTime) newStats.dailyBreakTime = prevStats.dailyBreakTime;
             }
             return newStats;
           });
 
-          // 4. LOAD SETTINGS
+          // 5. LOAD SETTINGS
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
           setSettings(mergedSettings);
           if (data.sessionName && !sessionName) setSessionName(data.sessionName);
 
-          // Update Refs for comparison
           prevSettings.current = mergedSettings;
           prevSessionName.current = data.sessionName || "";
+
+          // Fixed: Update prevNotes ref
+          prevNotes.current = loadedNotes;
         }
         setDataLoaded(true);
       });
@@ -3430,7 +3498,9 @@ export default function App() {
   };
   const finishSessionInput = (e) => {
     if (e.key === 'Enter') {
-      setOnboardingStep(2);
+      // Skip the "Let's go specific" step entirely
+      // Skip the morph animation
+      setOnboardingStep(3);
     }
   }
   useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
@@ -3825,24 +3895,6 @@ export default function App() {
         <div className="w-full max-w-xl px-8 flex flex-col items-center gap-8"><h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight">{onboardingStep === 1 && <StaggeredText text="What are we working on?" />}</h2><div className="w-full animate-fade-in" style={{ animationDelay: '0.5s' }}><input ref={sessionInputRef} type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} onKeyDown={finishSessionInput} placeholder="Type here..." className="w-full bg-transparent border-b-2 border-white/20 py-4 text-center text-2xl md:text-3xl text-white focus:outline-none focus:border-white/60 transition-colors font-light" /><p className="text-white/40 text-sm mt-2 flex justify-center items-center gap-2">Press <span className="border border-white/20 px-2 py-0.5 rounded text-xs">Enter</span> to continue</p></div></div>
       </div>
 
-      <div className={`fixed inset-0 z-30 bg-black flex flex-col items-center justify-center transition-all duration-500 ${onboardingStep === 2 && !isMorphing ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}>
-        <div className="w-full max-w-md px-6 flex flex-col items-center gap-6"><h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-4">{onboardingStep === 2 && <StaggeredText text="Let's go specific" />}</h2><div className="w-full bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl animate-fade-in" style={{ animationDelay: '0.5s' }}><div className="w-full bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl animate-fade-in" style={{ animationDelay: '0.5s' }}>
-          <div className="text-center text-white/50 py-8">
-            <p>Session Goal Set.</p>
-            <p className="text-xs mt-2">Use the Sticky Notes on the dashboard to add details.</p>
-          </div>
-        </div></div>{!isMorphing && (<button ref={beginBtnRef} onClick={handleBeginSession} className="mt-4 group flex items-center justify-center gap-3 px-8 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-all hover:px-10 animate-fade-in relative overflow-hidden" style={{ animationDelay: '0.8s' }}><span className="relative z-10 flex items-center justify-center w-full">Begin Session</span></button>)}</div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none -z-10 opacity-0"><div className="flex flex-col items-center w-full"><div className="mb-4 md:mb-6 h-[28px] md:h-[28px] w-[200px]"></div><div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-8 h-[28px] md:h-[32px]"></div><div className="font-digital text-[18vw] md:text-[10rem] lg:text-[12rem] leading-none font-bold tracking-widest select-none tabular-nums text-transparent">00:00</div><div className="flex items-center gap-6 mt-6 md:mt-10"><div ref={playBtnRef} className="w-16 h-16 md:w-20 md:h-20 rounded-full"></div><div className="w-10 h-10"></div></div></div></div>
-      </div>
-
-      {isMorphing && beginBtnRect && targetPlayBtnRect && (
-        <div className="fixed z-[100] bg-white flex items-center justify-center overflow-hidden" style={{ top: beginBtnRect.top, left: beginBtnRect.left, width: beginBtnRect.width, height: beginBtnRect.height, borderRadius: '9999px', animation: 'morphToTarget 1s cubic-bezier(0.4, 0, 0.2, 1) forwards' }}>
-          <style>{`@keyframes morphToTarget { 0% { top: ${beginBtnRect.top}px; left: ${beginBtnRect.left}px; width: ${beginBtnRect.width}px; height: ${beginBtnRect.height}px; border-radius: 9999px; } 100% { top: ${targetPlayBtnRect.top}px; left: ${targetPlayBtnRect.left}px; width: ${targetPlayBtnRect.width}px; height: ${targetPlayBtnRect.height}px; border-radius: 50%; } } @keyframes fadeOutText { to { opacity: 0; } }`}</style>
-          <div className="absolute inset-0 flex items-center justify-center text-black font-medium" style={{ animation: 'fadeOutText 0.2s forwards' }}><div className="flex items-center justify-center w-full">Begin Session</div></div>
-          <div className="absolute inset-0 flex items-center justify-center text-black opacity-0" style={{ animation: 'fadeInIcon 0.3s 0.6s forwards' }}><Play size={32} fill="black" className="ml-1" /></div>
-        </div>
-      )}
-
       {/* --- MAIN DASHBOARD (Responsive Redesign) --- */}
       <div className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
 
@@ -3861,7 +3913,7 @@ export default function App() {
               <Users size={22} />
             </button>
             <button onClick={() => setShowAccount(true)} className="rounded-full overflow-hidden ml-2 w-8 h-8">
-              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
             <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Settings size={22} />
@@ -3880,7 +3932,7 @@ export default function App() {
 
             {/* 2. ACCOUNT ICON (Now on the Right - Profile Pic) */}
             <button onClick={() => setShowAccount(true)} className="relative group rounded-full overflow-hidden w-9 h-9">
-              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
 
           </div>
@@ -4013,7 +4065,7 @@ export default function App() {
 
             {/* --- CONTROLS --- */}
             <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
-              <button ref={playBtnRef} onClick={toggleTimer} className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] ${isMorphing ? 'opacity-0' : 'opacity-100'}`}>
+              <button ref={playBtnRef} onClick={toggleTimer} className="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)]">
                 <div className="relative w-8 h-8 flex items-center justify-center">
                   <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
                     <Pause size={32} fill="black" />
@@ -4108,6 +4160,13 @@ export default function App() {
         onConfirm={handleStrictDisable}
       />
       {/* ----------------------------------- */}
+
+      {onboardingStep === 3 && (
+        <ProCelebrationModal
+          isPro={isPro}
+          user={user} // <--- Pass user here so the modal can show the pic
+        />
+      )}
 
       <NotificationCenter />
 
