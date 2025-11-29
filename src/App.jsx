@@ -558,40 +558,39 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
 
 // Helper Component for consistent avatars
 // 1. IMPROVED AVATAR COMPONENT (With Referrer Fix)
-const Avatar = ({ photoURL, name, size = "md", isPinned = false, isPro = false }) => {
+const Avatar = ({ photoURL, name, size = "md", isPinned = false }) => {
   const [imageError, setImageError] = useState(false);
 
-  useEffect(() => { setImageError(false); }, [photoURL]);
+  // Reset error if the URL changes (important for search lists)
+  useEffect(() => {
+    setImageError(false);
+  }, [photoURL]);
 
   const sizeClasses = {
     sm: "w-6 h-6 text-[10px]",
     md: "w-10 h-10 text-xs",
-    lg: "w-12 h-12 text-sm",
-    full: "w-full h-full" // Added strict full size handler
+    lg: "w-12 h-12 text-sm"
   };
-
-  // Determine border/glow style
-  const containerStyle = isPro
-    ? "ring-2 ring-white shadow-[0_0_15px_rgba(255,255,255,0.5)]"
-    : "border border-white/10";
 
   return (
     <div className={`relative flex-shrink-0 ${sizeClasses[size]}`}>
-      <div className={`w-full h-full rounded-full overflow-hidden ${containerStyle}`}>
-        {photoURL && !imageError ? (
-          <img
-            src={photoURL}
-            alt={name}
-            referrerPolicy="no-referrer"
-            onError={() => setImageError(true)}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase select-none">
-            {name ? name.charAt(0) : '?'}
-          </div>
-        )}
-      </div>
+      {photoURL && !imageError ? (
+        <img
+          src={photoURL}
+          alt={name}
+          // --- FIX: This allows Google Images to load ---
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            console.warn("Avatar load failed", e);
+            setImageError(true);
+          }}
+          className="w-full h-full rounded-full object-cover border border-white/10"
+        />
+      ) : (
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase border border-white/10 select-none">
+          {name ? name.charAt(0) : '?'}
+        </div>
+      )}
 
       {isPinned && (
         <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-10">
@@ -654,7 +653,7 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
               <div className="w-24 h-24 md:w-32 md:h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative group">
-                <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" isPro={isPro} />
+                <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
                 <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-1">{user?.displayName || "Guest User"}</h2>
@@ -784,7 +783,7 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
 
               <div className="w-32 h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative flex items-center justify-center">
-                <Avatar photoURL={friend?.photoURL} name={friend?.displayName} size="full" className="w-full h-full rounded-full" isPro={friend?.isPro} />
+                <Avatar photoURL={friend?.photoURL} name={friend?.displayName} size="full" className="w-full h-full rounded-full" />
 
                 {friend?.isOnline && (
                   // 1. The Orbit Track (Spins continuously)
@@ -1060,7 +1059,7 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
                   {filteredSearchResults.map(result => (
                     <div key={result.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar photoURL={result.photoURL} name={result.displayName} size="md" isPro={result.isPro} />
+                        <Avatar photoURL={result.photoURL} name={result.displayName} size="md" />
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-white">{result.displayName}</span>
                           <span className="text-[10px] text-white/50">{result.email}</span>
@@ -1263,54 +1262,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
     </AnimatePresence>
   );
 };
-
-const ProUpgradeModal = ({ isOpen, onClose }) => (
-  <AnimatePresence>
-    {isOpen && (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 backdrop-blur-sm"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 10 }}
-          className="bg-[#111] border border-white/10 p-8 rounded-3xl w-full max-w-sm text-center relative overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Background Gradient Effect */}
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/20 to-transparent pointer-events-none" />
-
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center mx-auto mb-6 relative z-10 shadow-[0_0_30px_rgba(168,85,247,0.4)]">
-            <Sparkles size={32} className="text-white" />
-          </div>
-
-          <h2 className="text-2xl font-bold text-white mb-2 relative z-10">Unlock Pro</h2>
-          <p className="text-white/60 text-sm mb-8 leading-relaxed relative z-10">
-            Free users are limited to 3 notes. Upgrade to Pro for unlimited notes, advanced themes, and more.
-          </p>
-
-          <button
-            className="w-full py-3.5 bg-white text-black font-bold rounded-xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] mb-3"
-            onClick={() => alert("Payment integration coming soon!")}
-          >
-            Upgrade Now
-          </button>
-
-          <button
-            onClick={onClose}
-            className="text-xs text-white/40 hover:text-white transition-colors uppercase tracking-widest"
-          >
-            Maybe Later
-          </button>
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
 
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, warning }) => {
   return (
@@ -1936,6 +1887,102 @@ const TagPill = ({ label, active, onClick, onDelete }) => (
     )}
   </button>
 );
+const LiquidDeleteBtn = ({ onDelete }) => {
+  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+  const containerRef = useRef(null);
+
+  // Close confirmation if clicked outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setStatus('idle');
+      }
+    };
+    if (status === 'confirming') {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [status]);
+
+  const handleInitialClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setStatus('confirming');
+  };
+
+  const handleConfirm = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete();
+    setStatus('idle');
+  };
+
+  const handleCancel = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setStatus('idle');
+  };
+
+  return (
+    <motion.div
+      ref={containerRef}
+      layout
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      initial={false}
+      // --- CHANGED VALUES HERE ---
+      animate={status === 'confirming'
+        ? { width: 140, height: 40, borderRadius: 25, backgroundColor: "rgba(220, 38, 38, 0.15)" } // Larger Width/Height
+        : { width: 30, height: 30, borderRadius: 50, backgroundColor: "rgba(0, 0, 0, 0.1)" } // Slightly larger start button too
+      }
+      // ---------------------------
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      // Removed 'h-7' class so Framer controls the height entirely
+      className={`absolute top-2 right-2 backdrop-blur-md border border-white/10 flex items-center justify-center overflow-hidden z-50 cursor-default shadow-lg`}
+    >
+      <AnimatePresence mode="popLayout">
+        {status === 'idle' ? (
+          <motion.button
+            key="trash-icon"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleInitialClick}
+            className="w-full h-full flex items-center justify-center text-black/40 hover:text-red-500 transition-colors cursor-pointer"
+          >
+            <Trash2 size={16} /> {/* Increased Icon Size */}
+          </motion.button>
+        ) : (
+          <motion.div
+            key="confirm-actions"
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="flex items-center gap-2 px-1 w-full justify-evenly" // Increased gap and spacing
+          >
+            <button
+              onClick={handleConfirm}
+              // Made buttons slightly larger
+              className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-transform cursor-pointer shadow-sm"
+              title="Confirm Delete"
+            >
+              <Check size={16} strokeWidth={3} />
+            </button>
+            <span className="text-xs font-bold text-red-600 select-none">Delete?</span>
+            <button
+              onClick={handleCancel}
+              className="w-7 h-7 rounded-full bg-black/10 text-black/50 flex items-center justify-center hover:bg-black/20 hover:text-black transition-colors cursor-pointer"
+              title="Cancel"
+            >
+              <X size={14} strokeWidth={3} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 const NoteSystemModals = ({
   notes,
@@ -1946,9 +1993,7 @@ const NoteSystemModals = ({
   onSave,
   onDelete,
   onReorder,
-  onSaveOrder,
-  isPro,            // <--- NEW
-  onShowProModal,    // <--- NEW
+  onSaveOrder
 }) => {
   // --- STATE ---
   const [editorTitle, setEditorTitle] = useState("");
@@ -2235,13 +2280,9 @@ const NoteSystemModals = ({
 
   const filteredNotes = selectedTag === "All" ? notes : notes.filter(n => n.tags && n.tags.includes(selectedTag));
 
-  const isLimitReached = !isPro && notes.length >= 3;
-
   return (
     <AnimatePresence>
       {/* LIBRARY MODAL */}
-
-
       {isLibraryOpen && (
         <motion.div
           initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
@@ -2269,118 +2310,98 @@ const NoteSystemModals = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   onMouseMove={handleGlowMove}
-                  className={`
-              relative aspect-square rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden transition-all duration-300
-              ${isLimitReached
-                      ? 'bg-red-500/5 border-2 border-dashed border-red-500/20 hover:border-red-500/50 hover:bg-red-500/10'
-                      : 'bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50'
-                    }
-            `}
+                  className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (isLimitReached) {
-                      onShowProModal(); // Trigger the modal if limited
-                    } else {
-                      // Standard creation logic
-                      const initialTags = selectedTag !== "All" ? [selectedTag] : [];
-                      setEditingNote({ tags: initialTags });
-                    }
+                    const initialTags = selectedTag !== "All" ? [selectedTag] : [];
+                    setEditingNote({ tags: initialTags });
                   }}
                 >
-                  {/* Optional Glow Effect (Keep existing) */}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
-
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    {isLimitReached ? (
-                      <>
-                        <Lock size={32} className="text-red-400/50 group-hover:text-red-400 transition-colors" />
-                        <span className="text-xs uppercase tracking-widest text-red-400/50 group-hover:text-red-400 transition-colors font-bold">
-                          Locked
-                        </span>
-                        <span className="text-[10px] text-white/30 uppercase tracking-widest">
-                          {notes.length} / 3 Notes
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                        <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">
-                          Create New
-                        </span>
-                        {!isPro && (
-                          <span className="text-[10px] text-white/20 uppercase tracking-widest group-hover:text-white/40">
-                            {notes.length} / 3 Free
-                          </span>
-                        )}
-                      </>
-                    )}
+                    <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
+                    <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
                   </div>
                 </motion.div>
 
-
-
                 {/* NOTES GRID */}
-                {filteredNotes.map((note) => (
-                  <motion.div
-                    key={note.id}
-                    layoutId={note.id}
-                    layout="position"
-                    data-note-id={note.id}
+                {/* 1. CHANGED: Removed mode="popLayout" so the note holds its space while shrinking */}
+                <AnimatePresence>
+                  {filteredNotes.map((note) => (
+                    <motion.div
+                      key={note.id}
+                      layoutId={note.id}
+                      layout="position"
+                      data-note-id={note.id}
 
-                    drag={selectedTag === "All"}
-                    dragSnapToOrigin={true}
-                    dragElastic={0.1}
-                    dragMomentum={false}
-                    onDragStart={(e) => handleDragStart(note.id, e)}
+                      // --- DRAG PROPS ---
+                      drag={selectedTag === "All"}
+                      dragSnapToOrigin={true}
+                      dragElastic={0.1}
+                      dragMomentum={false}
+                      onDragStart={(e) => handleDragStart(note.id, e)}
 
-                    onMouseMove={handleGlowMove}
-                    onTap={(e) => {
-                      // 1. Check if the click started on a button (like the delete 'X')
-                      // If it did, ignore this tap event completely.
-                      if (e.target.closest('button')) return;
+                      // --- EVENT HANDLERS ---
+                      onMouseMove={handleGlowMove}
 
-                      handleNoteTap(e, note);
-                    }}
-
-                    // --- THE FIX: Stop click event bubbling to background ---
-                    onClick={(e) => e.stopPropagation()}
-
-                    style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
-
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={draggingId === note.id ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 } : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-
-                    className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
-                  >
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%)' }} />
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
-
-                    <div className="relative z-10 flex flex-col h-full pointer-events-none">
-                      {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
-                      <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
-                        <RichTextRenderer text={note.text} className="text-xs md:text-sm" onToggle={(index, status) => handleToggleLine(note, index, status)} />
-                      </div>
-                      {note.tags && note.tags.length > 0 && (
-                        <div className="mt-2 flex gap-1 flex-wrap">
-                          {note.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">#{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm("Delete this note?")) onDelete(note.id);
+                      onTap={(e) => {
+                        if (e.target.closest('button') || e.target.closest('[data-layout-id]')) return;
+                        handleNoteTap(e, note);
                       }}
-                      className="absolute top-2 right-2 p-1.5 bg-black/10 hover:bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 cursor-pointer pointer-events-auto"
+
+                      onClick={(e) => e.stopPropagation()}
+
+                      // --- STYLING ---
+                      style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
+                      className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
+
+                      // --- ANIMATIONS ---
+                      initial={{ opacity: 0, scale: 0.8 }}
+
+                      animate={draggingId === note.id
+                        ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 }
+                        : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }
+                      }
+
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+
+                      // --- UPDATED EXIT ANIMATION ---
+                      exit={{
+                        scale: 0,            // Shrink to nothing
+                        opacity: 0,          // Fade out
+                        transition: {
+                          duration: 0.35,    // Takes 0.35s to shrink
+                          ease: "backIn"     // "Pulls back" slightly before shrinking (the suck effect)
+                        }
+                      }}
                     >
-                      <X size={12} />
-                    </button>
-                  </motion.div>
-                ))}
+                      {/* Mouse Glow Effect */}
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%)' }} />
+
+                      {/* Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
+
+                      {/* Note Content */}
+                      <div className="relative z-10 flex flex-col h-full pointer-events-none">
+                        {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
+                        <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
+                          <RichTextRenderer text={note.text} className="text-xs md:text-sm" onToggle={(index, status) => handleToggleLine(note, index, status)} />
+                        </div>
+                        {note.tags && note.tags.length > 0 && (
+                          <div className="mt-2 flex gap-1 flex-wrap">
+                            {note.tags.slice(0, 3).map(tag => (
+                              <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">#{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* LIQUID DELETE BUTTON */}
+                      <LiquidDeleteBtn onDelete={() => onDelete(note.id)} />
+
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           </div>
@@ -2557,8 +2578,6 @@ export default function App() {
   const [musicProgress, setMusicProgress] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
   const [showStats, setShowStats] = useState(false);
-  const [showProModal, setShowProModal] = useState(false);
-  const [isPro, setIsPro] = useState(false);
   const musicAudioRef = useRef(new Audio());
   useEffect(() => {
     if (musicAudioRef.current) {
@@ -2956,22 +2975,6 @@ export default function App() {
           let mode = 'focus';
           let timeLeft = 0;
 
-          const isFriendPro = data.subscription && data.subscription.plan === 'pro';
-
-          currentFriendsData[friendId] = {
-            uid: friendId,
-            displayName: data.displayName || "Unknown Friend",
-            email: data.email,
-            photoURL: data.photoURL,
-            isOnline,
-            isActive,
-            statusText,
-            mode,
-            timeLeft,
-            isPinned: friendConfig[friendId]?.isPinned || false,
-            isPro: isFriendPro // <--- Store it here
-          };
-
           if (data.timerState) {
             const now = Date.now();
             const lastUpdated = data.timerState.lastUpdated;
@@ -3184,12 +3187,6 @@ export default function App() {
       const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-
-          if (data.subscription && data.subscription.plan === 'pro') {
-            setIsPro(true);
-          } else {
-            setIsPro(false);
-          }
 
           // 1. LOAD NOTES (Sort by updated time if needed)
           let loadedNotes = data.notes || [];
@@ -3864,12 +3861,7 @@ export default function App() {
               <Users size={22} />
             </button>
             <button onClick={() => setShowAccount(true)} className="rounded-full overflow-hidden ml-2 w-8 h-8">
-              <Avatar
-                photoURL={user?.photoURL}
-                name={user?.displayName}
-                size="full"
-                isPro={isPro} // <--- Pass the state
-              />
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
             </button>
             <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Settings size={22} />
@@ -3888,12 +3880,7 @@ export default function App() {
 
             {/* 2. ACCOUNT ICON (Now on the Right - Profile Pic) */}
             <button onClick={() => setShowAccount(true)} className="relative group rounded-full overflow-hidden w-9 h-9">
-              <Avatar
-                photoURL={user?.photoURL}
-                name={user?.displayName}
-                size="full"
-                isPro={isPro} // <--- Pass the state
-              />
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
             </button>
 
           </div>
@@ -3999,7 +3986,7 @@ export default function App() {
 
 
         {/* --- TIMER SECTION (Main) --- */}
-        {/* --- TIMER SECTION (Main) --- */}
+
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full">
             <div className="mb-4 md:mb-6 group relative">
@@ -4076,8 +4063,7 @@ export default function App() {
         onClose={() => setShowAccount(false)}
         user={user}
         stats={stats}
-        onSignOut={handleSignOut}
-        isPro={isPro} // <--- Pass the state from App
+        onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
       />
       <FriendProfileModal
         isOpen={showStats} // Using showStats state to trigger this
@@ -4088,8 +4074,7 @@ export default function App() {
         friend={viewingFriendStats}
       />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
-      <ProUpgradeModal isOpen={showProModal} onClose={() => setShowProModal(false)} />
-
+      {/* --- ADD THIS LINE --- */}
       <MusicModal
         volume={volume}
         onVolumeChange={setVolume}
@@ -4152,9 +4137,6 @@ export default function App() {
         onDelete={handleDeleteNote}
         onReorder={handleReorderNotes}
         onSaveOrder={() => saveNotesOrder(notes)}
-        // --- ADD THESE PROPS ---
-        isPro={isPro}
-        onShowProModal={() => setShowProModal(true)}
       />
     </div>
   );
