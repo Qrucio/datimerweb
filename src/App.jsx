@@ -4231,6 +4231,8 @@ export default function App() {
   }, [timeLeft, isActive]);
 
   const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
+  const isSessionInProgress = timeLeft !== settings.focus * 60;
+  const isStrictLocked = strictMode && mode === 'focus' && isSessionInProgress;
 
   return (
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
