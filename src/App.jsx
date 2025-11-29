@@ -2240,6 +2240,7 @@ export default function App() {
   const prevSessionName = useRef('');
   const lastStatSaveTime = useRef(Date.now());
   const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
+  const prevNotes = useRef([]);
 
   const DEFAULT_STATS = {
     dailyFocusTime: 0,
@@ -2642,23 +2643,21 @@ export default function App() {
   useEffect(() => {
     if (user) {
       const userDocRef = doc(db, "users", user.uid);
-      const unsub = onSnapshot(userDocRef, (docSnap) => {
+    const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
 
+          // 1. LOAD NOTES (Sort by updated time if needed)
           let loadedNotes = data.notes || [];
-          // (You might need to sort them by date if you add timestamps)
-          loadedNotes.sort((a, b) => b.updatedAt - a.updatedAt);
-
+          // Optional: Sort by most recently updated
+          loadedNotes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
           setNotes(loadedNotes);
 
-          // --- SYNC TIMER LOGIC ---
+          // 2. SYNC TIMER LOGIC (Preserved from your working version)
           if (data.timerState) {
             const remote = data.timerState;
-            // Only apply if remote is newer than our last write
             if (remote.lastUpdated > lastRemoteUpdate.current) {
               lastRemoteUpdate.current = remote.lastUpdated;
-
               setMode(remote.mode);
               setSessionName(remote.sessionName);
 
@@ -2684,11 +2683,8 @@ export default function App() {
             }
           }
 
-          let loadedTasks = data.tasks || [];
-
-          // Handle daily reset logic
+          // 3. STATS & DAILY RESET LOGIC
           const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
-
           const today = new Date();
           let currentStreak = loadedStats.currentStreak;
           let lastActiveDate = loadedStats.lastActiveDate ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate)) : null;
@@ -2708,31 +2704,24 @@ export default function App() {
           }
 
           if (shouldResetDaily) {
-            // ARCHIVE OLD STATS TO HISTORY SUBCOLLECTION
+            // ARCHIVE OLD STATS
             if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
-              // We archive the *loaded* stats which represent the previous day
-              // Calculate the date ID from the last active date (which should be yesterday or older)
-              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000); // Fallback to yesterday if null
+              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000); 
               const dateId = formatDateId(archiveDate);
               const historyRef = doc(db, "users", user.uid, "history", dateId);
-              // Fire and forget archive
               setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
             }
 
+            // RESET DAILY COUNTERS
             loadedStats.dailyFocusTime = 0;
             loadedStats.dailyBreakTime = 0;
             loadedStats.dailySessions = 0;
-            loadedStats.dailyTasksCompleted = 0;
-            const cleanCompleted = (taskList) => { return taskList.filter(t => !t.completed).map(t => ({ ...t, subtasks: t.subtasks ? cleanCompleted(t.subtasks) : [] })); };
-            loadedTasks = cleanCompleted(loadedTasks);
+            loadedStats.dailyTasksCompleted = 0; // Keeping this 0 as tasks are gone
           }
 
           setStats(prevStats => {
             const newStats = { ...loadedStats, currentStreak };
-
-            // ANTI-REVERT LOGIC:
-            // If local stats are higher than what the server sent (due to lag),
-            // keep the local version. This prevents the "9s" glitch.
+            // Anti-revert logic for Focus Time
             if (!shouldResetDaily) {
               if (prevStats.dailyFocusTime > newStats.dailyFocusTime) {
                 newStats.dailyFocusTime = prevStats.dailyFocusTime;
@@ -2744,12 +2733,14 @@ export default function App() {
             return newStats;
           });
 
-          setTasks(loadedTasks);
-
+          // 4. LOAD SETTINGS
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
           setSettings(mergedSettings);
           if (data.sessionName && !sessionName) setSessionName(data.sessionName);
-          prevSettings.current = mergedSettings; prevTasks.current = loadedTasks; prevSessionName.current = data.sessionName || "";
+          
+          // Update Refs for comparison
+          prevSettings.current = mergedSettings; 
+          prevSessionName.current = data.sessionName || "";
         }
         setDataLoaded(true);
       });
@@ -2757,11 +2748,15 @@ export default function App() {
     }
   }, [user]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!user || !dataLoaded) return;
 
     const isDifferent = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
-    const hasCriticalChanges = isDifferent(settings, prevSettings.current) || sessionName !== prevSessionName.current;
+    
+    // FIXED: Compare 'notes' with 'prevNotes.current'
+    const notesChanged = JSON.stringify(notes) !== JSON.stringify(prevNotes.current);
+    const hasCriticalChanges = notesChanged || isDifferent(settings, prevSettings.current) || sessionName !== prevSessionName.current;
+    
     const timeSinceLastStatSave = Date.now() - lastStatSaveTime.current;
     const shouldSaveStats = timeSinceLastStatSave > 60000; // Save every minute
 
@@ -2784,6 +2779,7 @@ export default function App() {
         }
 
         const payload = {
+          notes, // Saving notes
           settings,
           sessionName,
           lastUpdated: today,
@@ -2791,26 +2787,32 @@ export default function App() {
         };
 
         await setDoc(userDocRef, payload, { merge: true });
-        prevSettings.current = settings; prevSessionName.current = sessionName;
+        
+        // FIXED: Update the prevNotes ref
+        prevNotes.current = notes;
+        prevSettings.current = settings; 
+        prevSessionName.current = sessionName;
+        
         if (shouldSaveStats) { lastStatSaveTime.current = Date.now(); }
       };
       const handler = setTimeout(saveData, 1000);
       return () => clearTimeout(handler);
     }
-  }, [settings, sessionName, user, dataLoaded, stats]);
+  }, [notes, settings, sessionName, user, dataLoaded, stats]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!isActive && user && dataLoaded) {
       const saveFinal = async () => {
         const userDocRef = doc(db, "users", user.uid);
         const today = new Date();
-        const payload = { tasks, settings, sessionName, lastUpdated: today, stats };
+        // Replace 'tasks' with 'notes'
+        const payload = { notes, settings, sessionName, lastUpdated: today, stats }; 
         await setDoc(userDocRef, payload, { merge: true });
         lastStatSaveTime.current = Date.now();
       };
       saveFinal();
     }
-  }, [isActive]);
+  }, [isActive]); // notes/settings/stats are read from closure, which is fine here
 
   // --- FOCUS MODE LOGIC ---
   useEffect(() => {
