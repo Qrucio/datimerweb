@@ -2280,7 +2280,8 @@ const NoteSystemModals = ({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-[85vw] md:w-[550px] aspect-auto md:aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-lg max-h-[85vh]"
+            // --- CHANGE HERE: Removed 'aspect-auto' and 'md:aspect-square', replaced with just 'aspect-square' ---
+            className="w-[85vw] md:w-[550px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-2xl max-h-[85vh]"
             style={{ backgroundColor: editorColor }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
@@ -3720,7 +3721,8 @@ export default function App() {
 
 
         {/* --- TIMER SECTION (Main) --- */}
-        <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pt-0 md:absolute md:inset-0 md:z-10 md:pointer-events-none">
+        {/* --- TIMER SECTION (Main) --- */}
+        <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full">
             <div className="mb-4 md:mb-6 group relative">
               {isEditingName ? (<input id="session-name-input" ref={nameInputRef} type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} onBlur={() => setIsEditingName(false)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }} className="bg-transparent border-b border-white/50 text-center text-white/80 text-xl md:text-xl focus:outline-none font-light tracking-wide min-w-[200px] w-auto" />) : (<div onClick={() => setIsEditingName(true)} className="relative flex items-center justify-center gap-2 cursor-pointer text-white/50 hover:text-white transition-colors py-1"><span className="text-xl md:text-xl font-light tracking-wide text-center">{sessionName || "Deep Work Session"}</span><Pencil size={14} className="opacity-0 group-hover:opacity-100 absolute -right-6 transition-opacity" /></div>)}
