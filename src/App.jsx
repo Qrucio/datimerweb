@@ -5,6 +5,45 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 
+// --- ERROR BOUNDARY COMPONENT ---
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("CRITICAL APP ERROR:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center text-white">
+          {/* Ensure fonts are loaded even in error state */}
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+            .font-serif-display { font-family: 'Playfair Display', serif; }
+          `}</style>
+
+          <h1 className="font-serif-display text-4xl md:text-6xl text-white tracking-tight">
+            Under Maintenance
+          </h1>
+          <p className="mt-4 text-white/30 text-sm font-sans">
+            Please refresh or try again later.
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // --- FIREBASE CONFIGURATION ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_APP_FIREBASE_API_KEY,
@@ -2945,7 +2984,7 @@ const MiniLofiPlayer = ({ isPlaying, onToggle }) => {
   );
 };
 
-export default function App() {
+function MainApp() {
   // ... inside App component
 
   const handleReorderNotes = (newOrder) => {
@@ -4591,5 +4630,13 @@ export default function App() {
         onSaveOrder={() => saveNotesOrder(notes)}
       />
     </div >
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <MainApp />
+    </ErrorBoundary>
   );
 }
