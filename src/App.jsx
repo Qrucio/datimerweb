@@ -2091,11 +2091,11 @@ const LiquidCloseBtn = ({ onClose }) => {
   );
 };
 
-const LiquidResetBtn = ({ onReset }) => {
-  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+const LiquidResetBtn = ({ onReset, disabled }) => {
+  const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
 
-  // Auto-reset to idle if not confirmed within 3 seconds
+  // Auto-reset to idle logic... (Same as before)
   useEffect(() => {
     let timer;
     if (status === 'confirming') {
@@ -2104,7 +2104,7 @@ const LiquidResetBtn = ({ onReset }) => {
     return () => clearTimeout(timer);
   }, [status]);
 
-  // Click outside listener
+  // Click outside listener... (Same as before)
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -2117,35 +2117,32 @@ const LiquidResetBtn = ({ onReset }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [status]);
 
-  return (
-    // 1. Static Layout Anchor (48x48)
-    // Ensures the dock layout around it doesn't shift
-    <div className="relative w-12 h-12 flex-shrink-0 z-50">
+  // --- 1. HANDLE DISABLED STATE ---
+  if (disabled) {
+    return (
+      <div className="relative w-12 h-12 flex-shrink-0 z-30 opacity-20 grayscale cursor-not-allowed">
+        <div className="absolute top-0 left-0 w-12 h-12 border border-white/30 rounded-full flex items-center justify-center">
+          <RotateCcw size={22} />
+        </div>
+      </div>
+    );
+  }
 
-      {/* 2. Absolute Animated Container */}
+  return (
+    // ... (The rest of your existing component code remains exactly the same)
+    // Just ensure you paste the "Fixed Anchor" version I gave you in the previous response
+    <div className="relative w-12 h-12 flex-shrink-0 z-50">
+      {/* ... existing motion.div code ... */}
       <motion.div
         ref={containerRef}
         layout
         initial={false}
-        // Force the transform origin to the left so it grows right
         style={{ transformOrigin: "0% 50%" }}
-        // Match top-0 and fixed height (48px) to prevent vertical shifting
         className="absolute top-0 left-0 border flex items-center justify-center overflow-hidden cursor-pointer shadow-lg bg-[#111]"
+        // ... (rest of animation props)
         animate={status === 'confirming'
-          ? {
-            width: 180,
-            height: 48, // Fixed height to match idle state (no vertical shift)
-            borderRadius: 24,
-            backgroundColor: "rgba(220, 38, 38, 0.15)",
-            borderColor: "rgba(220, 38, 38, 0.5)"
-          }
-          : {
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            backgroundColor: "transparent",
-            borderColor: "rgba(255, 255, 255, 0.3)"
-          }
+          ? { width: 180, height: 48, borderRadius: 24, backgroundColor: "rgba(220, 38, 38, 0.15)", borderColor: "rgba(220, 38, 38, 0.5)" }
+          : { width: 48, height: 48, borderRadius: 24, backgroundColor: "transparent", borderColor: "rgba(255, 255, 255, 0.3)" }
         }
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
@@ -2164,34 +2161,20 @@ const LiquidResetBtn = ({ onReset }) => {
               <RotateCcw size={22} />
             </motion.button>
           ) : (
+            // ... existing Confirm/Cancel buttons ...
             <motion.div
               key="confirm-actions"
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2, delay: 0.1 }} // Slight delay to let width expand first
+              transition={{ duration: 0.2, delay: 0.1 }}
               className="flex items-center justify-between w-full px-2 pr-3 h-full"
             >
-              {/* 3. Cancel Button (X) - Sits on the LEFT (Stable) */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
-                className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all flex-shrink-0 z-20"
-                title="Cancel"
-              >
+              <button onClick={(e) => { e.stopPropagation(); setStatus('idle'); }} className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all flex-shrink-0 z-20" title="Cancel">
                 <X size={16} strokeWidth={3} />
               </button>
-
-              {/* Text Label */}
-              <span className="text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide mx-2">
-                Reset?
-              </span>
-
-              {/* 4. Confirm Button (Check) - Sits on the RIGHT */}
-              <button
-                onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }}
-                className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md flex-shrink-0 z-20"
-                title="Confirm"
-              >
+              <span className="text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide mx-2">Reset?</span>
+              <button onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }} className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md flex-shrink-0 z-20" title="Confirm">
                 <Check size={18} strokeWidth={3} />
               </button>
             </motion.div>
@@ -2206,15 +2189,14 @@ const LiquidStrictBtn = ({
   isStrict,
   onEnable,
   onDisable,
-  isLocked,
+  isLocked, // This prop now controls the "Locked" state
   onMouseEnter
 }) => {
-  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+  const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
 
   const isMenuOpen = status === 'confirming';
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -2230,7 +2212,6 @@ const LiquidStrictBtn = ({
   return (
     <div ref={containerRef} className="relative flex items-center">
 
-      {/* --- POPUP WINDOW (Opens Upwards) --- */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -2238,32 +2219,47 @@ const LiquidStrictBtn = ({
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
             exit={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="absolute bottom-full left-1/2 mb-4 w-64 bg-[#111]/90 backdrop-blur-xl border border-white/20 p-4 rounded-2xl shadow-2xl flex flex-col gap-3 z-[60] origin-bottom"
+            // --- 1. INCREASED WIDTH (w-64 -> w-80) ---
+            className="absolute bottom-full left-1/2 mb-4 w-80 bg-[#111]/95 backdrop-blur-xl border border-white/20 p-5 rounded-2xl shadow-2xl flex flex-col gap-3 z-[60] origin-bottom"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center border border-white/5 ${isStrict ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
-                {isStrict ? <Unlock size={14} /> : <Lock size={14} />}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/5 ${isStrict ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                {isStrict ? <Unlock size={18} /> : <Lock size={18} />}
               </div>
-              <span className="text-sm font-bold text-white">
-                {isStrict ? "Disable Strict Mode?" : "Enable Strict Mode?"}
-              </span>
+              <div className="flex flex-col">
+                <span className="text-base font-bold text-white">
+                  {isStrict ? "Disable Strict Mode?" : "Enable Strict Mode?"}
+                </span>
+                {!isStrict && <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold">Recommended for flow</span>}
+              </div>
             </div>
 
-            {/* Info Text */}
-            <p className="text-xs text-white/60 leading-relaxed">
-              {isStrict
-                ? "Disabling this will exit full-screen mode immediately. Your session timer will continue."
-                : "This forces full-screen. If you exit full-screen or switch tabs, the timer will pause."
-              }
-            </p>
+            {/* Info Text - INCREASED SIZE & ADDED WARNING */}
+            <div className="space-y-3">
+              <p className="text-sm text-white/70 leading-relaxed">
+                {isStrict
+                  ? "Disabling this will exit full-screen mode immediately. Your session timer will continue running."
+                  : "Forces full-screen. If you exit full-screen or switch tabs, the timer will pause."
+                }
+              </p>
+
+              {!isStrict && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex gap-2 items-start">
+                  <div className="mt-0.5"><AlertTriangle size={14} className="text-red-400" /></div>
+                  <p className="text-xs text-red-200/90 leading-tight">
+                    <strong>Warning:</strong> Once started, you cannot turn this off until the timer finishes or you take a break.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* Actions */}
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={() => setStatus('idle')}
-                className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors uppercase tracking-wide"
               >
                 Cancel
               </button>
@@ -2273,44 +2269,50 @@ const LiquidStrictBtn = ({
                   isStrict ? onDisable() : onEnable();
                   setStatus('idle');
                 }}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold text-black transition-colors shadow-lg ${isStrict ? 'bg-white hover:bg-gray-200' : 'bg-white hover:bg-gray-200'}`}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-black transition-colors shadow-lg uppercase tracking-wide ${isStrict ? 'bg-white hover:bg-gray-200' : 'bg-white hover:bg-gray-200'}`}
               >
                 {isStrict ? "Turn Off" : "Enable"}
               </button>
             </div>
 
-            {/* Tiny Arrow pointing down */}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/90 border-r border-b border-white/20 rotate-45 backdrop-blur-xl"></div>
+            {/* Tiny Arrow */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/95 border-r border-b border-white/20 rotate-45 backdrop-blur-xl"></div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- DOCK BUTTON --- */}
+      {/* DOCK BUTTON */}
       <motion.button
         layout
         onMouseEnter={onMouseEnter}
         onClick={(e) => {
           e.stopPropagation();
+          // --- 2. UPDATED LOCK CHECK ---
           if (isLocked) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
-        // Logic: Highlight button if hovered OR if menu is open
         className={`relative p-2 rounded-full transition-colors group flex items-center 
+          ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} 
           ${(isStrict || isMenuOpen) ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
           ${isMenuOpen ? 'bg-white/10' : ''} 
         `}
       >
-        {isStrict ? <Lock size={20} /> : <Unlock size={20} />}
+        {/* Visual Lock Icon if Locked, otherwise normal Lock/Unlock */}
+        {isLocked
+          ? <Lock size={20} className="text-white/50" />
+          : (isStrict ? <Lock size={20} /> : <Unlock size={20} />)
+        }
 
         <motion.span
           layout
           className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
-            ${(isStrict || isMenuOpen) // <--- FIX: Keep expanded if Strict is ON OR Menu is OPEN
+            ${(isStrict || isMenuOpen)
               ? 'max-w-[100px] opacity-100 ml-2'
               : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'
             }
           `}
         >
+          {/* Update Text based on state */}
           {isStrict ? (isLocked ? 'Locked' : 'Strict On') : 'Strict Mode'}
         </motion.span>
       </motion.button>
@@ -3064,11 +3066,20 @@ export default function App() {
   // The Strict Mode "Trap" Listeners
   useEffect(() => {
     const triggerWarning = () => {
-      // Pause Timer
+      // 1. Pause Timer
       setIsActive(false);
-      // Pause Music if playing
-      if (musicAudioRef.current) musicAudioRef.current.pause();
-      // Show Warning
+
+      // 2. Pause Music if playing (and remember state for resume)
+      if (musicAudioRef.current) {
+        // Fix: Remember if it was playing so we can resume it later
+        wasMusicPlayingRef.current = !musicAudioRef.current.paused;
+        musicAudioRef.current.pause();
+      }
+
+      // 3. Stop Lofi Girl (Fix: Explicitly turn off Lofi state)
+      setIsLofiPlaying(false);
+
+      // 4. Show Warning
       setShowStrictWarning(true);
     };
 
@@ -4400,8 +4411,8 @@ export default function App() {
               onEnable={enableStrictMode}
               onDisable={handleStrictDisable}
               onMouseEnter={() => setHoveredDockIndex(2)}
-              // Lock it if: Strict Mode is ON + Timer Active + In Focus Mode
-              isLocked={strictMode && mode === 'focus' && isActive && timeLeft > 0}
+              // --- PASS THE NEW LOCK VARIABLE ---
+              isLocked={isStrictLocked}
             />
 
           </motion.div>
@@ -4452,7 +4463,10 @@ export default function App() {
                 </div>
               </button>
 
-              <LiquidResetBtn onReset={handleConfirmReset} />
+              <LiquidResetBtn
+                onReset={handleConfirmReset}
+                disabled={strictMode && mode === 'focus'}
+              />
             </div>
 
           </div>
@@ -4539,12 +4553,14 @@ export default function App() {
       />
       {/* ----------------------------------- */}
 
-      {onboardingStep === 3 && (
-        <ProCelebrationModal
-          isPro={isPro}
-          user={user} // <--- Pass user here so the modal can show the pic
-        />
-      )}
+      {
+        onboardingStep === 3 && (
+          <ProCelebrationModal
+            isPro={isPro}
+            user={user} // <--- Pass user here so the modal can show the pic
+          />
+        )
+      }
 
       <NotificationCenter />
 
@@ -4572,6 +4588,6 @@ export default function App() {
         onReorder={handleReorderNotes}
         onSaveOrder={() => saveNotesOrder(notes)}
       />
-    </div>
+    </div >
   );
 }
