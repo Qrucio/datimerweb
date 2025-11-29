@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
@@ -1276,6 +1276,14 @@ const UPDATES = [
     color: "text-red-400",
     bg: "bg-red-500/10"
   },
+  {
+    id: 'stickynotes', // New Strict Mode notification
+    title: "Sticky Notes",
+    description: "Sticky notes are here to replace task list! Add, tag, format, rearrange them all you like!",
+    icon: StickyNote,
+    color: "text-yellow-400",
+    bg: "bg-yellow-500/10"
+  }
 ];
 
 const NotificationCenter = () => {
@@ -1600,21 +1608,18 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
 const StickyNote = ({ text, onClick, className = "", style = {}, scale = 1 }) => (
   <motion.div
-    layoutId={onClick ? "sticky-note-transition" : undefined} // Optional: for morphing effects later
+    layoutId={onClick ? "sticky-note-transition" : undefined}
     onClick={onClick}
     style={style}
     whileHover={onClick ? { scale: scale * 1.05, rotate: 0 } : {}}
     whileTap={onClick ? { scale: scale * 0.95 } : {}}
     className={`bg-[#ffeb3b] text-black p-4 shadow-xl cursor-pointer relative overflow-hidden flex flex-col ${className}`}
   >
-    {/* Subtle paper texture/gradient overlay */}
     <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
-
-    {/* Pin / Tape look (optional, keeping it clean for now) */}
-
-    <div className="relative z-10 flex-1 overflow-hidden font-handwriting text-left">
+    <div className="relative z-10 flex-1 overflow-hidden text-left">
       {text ? (
-        <p className="whitespace-pre-wrap leading-relaxed text-sm md:text-base font-medium opacity-90 font-sans">{text}</p> // Using sans for readability, can switch to handwritten
+        // USE NEW RENDERER HERE
+        <RichTextRenderer text={text} className="text-sm md:text-base opacity-90" />
       ) : (
         <div className="w-full h-full flex items-center justify-center opacity-30">
           <span className="text-4xl font-light">+</span>
@@ -1634,25 +1639,35 @@ const NOTE_COLORS = [
 ];
 
 
-const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen }) => {
+const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
   const hasNotes = notes.length > 0;
   const showStack = notes.length > 1;
   const topNote = notes[0];
   const secondNote = notes[1];
 
-  // HIDE THE WIDGET ENTIRELY WHEN LIBRARY IS OPEN
+  // Helper to toggle checkboxes on the dashboard widget
+  const handleToggleLine = (index, newStatus) => {
+    if (!onSave || !topNote) return;
+    const lines = topNote.text.split('\n');
+    if (lines[index]) {
+      const line = lines[index];
+      // Toggle [ ] <-> [x]
+      const newLine = newStatus
+        ? line.replace(/^(\s*)\[ \]/, '$1[x]')
+        : line.replace(/^(\s*)\[x\]/i, '$1[ ]');
+
+      lines[index] = newLine;
+      onSave({ ...topNote, text: lines.join('\n'), updatedAt: Date.now() });
+    }
+  };
+
   if (isLibraryOpen) {
-    // Render a transparent div to maintain layout space on the dashboard
     return <div className="relative w-40 h-40 md:w-48 md:h-48" />;
   }
 
-  // --- EMPTY STATE (Add Button) ---
   if (!hasNotes) {
     return (
-      <button
-        onClick={onOpenLibrary}
-        className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-white/50 bg-white/5 rounded-xl flex items-center justify-center group hover:border-white hover:bg-white/10 transition-all duration-300 relative"
-      >
+      <button onClick={onOpenLibrary} className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-white/50 bg-white/5 rounded-xl flex items-center justify-center group hover:border-white hover:bg-white/10 transition-all duration-300 relative">
         <div className="text-center">
           <Plus size={24} className="text-white/60 group-hover:text-white mx-auto mb-2 transition-colors" />
           <span className="text-xs uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Add Note</span>
@@ -1661,15 +1676,8 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen }) => {
     );
   }
 
-  // --- STACK STATE (Notes exist) ---
   return (
-    // Replaced motion.div with standard div and restored simple CSS stagger
-    <div
-      className="relative w-32 h-32 md:w-48 md:h-48 cursor-pointer group"
-      onClick={onOpenLibrary}
-    >
-
-      {/* NOTE 2 (The Stack - Background) */}
+    <div className="relative w-32 h-32 md:w-48 md:h-48 cursor-pointer group" onClick={onOpenLibrary}>
       {showStack && (
         <div
           className="absolute inset-0 shadow-lg transform rotate-6 translate-x-2 translate-y-2 group-hover:rotate-12 group-hover:translate-x-4 transition-transform duration-300 origin-bottom-right"
@@ -1679,7 +1687,6 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen }) => {
         </div>
       )}
 
-      {/* NOTE 1 (The Top Note - Foreground) */}
       <div
         className="absolute inset-0 shadow-2xl p-4 flex flex-col z-10 transition-all duration-300 group-hover:-translate-y-1 group-hover:-rotate-2"
         style={{ backgroundColor: topNote.color || '#ffeb3b' }}
@@ -1688,16 +1695,134 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen }) => {
 
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
           {topNote.title && (
-            <h4 className="text-black font-bold text-sm mb-1 line-clamp-1">{topNote.title}</h4>
+            <h4 className="text-black font-bold text-sm mb-1 line-clamp-1 flex-shrink-0">{topNote.title}</h4>
           )}
-          <p className="text-black text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap font-sans opacity-90 line-clamp-5">
-            {topNote.text}
-          </p>
+
+          <div className="flex-1 overflow-hidden relative">
+            {/* Use the Renderer so bold/checkboxes show up */}
+            <RichTextRenderer
+              text={topNote.text}
+              className="text-xs md:text-sm"
+              // Enable toggling if onSave is passed
+              onToggle={onSave ? handleToggleLine : undefined}
+            />
+
+            {/* Fade out effect at bottom for overflow text */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-4 pointer-events-none"
+              style={{ background: `linear-gradient(to top, ${topNote.color || '#ffeb3b'}, transparent)` }}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+// --- RICH TEXT & TAGGING HELPERS ---
+
+// --- RICH TEXT & TAGGING HELPERS ---
+
+const parseRichText = (text, onToggleLine) => {
+  if (!text) return [];
+  return text.split('\n').map((line, index) => {
+    // Checkboxes: "[ ] " or "[x] "
+    const checkboxMatch = line.match(/^(\s*)\[([ x])\] (.*)/);
+    if (checkboxMatch) {
+      const indent = checkboxMatch[1];
+      const isChecked = checkboxMatch[2].toLowerCase() === 'x';
+      const content = checkboxMatch[3];
+      return (
+        <div key={index} className="flex items-start gap-2 my-1 group">
+          <div
+            // Make clickable if onToggleLine is provided
+            onClick={(e) => {
+              if (onToggleLine) {
+                e.stopPropagation();
+                onToggleLine(index, !isChecked);
+              }
+            }}
+            className={`
+              mt-1 w-3 h-3 border border-black/40 rounded-[3px] flex items-center justify-center transition-colors
+              ${isChecked ? 'bg-black/60 border-transparent' : 'bg-transparent'}
+              ${onToggleLine ? 'cursor-pointer hover:border-black' : ''}
+            `}
+          >
+            {isChecked && <Check size={8} className="text-white" />}
+          </div>
+          <span className={`flex-1 leading-relaxed ${isChecked ? 'line-through opacity-50' : ''} whitespace-pre-wrap`}>
+            {indent}{parseInlineStyles(content)}
+          </span>
+        </div>
+      );
+    }
+
+    // Bullet Lists: "- "
+    const bulletMatch = line.match(/^(\s*)-\s(.*)/);
+    if (bulletMatch) {
+      const indent = bulletMatch[1];
+      const content = bulletMatch[2];
+      return (
+        <div key={index} className="flex items-start gap-2 my-1 pl-2">
+          <div className="mt-2 w-1.5 h-1.5 bg-black/60 rounded-full flex-shrink-0" />
+          <span className="flex-1 leading-relaxed whitespace-pre-wrap">{indent}{parseInlineStyles(content)}</span>
+        </div>
+      );
+    }
+
+    // Standard Paragraph
+    return (
+      <div key={index} className={`min-h-[1.2em] my-0.5 ${line.trim() === '' ? 'h-2' : ''} whitespace-pre-wrap`}>
+        {parseInlineStyles(line)}
+      </div>
+    );
+  });
+};
+
+const parseInlineStyles = (text) => {
+  // Simple parser for **bold** and *italic*
+  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-bold">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+};
+
+// Now accepts onToggle to handle checkbox clicks
+const RichTextRenderer = ({ text, className = "", onToggle }) => (
+  <div className={`font-sans text-black/90 ${className}`}>
+    {parseRichText(text, onToggle)}
+  </div>
+);
+
+// ... TagPill component remains the same ...
+const TagPill = ({ label, active, onClick, onDelete }) => (
+  <button
+    onClick={onClick}
+    className={`
+      flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border
+      ${active
+        ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
+        : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'
+      }
+    `}
+  >
+    {label}
+    {onDelete && (
+      <div
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+        className={`p-0.5 rounded-full hover:bg-black/10 ${active ? 'text-black/50 hover:text-black' : 'text-white/50 hover:text-white'}`}
+      >
+        <X size={10} />
+      </div>
+    )}
+  </button>
+);
 
 const NoteSystemModals = ({
   notes,
@@ -1707,17 +1832,27 @@ const NoteSystemModals = ({
   setEditingNote,
   onSave,
   onDelete,
-  onReorder
+  onReorder,
+  onSaveOrder
 }) => {
+  // Editor State
   const [editorTitle, setEditorTitle] = useState("");
   const [editorText, setEditorText] = useState("");
   const [editorColor, setEditorColor] = useState(NOTE_COLORS[0]);
+  const [editorTags, setEditorTags] = useState([]);
+  const [tagInput, setTagInput] = useState("");
+
+  // Library State
+  const [selectedTag, setSelectedTag] = useState("All");
 
   const [draggingId, setDraggingId] = useState(null);
   const draggingIdRef = useRef(null);
   const containerRef = useRef(null);
   const lastSwapTime = useRef(0);
+
+  // Refs for Focus Management
   const bodyInputRef = useRef(null);
+  const tagInputRef = useRef(null);
 
   // Drag detection refs
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -1737,7 +1872,7 @@ const NoteSystemModals = ({
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [editingNote, isLibraryOpen, editorTitle, editorText, editorColor]);
+  }, [editingNote, isLibraryOpen, editorTitle, editorText, editorColor, editorTags]);
 
   // --- EDITOR SYNC ---
   useEffect(() => {
@@ -1745,10 +1880,12 @@ const NoteSystemModals = ({
       setEditorTitle(editingNote.title || "");
       setEditorText(editingNote.text || "");
       setEditorColor(editingNote.color || NOTE_COLORS[0]);
+      setEditorTags(editingNote.tags || []);
     } else {
       setEditorTitle("");
       setEditorText("");
       setEditorColor(NOTE_COLORS[0]);
+      setEditorTags([]);
     }
   }, [editingNote]);
 
@@ -1761,18 +1898,180 @@ const NoteSystemModals = ({
         title: editorTitle,
         text: editorText,
         color: editorColor,
+        tags: editorTags,
         updatedAt: Date.now()
       });
     }
     setEditingNote(null);
   };
 
+  // --- NAVIGATION HANDLERS ---
   const handleTitleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      bodyInputRef.current?.focus();
+      // Jump to Tag Input instead of Body
+      tagInputRef.current?.focus();
     }
   };
+
+  const handleTagKeyDown = (e) => {
+    // If Enter is pressed...
+    if (e.key === 'Enter') {
+      if (tagInput.trim()) {
+        // If has text, add tag
+        e.preventDefault();
+        handleAddTag(e);
+      } else {
+        // If empty, jump to Body
+        e.preventDefault();
+        bodyInputRef.current?.focus();
+      }
+    }
+  };
+
+  // --- SMART MARKDOWN HANDLERS ---
+
+  const handleBodyKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const textarea = bodyInputRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const value = textarea.value;
+
+      // Find current line
+      const previousLineBreak = value.lastIndexOf('\n', start - 1);
+      const currentLineStart = previousLineBreak + 1;
+      const currentLine = value.substring(currentLineStart, start);
+
+      // Regex to detect List Item (- ) or Task Box ([ ] or [x] )
+      const listMatch = currentLine.match(/^(\s*)(-|\[([ x])\])\s/);
+
+      if (listMatch) {
+        e.preventDefault(); // Stop default newline
+
+        const fullMatch = listMatch[0]; // e.g., "- " or "  [ ] "
+        const indent = listMatch[1];    // e.g., "  "
+        const marker = listMatch[2];    // e.g., "-" or "[ ]"
+
+        // 1. EMPTY LIST ITEM CASE: User pressed Enter on a line with JUST a marker
+        //    Action: Remove the marker (exit list mode)
+        if (currentLine.trim() === marker || currentLine.trim() === marker + ']') {
+          const newValue = value.substring(0, currentLineStart) + value.substring(start);
+          setEditorText(newValue);
+          // Need setTimeout to set cursor correctly after React render
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = currentLineStart;
+          }, 0);
+          return;
+        }
+
+        // 2. CONTINUE LIST CASE
+        //    Action: Create new line with same indentation and marker
+        const nextMarker = marker.startsWith('[') ? '[ ]' : '-'; // Always uncheck new tasks
+        const insertion = `\n${indent}${nextMarker} `;
+
+        const newValue = value.substring(0, start) + insertion + value.substring(start);
+        setEditorText(newValue);
+
+        setTimeout(() => {
+          const newCursorPos = start + insertion.length;
+          textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+        }, 0);
+      } else {
+        // Normal behavior for non-list lines (let React/Browser handle it or do manual insert if controlled)
+        // Since we are controlled input, standard behavior works, but we preventDefault for consistency? 
+        // Actually, best to let default happen if no match, BUT we are in a controlled component 
+        // so we might as well manually insert \n to be safe with undo stack or just return.
+        // returning lets default Event happen which updates Textarea value.
+      }
+    }
+  };
+
+  const insertMarkdown = (syntax) => {
+    const textarea = bodyInputRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const value = textarea.value;
+
+    // Find the START of the current line
+    const previousLineBreak = value.lastIndexOf('\n', start - 1);
+    const lineStart = previousLineBreak + 1;
+
+    let insertion = "";
+    if (syntax === 'list') insertion = "- ";
+    if (syntax === 'task') insertion = "[ ] ";
+    if (syntax === 'bold') {
+      // Bold is inline, so we wrap selection
+      const end = textarea.selectionEnd;
+      const selection = value.substring(start, end);
+      const newText = value.substring(0, start) + "**" + selection + "**" + value.substring(end);
+      setEditorText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 2, end + 2);
+      }, 0);
+      return;
+    }
+    if (syntax === 'italic') {
+      const end = textarea.selectionEnd;
+      const selection = value.substring(start, end);
+      const newText = value.substring(0, start) + "*" + selection + "*" + value.substring(end);
+      setEditorText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 1, end + 1);
+      }, 0);
+      return;
+    }
+
+    // For List/Task: Insert at START of line
+    const newText = value.substring(0, lineStart) + insertion + value.substring(lineStart);
+    setEditorText(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      // Move cursor to end of inserted prefix (relative to where it was, shifted by insertion)
+      // If cursor was at 5, and we inserted 2 chars at 0, cursor is now 7.
+      const newPos = (start < lineStart) ? start : start + insertion.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  // --- TAG HANDLERS ---
+  const handleAddTag = (e) => {
+    if (tagInput.trim()) {
+      if (!editorTags.includes(tagInput.trim())) {
+        setEditorTags([...editorTags, tagInput.trim()]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setEditorTags(editorTags.filter(t => t !== tagToRemove));
+  };
+
+  // --- INTERACTIVE PREVIEW TOGGLE ---
+  // This allows clicking checkboxes in the "All Notes" view
+  const handleToggleLine = (note, lineIndex, newStatus) => {
+    const lines = note.text.split('\n');
+    if (lines[lineIndex]) {
+      // Replace [ ] with [x] or vice versa
+      const line = lines[lineIndex];
+      const newLine = newStatus
+        ? line.replace(/^(\s*)\[ \]/, '$1[x]')
+        : line.replace(/^(\s*)\[x\]/i, '$1[ ]');
+
+      lines[lineIndex] = newLine;
+      const newText = lines.join('\n');
+
+      // Save immediately
+      onSave({ ...note, text: newText, updatedAt: Date.now() });
+    }
+  };
+
 
   // --- DRAG LOGIC ---
   const handleDragStart = (id, e) => {
@@ -1782,57 +2081,32 @@ const NoteSystemModals = ({
     isDragClick.current = false;
   };
 
-  const getIntersectionArea = (rect1, rect2) => {
-    const xOverlap = Math.max(0, Math.min(rect1.right, rect2.right) - Math.max(rect1.left, rect2.left));
-    const yOverlap = Math.max(0, Math.min(rect1.bottom, rect2.bottom) - Math.max(rect1.top, rect2.top));
-    return xOverlap * yOverlap;
-  };
-
   const handlePointerMove = (e) => {
     if (!draggingIdRef.current || !containerRef.current) return;
-
-    const moveDist = Math.sqrt(
-      Math.pow(e.clientX - dragStartPos.current.x, 2) +
-      Math.pow(e.clientY - dragStartPos.current.y, 2)
-    );
-
+    const moveDist = Math.sqrt(Math.pow(e.clientX - dragStartPos.current.x, 2) + Math.pow(e.clientY - dragStartPos.current.y, 2));
     if (moveDist > 5) isDragClick.current = true;
-
-    if (Date.now() - lastSwapTime.current < 200) return;
-
-    const dragRect = {
-      left: e.clientX - 75,
-      right: e.clientX + 75,
-      top: e.clientY - 75,
-      bottom: e.clientY + 75
-    };
+    if (Date.now() - lastSwapTime.current < 250) return;
 
     const noteElements = Array.from(containerRef.current.querySelectorAll('[data-note-id]'));
-    let bestCandidateId = null;
-    let maxOverlap = 0;
-
-    noteElements.forEach(el => {
+    let targetId = null;
+    for (let el of noteElements) {
       const id = el.getAttribute('data-note-id');
-      if (id === draggingIdRef.current) return;
-
-      const targetRect = el.getBoundingClientRect();
-      const overlap = getIntersectionArea(dragRect, targetRect);
-      const targetArea = targetRect.width * targetRect.height;
-
-      if (overlap > (targetArea * 0.3) && overlap > maxOverlap) {
-        maxOverlap = overlap;
-        bestCandidateId = id;
+      if (id === draggingIdRef.current) continue;
+      const rect = el.getBoundingClientRect();
+      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        targetId = id;
+        break;
       }
-    });
+    }
 
-    if (bestCandidateId) {
+    if (targetId) {
       const fromIndex = notes.findIndex(n => n.id === draggingIdRef.current);
-      const toIndex = notes.findIndex(n => n.id === bestCandidateId);
-
+      const toIndex = notes.findIndex(n => n.id === targetId);
       if (fromIndex !== -1 && toIndex !== -1) {
         const newOrder = [...notes];
-        const [moved] = newOrder.splice(fromIndex, 1);
-        newOrder.splice(toIndex, 0, moved);
+        const temp = newOrder[fromIndex];
+        newOrder[fromIndex] = newOrder[toIndex];
+        newOrder[toIndex] = temp;
         onReorder(newOrder);
         lastSwapTime.current = Date.now();
       }
@@ -1842,6 +2116,7 @@ const NoteSystemModals = ({
   const handleDragEnd = () => {
     setDraggingId(null);
     draggingIdRef.current = null;
+    if (onSaveOrder) onSaveOrder();
   };
 
   useEffect(() => {
@@ -1860,6 +2135,12 @@ const NoteSystemModals = ({
     setEditingNote(note);
   };
 
+  // --- FILTER LOGIC ---
+  const allTags = ["All", ...new Set(notes.flatMap(n => n.tags || []))];
+  const filteredNotes = selectedTag === "All"
+    ? notes
+    : notes.filter(n => n.tags && n.tags.includes(selectedTag));
+
 
   return (
     <AnimatePresence>
@@ -1871,63 +2152,96 @@ const NoteSystemModals = ({
           exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[60] flex flex-col bg-black/40"
-          onClick={closeLibrary} // BACKGROUND CLICK CLOSES LIBRARY
+          onClick={closeLibrary}
         >
-          <div className="w-full flex justify-center pt-12 md:pt-16 pb-8" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide">Notes</h2>
+          <div className="w-full flex flex-col items-center pt-12 md:pt-16 pb-4" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
+
+            {/* TAG FILTER BAR */}
+            <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
+              {allTags.map(tag => (
+                <TagPill
+                  key={tag}
+                  label={tag}
+                  active={selectedTag === tag}
+                  onClick={() => setSelectedTag(tag)}
+                />
+              ))}
+            </div>
           </div>
 
-          <div
-            className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20"
-          // REMOVED stopPropagation here so clicks on empty grid space fall through to backdrop
-          >
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
             <div className="max-w-5xl mx-auto" ref={containerRef}>
               <div className="flex flex-wrap gap-6">
 
                 {/* ADD BUTTON */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 hover:bg-white/10 transition-all rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]"
-                  // ADDED stopPropagation so clicking this doesn't close library
-                  onClick={(e) => { e.stopPropagation(); setEditingNote({}); }}
-                >
-                  <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                </motion.div>
+                {selectedTag === "All" && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 hover:bg-white/10 transition-all rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]"
+                    onClick={(e) => { e.stopPropagation(); setEditingNote({}); }}
+                  >
+                    <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
+                  </motion.div>
+                )}
 
                 {/* NOTES */}
-                {notes.map((note) => (
+                {filteredNotes.map((note) => (
                   <motion.div
                     key={note.id}
                     layoutId={note.id}
                     layout="position"
                     data-note-id={note.id}
 
-                    drag
+                    drag={selectedTag === "All"}
                     dragSnapToOrigin={true}
                     dragElastic={0.1}
                     dragMomentum={false}
-
                     onDragStart={(e) => handleDragStart(note.id, e)}
 
-                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
 
+                    initial={{ opacity: 0, scale: 0.8 }}
                     animate={draggingId === note.id
-                      ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)" }
-                      : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)" }
+                      ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 }
+                      : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }
                     }
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
 
                     className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
-                    style={{ backgroundColor: note.color || '#ffeb3b' }}
 
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      isDragClick.current = false;
+                      dragStartPos.current = { x: e.clientX, y: e.clientY };
+                    }}
                     onClick={(e) => handleNoteClick(e, note)}
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
-                    {note.title && <h4 className="relative z-10 font-bold text-sm md:text-base mb-2 line-clamp-2 pointer-events-none select-none">{note.title}</h4>}
-                    <p className="relative z-10 text-xs md:text-sm font-medium line-clamp-[6] leading-relaxed whitespace-pre-wrap font-sans opacity-90 pointer-events-none select-none">
-                      {note.text}
-                    </p>
+
+                    <div className="relative z-10 flex flex-col h-full">
+                      {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 pointer-events-none select-none">{note.title}</h4>}
+
+                      <div className="flex-1 overflow-hidden pointer-events-auto mask-bottom">
+                        {/* Interactive Render in Preview */}
+                        <RichTextRenderer
+                          text={note.text}
+                          className="text-xs md:text-sm"
+                          onToggle={(index, status) => handleToggleLine(note, index, status)}
+                        />
+                      </div>
+
+                      {note.tags && note.tags.length > 0 && (
+                        <div className="mt-2 flex gap-1 flex-wrap">
+                          {note.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
@@ -1950,7 +2264,7 @@ const NoteSystemModals = ({
         </motion.div>
       )}
 
-      {/* --- EDITOR MODAL (unchanged) --- */}
+      {/* --- EDITOR MODAL --- */}
       {editingNote && (
         <motion.div
           initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
@@ -1966,11 +2280,12 @@ const NoteSystemModals = ({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-[85vw] md:w-[500px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-10 overflow-hidden transition-colors duration-500"
+            className="w-[85vw] md:w-[550px] aspect-auto md:aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-lg max-h-[85vh]"
             style={{ backgroundColor: editorColor }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
 
+            {/* TITLE */}
             <input
               autoFocus
               type="text"
@@ -1978,24 +2293,55 @@ const NoteSystemModals = ({
               onChange={(e) => setEditorTitle(e.target.value)}
               onKeyDown={handleTitleKeyDown}
               placeholder="Title..."
-              className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-4 p-0"
+              className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-2 p-0"
             />
 
+            {/* TAGS INPUT */}
+            <div className="relative z-10 flex flex-wrap gap-2 mb-4 items-center min-h-[32px]">
+              {editorTags.map(tag => (
+                <span key={tag} className="flex items-center gap-1 bg-black/10 px-2 py-1 rounded-md text-xs font-bold text-black/70">
+                  #{tag}
+                  <button onClick={() => removeTag(tag)} className="hover:text-black"><X size={10} /></button>
+                </span>
+              ))}
+              <input
+                ref={tagInputRef}
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder={editorTags.length === 0 ? "Add tags (press Enter)..." : "+ tag..."}
+                className="bg-transparent border-none outline-none text-xs text-black/60 placeholder-black/30 w-32 focus:w-48 transition-all"
+              />
+            </div>
+
+            {/* TOOLBAR */}
+            <div className="relative z-10 flex gap-1 mb-2 border-b border-black/10 pb-2">
+              <button onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Bold"><Bold size={14} /></button>
+              <button onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Italic"><Italic size={14} /></button>
+              <div className="w-px bg-black/10 mx-1"></div>
+              <button onClick={() => insertMarkdown('list')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Bullet List"><List size={14} /></button>
+              <button onClick={() => insertMarkdown('task')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Task List"><CheckSquare size={14} /></button>
+            </div>
+
+            {/* TEXT AREA */}
             <textarea
               ref={bodyInputRef}
               value={editorText}
               onChange={(e) => setEditorText(e.target.value)}
+              onKeyDown={handleBodyKeyDown}
               placeholder="Write your thought..."
-              className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-lg md:text-xl font-medium leading-relaxed font-sans custom-scrollbar p-0"
+              className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-base md:text-lg font-medium leading-relaxed font-sans custom-scrollbar p-0 font-mono"
             />
 
-            <div className="relative z-20 flex justify-between items-center pt-6 mt-2">
+            {/* FOOTER */}
+            <div className="relative z-20 flex justify-between items-center pt-4 mt-2 border-t border-black/10">
               <div className="flex gap-2">
                 {NOTE_COLORS.map(color => (
                   <button
                     key={color}
                     onClick={() => setEditorColor(color)}
-                    className={`w-6 h-6 md:w-8 md:h-8 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`}
+                    className={`w-6 h-6 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`}
                     style={{ backgroundColor: color }}
                   />
                 ))}
@@ -2003,7 +2349,7 @@ const NoteSystemModals = ({
 
               <button
                 onClick={handleSave}
-                className="px-6 py-3 bg-black text-white font-bold uppercase tracking-widest text-xs rounded-2xl hover:scale-105 transition-transform shadow-lg"
+                className="px-6 py-2 bg-black text-white font-bold uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg"
               >
                 Done
               </button>
@@ -2018,13 +2364,14 @@ const NoteSystemModals = ({
 export default function App() {
   // ... inside App component
 
-  const handleReorderNotes = async (newOrder) => {
-    setNotes(newOrder); // Update local UI instantly
+  const handleReorderNotes = (newOrder) => {
+    setNotes(newOrder);
+  };
 
+  const saveNotesOrder = async (currentNotes) => {
     if (user) {
-      // Update DB silently
       try {
-        await setDoc(doc(db, "users", user.uid), { notes: newOrder }, { merge: true });
+        await setDoc(doc(db, "users", user.uid), { notes: currentNotes }, { merge: true });
       } catch (e) { console.error("Reorder failed", e); }
     }
   };
@@ -2643,14 +2990,13 @@ export default function App() {
   useEffect(() => {
     if (user) {
       const userDocRef = doc(db, "users", user.uid);
-    const unsub = onSnapshot(userDocRef, (docSnap) => {
+      const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
 
           // 1. LOAD NOTES (Sort by updated time if needed)
           let loadedNotes = data.notes || [];
           // Optional: Sort by most recently updated
-          loadedNotes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
           setNotes(loadedNotes);
 
           // 2. SYNC TIMER LOGIC (Preserved from your working version)
@@ -2706,7 +3052,7 @@ export default function App() {
           if (shouldResetDaily) {
             // ARCHIVE OLD STATS
             if (loadedStats.dailyFocusTime > 0 || loadedStats.dailyTasksCompleted > 0) {
-              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000); 
+              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
               const dateId = formatDateId(archiveDate);
               const historyRef = doc(db, "users", user.uid, "history", dateId);
               setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
@@ -2737,9 +3083,9 @@ export default function App() {
           const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
           setSettings(mergedSettings);
           if (data.sessionName && !sessionName) setSessionName(data.sessionName);
-          
+
           // Update Refs for comparison
-          prevSettings.current = mergedSettings; 
+          prevSettings.current = mergedSettings;
           prevSessionName.current = data.sessionName || "";
         }
         setDataLoaded(true);
@@ -2748,15 +3094,15 @@ export default function App() {
     }
   }, [user]);
 
-useEffect(() => {
+  useEffect(() => {
     if (!user || !dataLoaded) return;
 
     const isDifferent = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
-    
+
     // FIXED: Compare 'notes' with 'prevNotes.current'
     const notesChanged = JSON.stringify(notes) !== JSON.stringify(prevNotes.current);
     const hasCriticalChanges = notesChanged || isDifferent(settings, prevSettings.current) || sessionName !== prevSessionName.current;
-    
+
     const timeSinceLastStatSave = Date.now() - lastStatSaveTime.current;
     const shouldSaveStats = timeSinceLastStatSave > 60000; // Save every minute
 
@@ -2787,12 +3133,12 @@ useEffect(() => {
         };
 
         await setDoc(userDocRef, payload, { merge: true });
-        
+
         // FIXED: Update the prevNotes ref
         prevNotes.current = notes;
-        prevSettings.current = settings; 
+        prevSettings.current = settings;
         prevSessionName.current = sessionName;
-        
+
         if (shouldSaveStats) { lastStatSaveTime.current = Date.now(); }
       };
       const handler = setTimeout(saveData, 1000);
@@ -2800,13 +3146,13 @@ useEffect(() => {
     }
   }, [notes, settings, sessionName, user, dataLoaded, stats]);
 
-useEffect(() => {
+  useEffect(() => {
     if (!isActive && user && dataLoaded) {
       const saveFinal = async () => {
         const userDocRef = doc(db, "users", user.uid);
         const today = new Date();
         // Replace 'tasks' with 'notes'
-        const payload = { notes, settings, sessionName, lastUpdated: today, stats }; 
+        const payload = { notes, settings, sessionName, lastUpdated: today, stats };
         await setDoc(userDocRef, payload, { merge: true });
         lastStatSaveTime.current = Date.now();
       };
@@ -3441,6 +3787,7 @@ useEffect(() => {
             notes={notes}
             onOpenLibrary={() => setIsNoteLibraryOpen(true)}
             isLibraryOpen={isNoteLibraryOpen} // Kept for logic within widget
+            onSave={handleSaveNote}
           />
         </div>
       </div >
@@ -3509,6 +3856,7 @@ useEffect(() => {
         onSave={handleSaveNote}
         onDelete={handleDeleteNote}
         onReorder={handleReorderNotes}
+        onSaveOrder={() => saveNotesOrder(notes)}
       />
     </div>
   );
