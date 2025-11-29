@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
@@ -110,6 +110,55 @@ const cleanText = (text) => {
 const isVideo = (url) => {
   if (!url) return false;
   return url.match(/\.(mp4|webm|mov)$/i);
+};
+
+const rgbToHex = (r, g, b) => '#' + [r, g, b].map(x => {
+  const hex = x.toString(16);
+  return hex.length === 1 ? '0' + hex : hex;
+}).join('');
+
+// 2. Extract Dominant Color from Image URL
+const getDominantColor = (imageSrc) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageSrc;
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Resize to 1x1 to get average color automatically
+      canvas.width = 1;
+      canvas.height = 1;
+
+      ctx.drawImage(img, 0, 0, 1, 1);
+      const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+
+      // Boost saturation/brightness slightly for UI visibility
+      // (Simple approach: ensure it's not too dark)
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      if (brightness < 50) {
+        // If too dark, default to white or brighten it
+        resolve('#ffffff');
+      } else {
+        resolve(rgbToHex(r, g, b));
+      }
+    };
+
+    img.onerror = (e) => {
+      // Fallback for videos or CORS errors
+      resolve('#34C759'); // Default Green
+    };
+  });
+};
+
+// 3. Pre-defined colors for your known video backgrounds (Since we can't analyze videos easily)
+const VIDEO_ACCENTS = {
+  'mars': '#ff5f5f',        // Reddish for Mars
+  'noensunset': '#d946ef',  // Purple/Pink for Neon
+  'lightinthefall': '#fbbf24', // Amber for Fall
+  'earth': '#3b82f6',       // Blue for Earth
 };
 
 const loadTimerState = () => {
@@ -322,10 +371,26 @@ const GoogleLogo = () => (
 );
 
 const Toggle = ({ label, checked, onChange }) => (
-  <div className="flex justify-between items-center w-full group">
-    <span className="text-sm text-white/70 group-hover:text-white transition-colors">{label}</span>
-    <div className={`toggle-switch ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}>
-      <div className="toggle-knob"></div>
+  <div
+    className="flex justify-between items-center w-full group cursor-pointer py-3 select-none"
+    onClick={() => onChange(!checked)}
+  >
+    <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
+      {label}
+    </span>
+
+    {/* Track */}
+    <div
+      className={`relative w-[51px] h-[31px] flex-shrink-0 rounded-full border transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${checked
+        ? 'bg-[#34C759] border-[#34C759] shadow-[0_0_15px_rgba(52,199,89,0.4)]' // iOS Green + Glow
+        : 'bg-[#39393d] border-transparent' // iOS Dark Mode Off Grey
+        }`}
+    >
+      {/* Knob - ALWAYS WHITE, PERFECT CIRCLE */}
+      <div
+        className={`absolute top-[1px] left-[1px] w-[27px] h-[27px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${checked ? 'translate-x-[20px]' : 'translate-x-0'
+          }`}
+      />
     </div>
   </div>
 );
@@ -1208,6 +1273,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
               <div className="space-y-6">
                 <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold mb-4">Timer Configuration</h4>
 
+                {/* Vertical List Layout for Timers */}
                 {['focus', 'shortBreak', 'longBreak'].map((mode) => (
                   <React.Fragment key={mode}>
                     <div className="flex justify-between items-center group py-1">
@@ -1227,6 +1293,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                         placeholder={settings[mode]}
                       />
                     </div>
+                    {/* Interval Setting appearing after Long Break */}
                     {mode === 'longBreak' && (
                       <div className="flex justify-between items-center group py-1">
                         <label className={`text-sm font-medium transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/80 group-hover:text-white'}`}>
@@ -1250,18 +1317,19 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
 
                 <div className="w-full h-px bg-white/10 my-2"></div>
 
-                <SegmentedToggle id="autoStartBreaks" label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} />
-                <SegmentedToggle id="autoStartWork" label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
+                {/* Switched back to standard Toggle with new styling */}
+                <Toggle label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} />
+                <Toggle label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
 
                 {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (
                   <>
                     <div className="w-full h-px bg-white/10 my-2"></div>
-                    <SegmentedToggle id="devMode" label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} />
+                    <Toggle label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} />
                   </>
                 )}
-
               </div>
 
+              {/* Right Column: Backgrounds (Unchanged) */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
                   <ImageIcon size={16} className="text-white/50" />
@@ -1293,7 +1361,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                         </div>
                       )}
 
-                      {/* Active Indicator */}
                       {localSettings.background === bg.src && (
                         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                           <div className="bg-white text-black rounded-full p-1 shadow-lg">
@@ -1333,7 +1400,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                 </div>
               </div>
             </div>
-            {/* Footer removed as requested previously */}
           </motion.div>
         </motion.div>
       )}
@@ -1502,52 +1568,60 @@ const NotificationCenter = () => {
   );
 };
 
+// 1. FOCUS MUSIC LIST (Renamed from 'Focus' to 'Music' in UI)
 const MUSIC_TRACKS = [
-
   {
-    id: 'lofi',
+    id: 'lofi-study',
     title: 'Lofi Study',
     src: 'https://archive.org/download/track1_202511/track1.mp3',
     cover: 'https://i.pinimg.com/736x/9c/76/23/9c7623f7939be1725435bef4dea604f8.jpg'
   },
-
   {
     id: 'binaural',
     title: 'Binaural Beats',
     src: 'https://archive.org/download/track2_202511/track1.mp3',
     cover: 'https://i.pinimg.com/736x/96/03/ce/9603cee1ddcce4c184587c66532fbc63.jpg'
   },
-
   {
-    id: 'ambient',
+    id: 'deep-focus',
     title: 'Deep Focus Ambient',
     src: 'https://archive.org/download/track2_202511/track2.mp3',
     cover: 'https://i.pinimg.com/736x/e2/4e/0d/e24e0d3d5f5f07c562f08a5ebfc4c776.jpg'
   },
 ];
 
+// 2. AMBIENCE GRID LIST
+const AMBIENT_SOUNDS = [
+  { id: 'rain', title: 'Soft Rain', icon: CloudRain, src: 'https://assets.mixkit.co/active_storage/sfx/2393/2393.wav' },
+  { id: 'thunder', title: 'Thunder', icon: CloudLightning, src: 'https://assets.mixkit.co/active_storage/sfx/2395/2395.wav' },
+  { id: 'flowingwater', title: 'Nature', icon: Wind, src: 'https://assets.mixkit.co/active_storage/sfx/61/61.wav' },
+  { id: 'ocean', title: 'Ocean', icon: Waves, src: 'https://cdn.pixabay.com/download/audio/2024/10/12/audio_7dd52a2e33.mp3?filename=ocean-waves-250310.mp3' },
+  { id: 'cafe', title: 'Coffee Shop', icon: Coffee, src: 'https://cdn.pixabay.com/download/audio/2021/10/10/audio_1009cd220b.mp3?filename=cafe-ambience-9263.mp3' },
+  { id: 'campfire', title: 'Campfire', icon: Tent, src: 'https://cdn.pixabay.com/download/audio/2025/11/19/audio_908a09a5b0.mp3?filename=campfire-crackling-sound-439573.mp3' },
+  { id: 'train', title: 'Train Ride', icon: Train, src: 'https://cdn.pixabay.com/download/audio/2022/02/07/audio_21e77afab8.mp3?filename=train-riding-inside-17188.mp3' },
+  { id: 'keyboard', title: 'Typing', icon: Keyboard, src: 'https://cdn.pixabay.com/download/audio/2025/03/03/audio_9ecd5092f4.mp3?filename=typing-on-laptop-keyboard-308455.mp3' },
+];
+
 const MusicModal = ({
   isOpen, onClose,
+  // Music Props
   currentTrack, isPlaying, onPlay, onPause,
   isLoading, progress, duration, onSeek,
+  // Ambience Props
+  ambienceState, onToggleAmbience, onAmbienceVolume,
+  // Global Props
   volume, onVolumeChange,
   isLofiPlaying, onToggleLofi
 }) => {
-  const [activeTab, setActiveTab] = useState('library');
-  const [view, setView] = useState('list');
-  const prevVolumeRef = useRef(0.5);
+  const [activeTab, setActiveTab] = useState('ambience');
 
+  // Sync tab if Lofi is active externally
   useEffect(() => {
     if (isOpen && isLofiPlaying) setActiveTab('lofi');
   }, [isOpen, isLofiPlaying]);
 
   const toggleMute = () => {
-    if (volume > 0) {
-      prevVolumeRef.current = volume;
-      onVolumeChange(0);
-    } else {
-      onVolumeChange(prevVolumeRef.current || 0.5);
-    }
+    onVolumeChange(volume > 0 ? 0 : 0.5);
   };
 
   const formatTime = (time) => {
@@ -1558,195 +1632,252 @@ const MusicModal = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // --- MODERN SLIDER COMPONENT (FIXED) ---
+  const ModernSlider = ({ value, max = 1, onChange, color = "white", className = "" }) => {
+    const percentage = (value / max) * 100;
+    const filledColor = color;
+    const emptyColor = color === "white" ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)";
+
+    return (
+      <input
+        type="range"
+        min="0"
+        max={max}
+        step="0.01"
+        value={value}
+        onChange={onChange}
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          '--thumb-color': color,
+          background: `linear-gradient(to right, ${filledColor} 0%, ${filledColor} ${percentage}%, ${emptyColor} ${percentage}%, ${emptyColor} 100%)`
+        }}
+        className={`zen-slider appearance-none h-1.5 w-full rounded-full outline-none cursor-pointer relative z-50 touch-none ${className}`}
+      />
+    );
+  };
+
+  const sliderStyles = `
+    .zen-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 16px; 
+      width: 16px;
+      border-radius: 50%;
+      background: var(--thumb-color, white);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      margin-top: -5px; 
+      transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .zen-slider:active::-webkit-slider-thumb {
+      transform: scale(1.2);
+    }
+    .zen-slider::-moz-range-thumb {
+      height: 16px;
+      width: 16px;
+      border: none;
+      border-radius: 50%;
+      background: var(--thumb-color, white);
+      transition: transform 0.1s;
+    }
+  `;
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[90vw] md:w-[26rem] shadow-2xl overflow-hidden relative flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+          onClick={onClose}
+        >
+          <style>{sliderStyles}</style>
 
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6 flex-shrink-0">
-              {activeTab === 'library' && view === 'player' ? (
-                <button onClick={() => setView('list')} className="p-2 -ml-2 text-white/50 hover:text-white transition-colors flex items-center gap-1">
-                  <ChevronLeft size={20} /> <span className="text-xs uppercase tracking-widest">Back</span>
-                </button>
-              ) : (
-                <h3 className="text-xl font-medium text-white flex items-center gap-2"><Music size={20} /> Music</h3>
-              )}
-              <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 40 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="w-full max-w-4xl h-[650px] max-h-[90vh] bg-[#0F0F0F] border border-white/10 rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="flex items-center justify-between p-8 pb-4 z-20 shrink-0">
+              <div>
+                <h2 className="text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2>
+                <p className="text-white/40 text-sm mt-1 font-medium">Design your sonic environment.</p>
+              </div>
+              <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90">
+                <X size={20} />
+              </button>
             </div>
 
-            {/* TAB SWITCHER (SLIDING PILL ANIMATION) */}
-            <div className="flex bg-white/5 p-1 rounded-full mb-6 flex-shrink-0 relative">
-              {['library', 'lofi'].map((tab) => {
-                const isActive = activeTab === tab;
-                return (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className="relative flex-1 py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest rounded-full transition-colors z-0"
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-tab-pill"
-                        className={`absolute inset-0 rounded-full shadow-lg ${tab === 'lofi' ? 'bg-red-500 shadow-red-500/20' : 'bg-white'
-                          }`}
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    <span className={`relative z-10 transition-colors duration-200 ${isActive
-                      ? (tab === 'lofi' ? 'text-white' : 'text-black')
-                      : 'text-white/40 hover:text-white'
-                      }`}>
-                      {tab === 'library' ? 'Focus Sounds' : 'Lofi Girl'}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="px-8 mb-2 z-20 shrink-0">
+              <div className="inline-flex p-1.5 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl">
+                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music Library', icon: Music }, { id: 'lofi', label: 'Lofi Radio', icon: Radio }].map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const Icon = tab.icon;
+                  return (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2 z-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white'}`}>
+                      {isActive && <motion.div layoutId="activeTabBg" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1]" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                      <Icon size={16} className={isActive ? "text-black" : ""} strokeWidth={2} />
+                      <span>{tab.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* CONTENT AREA */}
-            <div className="relative w-full flex-1 min-h-[360px] overflow-hidden">
+            <div className="flex-1 overflow-hidden relative z-10">
               <AnimatePresence mode="wait">
+                {activeTab === 'ambience' && (
+                  <motion.div
+                    key="ambience"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="h-full overflow-y-auto custom-scrollbar px-10 pt-6 pb-32"
+                  >
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                      {AMBIENT_SOUNDS.map((track) => {
+                        const trackState = ambienceState[track.id];
+                        const isActive = !!trackState;
+                        const Icon = track.icon;
 
-                {/* --- TAB 1: LIBRARY --- */}
+                        return (
+                          <motion.div
+                            key={track.id}
+                            whileHover={{ scale: 1.05, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => onToggleAmbience(track)}
+                            className={`
+                              relative aspect-[4/3] rounded-3xl p-5 flex flex-col justify-between overflow-hidden cursor-pointer group border
+                              ${isActive
+                                ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                              }
+                            `}
+                          >
+                            <div className="flex justify-between items-start pointer-events-none">
+                              <span className={`p-3 rounded-2xl transition-colors duration-300 ${isActive ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}>
+                                <Icon size={24} strokeWidth={1.5} className={isActive ? "animate-pulse" : ""} />
+                              </span>
+                              {isActive && <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />}
+                            </div>
+
+                            <div className="relative z-20">
+                              <h4 className={`font-medium text-sm transition-colors duration-300 ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>
+                                {track.title}
+                              </h4>
+                              <div
+                                className={`grid transition-all duration-300 ease-out ${isActive ? 'grid-rows-[1fr] opacity-100 mt-2' : 'grid-rows-[0fr] opacity-0'}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="overflow-hidden min-h-0 py-2">
+                                  <ModernSlider
+                                    value={trackState?.volume || 0.5}
+                                    onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))}
+                                    color={isActive ? "black" : "white"}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
                 {activeTab === 'library' && (
                   <motion.div
                     key="library"
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="absolute inset-0 flex flex-col"
+                    className="h-full overflow-y-auto custom-scrollbar px-10 pt-6 pb-32"
                   >
-                    {view === 'list' ? (
-                      <div className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1 pb-4">
-                        {MUSIC_TRACKS.map((track) => {
-                          const isActive = currentTrack?.id === track.id;
-                          return (
-                            <div
-                              key={track.id}
-                              onClick={() => { onPlay(track); setView('player'); }}
-                              className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
-                            >
-                              <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
-                                {track.cover ? (
-                                  <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
-                                )}
-                                {isActive && isPlaying && (
-                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                    <div className="flex gap-0.5 items-end h-3">
-                                      <span className="w-0.5 bg-white h-2 animate-[bounce_0.8s_infinite]"></span>
-                                      <span className="w-0.5 bg-white h-3 animate-[bounce_1.1s_infinite]"></span>
-                                      <span className="w-0.5 bg-white h-1.5 animate-[bounce_0.9s_infinite]"></span>
-                                    </div>
-                                  </div>
-                                )}
+                    <div className="flex flex-col gap-3">
+                      {MUSIC_TRACKS.map((track, i) => {
+                        const isCurrent = currentTrack?.id === track.id && !isLofiPlaying;
+                        const isPlayingState = isCurrent && isPlaying;
+                        return (
+                          <motion.div
+                            key={track.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            onClick={() => isCurrent && isPlaying ? onPause() : onPlay(track)}
+                            className={`flex items-center gap-5 p-4 rounded-3xl cursor-pointer border group ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}
+                          >
+                            <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform duration-300">
+                              {track.cover ? <img src={track.cover} alt="art" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>}
+                              <div className={`absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isCurrent || 'opacity-0 group-hover:opacity-100'}`}>
+                                {isPlayingState ? <Pause size={24} className="text-white fill-white" /> : <Play size={24} className="text-white fill-white ml-1" />}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'}`}>{track.title}</h4>
-                                <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : 'Ambient'}</p>
-                              </div>
-                              {isActive && (
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); isPlaying ? onPause() : onPlay(track); }}
-                                  className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-all z-10"
-                                >
-                                  {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
-                                </button>
-                              )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      // PLAYER VIEW
-                      <div className="flex flex-col items-center justify-center text-center h-full">
-                        <div className="w-48 h-48 rounded-2xl overflow-hidden mb-6 shadow-2xl border border-white/10 relative group bg-white/5">
-                          {currentTrack?.cover ? (
-                            <img src={currentTrack.cover} alt={currentTrack.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center"><Music size={48} className="text-white/20" /></div>
-                          )}
-                        </div>
-                        <div className="mb-6 w-full px-4">
-                          <h4 className="text-lg font-medium text-white truncate">{currentTrack?.title || "Select a track"}</h4>
-                          <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
-                        </div>
-                        {/* Progress Bar */}
-                        <div className="w-full flex items-center gap-3 mb-6 px-2">
-                          <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
-                          <div className="flex-1 relative h-6 flex items-center group">
-                            <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
-                              <div className="h-full bg-white transition-all duration-100 ease-out" style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }} />
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`text-lg font-medium truncate ${isCurrent ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>{track.title}</h4>
+                              <p className="text-sm text-white/30 uppercase tracking-widest font-medium mt-1">{isCurrent && isPlaying ? 'Now Playing' : 'Focus Track'}</p>
                             </div>
-                            <input type="range" min="0" max={duration || 100} step="0.1" value={progress} onChange={(e) => onSeek(Number(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                          </div>
-                          <span className="text-[10px] text-white/40 font-mono w-8 text-left">{formatTime(duration)}</span>
-                        </div>
-                        {/* Controls */}
-                        <div className="flex items-center justify-center gap-8 w-full px-4">
-                          <button onClick={() => isPlaying ? onPause() : (currentTrack && onPlay(currentTrack))} disabled={!currentTrack} className="w-14 h-14 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
-                            {isLoading ? <Loader2 size={24} className="animate-spin text-black" /> : (isPlaying ? <Pause size={24} fill="black" /> : <Play size={24} fill="black" className="ml-1" />)}
-                          </button>
-                          <div className="flex items-center gap-2 w-28">
-                            <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors flex-shrink-0 outline-none" title={volume === 0 ? "Unmute" : "Mute"}>
-                              {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                            </button>
-                            <div className="flex-1 relative h-6 flex items-center group">
-                              <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-white transition-all duration-100 ease-out" style={{ width: `${volume * 100}%` }} />
-                              </div>
-                              <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(e) => onVolumeChange(parseFloat(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                            {isCurrent && (<div className="flex gap-1 h-4 items-end px-4">{[1, 2, 3, 4].map(n => (<motion.div key={n} animate={isPlaying ? { height: [4, 16, 8, 12, 4] } : { height: 4 }} transition={{ repeat: Infinity, duration: 1, delay: n * 0.1 }} className="w-1 bg-green-400 rounded-full" />))}</div>)}
+                          </motion.div>
+                        );
+                      })}
+                    </div>
                   </motion.div>
                 )}
-
-                {/* --- TAB 2: LOFI GIRL (REMOTE CONTROLLER) --- */}
                 {activeTab === 'lofi' && (
                   <motion.div
                     key="lofi"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    className="h-full flex flex-col items-center justify-center pb-24 px-8"
                   >
-                    {/* Visual Indicator (Updated to Red) */}
-                    <div className="w-24 h-24 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6 relative overflow-hidden">
-                      {/* Simple Pulse Effect */}
-                      {isLofiPlaying && (
-                        <div className="absolute inset-0 bg-red-500/5 animate-pulse" />
-                      )}
-                      <div className="relative z-10 flex items-center justify-center w-full h-full">
-                        <ImageIcon size={32} className="text-red-500" />
+                    <div className="bg-white/5 border border-white/10 p-8 rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
+                      <div className="w-32 h-32 rounded-full overflow-hidden mb-6 border-4 border-white/10 shadow-2xl relative">
+                        <img src="https://media.giphy.com/media/BDcSDDsSAMBZ5Ap89p/giphy.gif" className="w-full h-full object-cover" />
+                        {isLofiPlaying && <div className="absolute inset-0 bg-red-500/20 animate-pulse"></div>}
                       </div>
+                      <h3 className="text-2xl font-serif-display text-white mb-2">Lofi Girl Radio</h3>
+                      <p className="text-white/40 text-sm mb-8">Beats to relax/study to. 24/7 Live Stream.</p>
+                      <button onClick={onToggleLofi} className={`w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 ${isLofiPlaying ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' : 'bg-white text-black hover:bg-gray-200 shadow-white/10'}`}>
+                        {isLofiPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                        {isLofiPlaying ? 'Pause Radio' : 'Start Radio'}
+                      </button>
                     </div>
-
-                    <h4 className="text-xl font-medium text-white mb-2">Lofi Girl Radio</h4>
-                    <p className="text-white/50 text-xs leading-relaxed mb-8 max-w-[200px] mx-auto">
-                      Lofi Girl will appear at the bottom right. All hail Lofi Girl!
-                    </p>
-
-                    {/* Toggle Button (Updated to Red) */}
-                    <button
-                      onClick={onToggleLofi}
-                      className={`px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg hover:scale-105 active:scale-95 ${isLofiPlaying
-                        ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                        }`}
-                    >
-                      {isLofiPlaying ? 'Turn Off' : 'Turn On'}
-                    </button>
                   </motion.div>
                 )}
-
               </AnimatePresence>
             </div>
+
+            <div className="h-24 bg-gradient-to-t from-black via-[#0a0a0a]/90 to-transparent flex items-center px-8 gap-6 z-30 shrink-0 absolute bottom-0 left-0 right-0">
+              <button onClick={() => { if (activeTab === 'lofi') onToggleLofi(); else if (currentTrack) isPlaying ? onPause() : onPlay(currentTrack); }} className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                {(isLofiPlaying || (currentTrack && isPlaying)) ? <Pause size={20} fill="black" /> : <Play size={20} fill="black" className="ml-1" />}
+              </button>
+              <div className="flex-1 flex flex-col justify-center gap-1.5">
+                <div className="flex justify-between items-end">
+                  <span className="text-sm font-bold text-white">{isLofiPlaying ? "Lofi Girl Radio" : (currentTrack ? currentTrack.title : "No Track Selected")}</span>
+                  {!isLofiPlaying && currentTrack && <span className="text-xs font-mono text-white/40">{formatTime(progress)} / {formatTime(duration)}</span>}
+                </div>
+                <div className="w-full">
+                  {!isLofiPlaying && currentTrack ? (
+                    <ModernSlider value={progress} max={duration || 100} onChange={(e) => onSeek(Number(e.target.value))} color="white" />
+                  ) : (
+                    isLofiPlaying && <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-red-500 animate-[pulse_2s_infinite]" style={{ width: '100%' }} /></div>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 w-32 group">
+                <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors">{volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}</button>
+                <ModernSlider value={volume} max={1} onChange={(e) => onVolumeChange(parseFloat(e.target.value))} color="white" />
+              </div>
+            </div>
+
           </motion.div>
         </motion.div>
       )}
@@ -2131,10 +2262,19 @@ const LiquidCloseBtn = ({ onClose }) => {
 };
 
 const LiquidResetBtn = ({ onReset, disabled }) => {
-  const [status, setStatus] = useState('idle');
+  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef(null);
 
-  // Auto-reset to idle logic... (Same as before)
+  // 1. Detect Screen Size
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile(); // Check on mount
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Auto-reset logic
   useEffect(() => {
     let timer;
     if (status === 'confirming') {
@@ -2143,7 +2283,7 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     return () => clearTimeout(timer);
   }, [status]);
 
-  // Click outside listener... (Same as before)
+  // Click outside listener
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -2156,7 +2296,6 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [status]);
 
-  // --- 1. HANDLE DISABLED STATE ---
   if (disabled) {
     return (
       <div className="relative w-12 h-12 flex-shrink-0 z-30 opacity-20 grayscale cursor-not-allowed">
@@ -2168,20 +2307,31 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
   }
 
   return (
-    // ... (The rest of your existing component code remains exactly the same)
-    // Just ensure you paste the "Fixed Anchor" version I gave you in the previous response
+    // Static Anchor
     <div className="relative w-12 h-12 flex-shrink-0 z-50">
-      {/* ... existing motion.div code ... */}
       <motion.div
         ref={containerRef}
         layout
         initial={false}
-        style={{ transformOrigin: "0% 50%" }}
+        // Anchor to Top-Left (0,0) so it expands Right (desktop) or Down (mobile)
+        style={{ transformOrigin: "0% 0%" }}
         className="absolute top-0 left-0 border flex items-center justify-center overflow-hidden cursor-pointer shadow-lg bg-[#111]"
-        // ... (rest of animation props)
         animate={status === 'confirming'
-          ? { width: 180, height: 48, borderRadius: 24, backgroundColor: "rgba(220, 38, 38, 0.15)", borderColor: "rgba(220, 38, 38, 0.5)" }
-          : { width: 48, height: 48, borderRadius: 24, backgroundColor: "transparent", borderColor: "rgba(255, 255, 255, 0.3)" }
+          ? {
+            // 2. Conditional Dimensions based on isMobile
+            width: isMobile ? 48 : 180,
+            height: isMobile ? 150 : 48,
+            borderRadius: 24,
+            backgroundColor: "rgba(220, 38, 38, 0.15)",
+            borderColor: "rgba(220, 38, 38, 0.5)"
+          }
+          : {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: "transparent",
+            borderColor: "rgba(255, 255, 255, 0.3)"
+          }
         }
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
@@ -2200,20 +2350,40 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
               <RotateCcw size={22} />
             </motion.button>
           ) : (
-            // ... existing Confirm/Cancel buttons ...
             <motion.div
               key="confirm-actions"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.2, delay: 0.1 }}
-              className="flex items-center justify-between w-full px-2 pr-3 h-full"
+              // 3. Flex Direction: Column on Mobile, Row on Desktop
+              className={`flex items-center justify-between w-full h-full ${isMobile ? 'flex-col py-2' : 'flex-row px-2 pr-3'}`}
             >
-              <button onClick={(e) => { e.stopPropagation(); setStatus('idle'); }} className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all flex-shrink-0 z-20" title="Cancel">
+              {/* Cancel Button (Top/Left) - Stays in original position */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
+                className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all flex-shrink-0 z-20"
+                title="Cancel"
+              >
                 <X size={16} strokeWidth={3} />
               </button>
-              <span className="text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide mx-2">Reset?</span>
-              <button onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }} className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md flex-shrink-0 z-20" title="Confirm">
+
+              {/* Text Label */}
+              <span
+                className={`text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide 
+                  ${isMobile ? 'vertical-text py-2 rotate-180' : 'mx-2'} 
+                `}
+                style={isMobile ? { writingMode: 'vertical-rl' } : {}}
+              >
+                Reset?
+              </span>
+
+              {/* Confirm Button (Bottom/Right) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }}
+                className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md flex-shrink-0 z-20"
+                title="Confirm"
+              >
                 <Check size={18} strokeWidth={3} />
               </button>
             </motion.div>
@@ -2223,7 +2393,6 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     </div>
   );
 };
-
 const LiquidStrictBtn = ({
   isStrict,
   onEnable,
@@ -2947,7 +3116,25 @@ const NoteSystemModals = ({
 
 // A visible, compliant mini-player for Desktop
 // A visible, compliant mini-player for Desktop
-const MiniLofiPlayer = ({ isPlaying, onToggle }) => {
+const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
+  const iframeRef = useRef(null);
+
+  // Sync Volume to YouTube Embed
+  useEffect(() => {
+    if (iframeRef.current && isPlaying) {
+      // YouTube expects an integer 0-100
+      const vol = Math.floor(volume * 100);
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({
+          event: 'command',
+          func: 'setVolume',
+          args: [vol]
+        }),
+        '*'
+      );
+    }
+  }, [volume, isPlaying]);
+
   return (
     <AnimatePresence>
       {isPlaying && (
@@ -2958,25 +3145,19 @@ const MiniLofiPlayer = ({ isPlaying, onToggle }) => {
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="fixed bottom-6 right-6 z-[80] hidden md:block"
         >
-          {/* Main Wrapper */}
           <div className="relative w-80 aspect-video shadow-2xl group">
-
-            {/* 1. VIDEO CONTAINER (Clipped) */}
             <div className="absolute inset-0 rounded-2xl overflow-hidden border border-white/20 bg-black">
               <iframe
+                ref={iframeRef}
                 className="w-full h-full"
-                src="https://www.youtube.com/embed/jfKfPfyJRdk?si=VOqYg_-rlvqd_dMH&autoplay=1&controls=1&mute=0&loop=1&modestbranding=1"
+                // Added enablejsapi=1 to allow volume control
+                src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1&autoplay=1&controls=0&mute=0&loop=1&playlist=jfKfPfyJRdk"
                 title="Lofi Girl Mini"
                 frameBorder="0"
-                disablePictureInPicture
-                // Ensure 'picture-in-picture' is missing from allow list
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                allow="autoplay; encrypted-media;"
               />
             </div>
-
-            {/* 2. LIQUID CLOSE BUTTON (Sitting on top, unclipped) */}
             <LiquidCloseBtn onClose={onToggle} />
-
           </div>
         </motion.div>
       )}
@@ -3033,8 +3214,30 @@ function MainApp() {
       await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
     }
   };
-  const [isLofiPlaying, setIsLofiPlaying] = useState(false);
+
+  // --- AUDIO REFS ---
+  const musicAudioRef = useRef(new Audio());
+  const ambienceRefs = useRef({});// NEW: Separate Engine for Ambience
+
+  // --- AUDIO STATE ---
   const [volume, setVolume] = useState(0.5);
+
+  // 1. MUSIC (Focus Tracks)
+  const [currentTrack, setCurrentTrack] = useState(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [musicLoading, setMusicLoading] = useState(false);
+  const [musicProgress, setMusicProgress] = useState(0);
+  const [musicDuration, setMusicDuration] = useState(0);
+
+  // 2. AMBIENCE (Rain, Wind, etc.) - NEW
+  const [currentAmbience, setCurrentAmbience] = useState(null);
+  const [isAmbiencePlaying, setIsAmbiencePlaying] = useState(false);
+  const [ambienceLoading, setAmbienceLoading] = useState(false);
+  const [ambienceState, setAmbienceState] = useState({});
+
+  // 3. LOFI GIRL
+  const [isLofiPlaying, setIsLofiPlaying] = useState(false);
+
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
@@ -3064,19 +3267,39 @@ function MainApp() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState(null);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
-  const [musicLoading, setMusicLoading] = useState(false);
-  const [musicProgress, setMusicProgress] = useState(0);
-  const [musicDuration, setMusicDuration] = useState(0);
   const [isPro, setIsPro] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const musicAudioRef = useRef(new Audio());
+  // --- VOLUME SYNC ---
   useEffect(() => {
-    if (musicAudioRef.current) {
-      musicAudioRef.current.volume = volume;
-    }
+    if (musicAudioRef.current) musicAudioRef.current.volume = volume;
+    // Ambience volumes are handled individually now
   }, [volume]);
+
+  // --- AUDIO EVENT LISTENERS (Setup for both engines) ---
+  useEffect(() => {
+    const audio = musicAudioRef.current;
+    const onTime = () => setMusicProgress(audio.currentTime);
+    const onMeta = () => setMusicDuration(audio.duration);
+    const onEnd = () => setIsMusicPlaying(false);
+    const onWait = () => setMusicLoading(true);
+    const onCanPlay = () => setMusicLoading(false);
+
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onMeta);
+    audio.addEventListener('ended', onEnd);
+    audio.addEventListener('waiting', onWait);
+    audio.addEventListener('playing', onCanPlay);
+    audio.addEventListener('canplay', onCanPlay);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onMeta);
+      audio.removeEventListener('ended', onEnd);
+      audio.removeEventListener('waiting', onWait);
+      audio.removeEventListener('playing', onCanPlay);
+      audio.removeEventListener('canplay', onCanPlay);
+    };
+  }, []);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
@@ -3105,51 +3328,45 @@ function MainApp() {
   // The Strict Mode "Trap" Listeners
   useEffect(() => {
     const triggerWarning = () => {
-      // 1. Pause Timer
       setIsActive(false);
 
-      // 2. Pause Music if playing (and remember state for resume)
-      if (musicAudioRef.current) {
-        // Fix: Remember if it was playing so we can resume it later
-        wasMusicPlayingRef.current = !musicAudioRef.current.paused;
+      // 1. STOP MUSIC
+      if (musicAudioRef.current && !musicAudioRef.current.paused) {
+        wasMusicPlayingRef.current = true;
         musicAudioRef.current.pause();
+        setIsMusicPlaying(false);
       }
 
-      // 3. Stop Lofi Girl (Fix: Explicitly turn off Lofi state)
+      // 2. STOP ALL AMBIENCE (Loop through mixer refs)
+      Object.values(ambienceRefs.current).forEach(audio => {
+        if (audio) audio.pause();
+      });
+      setAmbienceState({}); // Clear UI state
+
+      // 3. STOP LOFI
       setIsLofiPlaying(false);
 
-      // 4. Show Warning
       setShowStrictWarning(true);
     };
 
     const handleVisibilityChange = () => {
-      // Trigger ONLY if: Hidden + Strict Mode ON + In Focus Mode
-      if (document.hidden && strictModeRef.current && modeRef.current === 'focus') {
-        triggerWarning();
-      }
+      if (document.hidden && strictModeRef.current && modeRef.current === 'focus') triggerWarning();
     };
 
     const handleFullscreenChange = () => {
-      // Trigger ONLY if: Exited Fullscreen + Strict Mode ON + In Focus Mode
-      if (!document.fullscreenElement && strictModeRef.current && modeRef.current === 'focus') {
-        triggerWarning();
-      }
+      if (!document.fullscreenElement && strictModeRef.current && modeRef.current === 'focus') triggerWarning();
       setIsFullscreen(!!document.fullscreenElement);
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-
-    // Initial check on mount (e.g. reload)
-    if (strictMode && mode === 'focus' && onboardingStep === 3 && !document.fullscreenElement) {
-      triggerWarning();
-    }
+    if (strictMode && mode === 'focus' && onboardingStep === 3 && !document.fullscreenElement) triggerWarning();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, []); // Empty dependency array, relies on Refs
+  }, []);
 
   const enableStrictMode = () => {
     setStrictMode(true);
@@ -3885,47 +4102,93 @@ function MainApp() {
     };
   }, []);
 
-  // 1. Play Local Music (Stops Lofi if running)
+  // --- HANDLER: PLAY MUSIC (Mutually Exclusive with Lofi) ---
   const handlePlayMusic = (track) => {
-    // Always stop Lofi first
-    if (isLofiPlaying) {
-      setIsLofiPlaying(false);
-    }
+    // 1. Stop Lofi if playing
+    if (isLofiPlaying) setIsLofiPlaying(false);
 
     if (currentTrack?.id === track.id) {
-      // Resume existing track
       musicAudioRef.current.play();
       setIsMusicPlaying(true);
     } else {
-      // Start new track
       setCurrentTrack(track);
       setMusicLoading(true);
       musicAudioRef.current.src = track.src;
       musicAudioRef.current.load();
-      musicAudioRef.current.play().catch(e => console.error("Play failed", e));
+      musicAudioRef.current.play().catch(e => console.error("Music play failed", e));
       setIsMusicPlaying(true);
     }
   };
 
-  // 2. Pause Local Music (Standard)
   const handlePauseMusic = () => {
-    if (musicAudioRef.current) {
-      musicAudioRef.current.pause();
-    }
+    musicAudioRef.current.pause();
     setIsMusicPlaying(false);
   };
 
-  // 3. Toggle Lofi (Stops Local Music if starting Lofi)
+  // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
+  const toggleAmbience = (track) => {
+    const id = track.id;
+
+    // Check if already active
+    if (ambienceState[id]?.isPlaying) {
+      // STOP IT
+      const audio = ambienceRefs.current[id];
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0; // Reset position
+      }
+      setAmbienceState(prev => {
+        const next = { ...prev };
+        delete next[id]; // Remove from active state UI
+        return next;
+      });
+    } else {
+      // START IT
+      // 1. Create or get Audio object
+      if (!ambienceRefs.current[id]) {
+        ambienceRefs.current[id] = new Audio(track.src);
+        // CRITICAL: Infinite Loop enabled here
+        ambienceRefs.current[id].loop = true;
+      }
+      const audio = ambienceRefs.current[id];
+
+      // 2. Set Volume (Default 0.5)
+      audio.volume = 0.5;
+
+      // 3. Play
+      audio.play().catch(e => console.error("Ambience fail", e));
+
+      // 4. Update State
+      setAmbienceState(prev => ({
+        ...prev,
+        [id]: { isPlaying: true, volume: 0.5 }
+      }));
+    }
+  };
+
+  const changeAmbienceVolume = (id, newVol) => {
+    // 1. Update Audio Element
+    const audio = ambienceRefs.current[id];
+    if (audio) audio.volume = newVol;
+
+    // 2. Update UI State
+    setAmbienceState(prev => ({
+      ...prev,
+      [id]: { ...prev[id], volume: newVol }
+    }));
+  };
+
+  // --- HANDLER: TOGGLE LOFI ---
   const toggleLofi = () => {
     if (isLofiPlaying) {
-      // Turn off Lofi
       setIsLofiPlaying(false);
     } else {
-      // Turn on Lofi -> Stop Local Music first
-      handlePauseMusic();
+      handlePauseMusic(); // Stop Music
       setIsLofiPlaying(true);
     }
   };
+
+  // --- SEEK ---
   const handleSeekMusic = (time) => {
     musicAudioRef.current.currentTime = time;
     setMusicProgress(time);
@@ -4556,13 +4819,15 @@ function MainApp() {
       />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
 
-      <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} />
-
+      <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
       <MusicModal
+        // Global
         volume={volume}
         onVolumeChange={setVolume}
         isOpen={showMusic}
         onClose={() => setShowMusic(false)}
+
+        // Music
         currentTrack={currentTrack}
         isPlaying={isMusicPlaying}
         onPlay={handlePlayMusic}
@@ -4571,6 +4836,13 @@ function MainApp() {
         progress={musicProgress}
         duration={musicDuration}
         onSeek={handleSeekMusic}
+
+        // Ambience Mixer Props (NEW)
+        ambienceState={ambienceState}
+        onToggleAmbience={toggleAmbience}
+        onAmbienceVolume={changeAmbienceVolume}
+
+        // Lofi
         isLofiPlaying={isLofiPlaying}
         onToggleLofi={toggleLofi}
       />
