@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
@@ -53,8 +53,8 @@ const BACKGROUND_OPTIONS = [
 
   { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_medium.mp4' },
   { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { id: 'cloudforest', src: 'https://motionbgs.com/media/2699/forest-in-the-morning-fog.960x540.mp4' },
-  { id: 'lihgting', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
+  { id: 'noensunset', src: 'https://cdn.pixabay.com/video/2020/04/13/35889-407193331_large.mp4' },
+  { id: 'lightinthefall', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
 ];
 
 const cleanText = (text) => {
@@ -518,8 +518,9 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
 
       {viewMode === 'days' ? (
         <div className="grid grid-cols-7 gap-1.5 text-center">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-            <div key={d} className="text-[10px] text-white/30 font-medium py-0.5">{d}</div>
+          {/* FIX: Use index (i) as key instead of day letter (d) */}
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+            <div key={i} className="text-[10px] text-white/30 font-medium py-0.5">{d}</div>
           ))}
           {days.map((date, idx) => (
             <button
@@ -600,77 +601,37 @@ const Avatar = ({ photoURL, name, size = "md", isPinned = false }) => {
   );
 };
 
-// Updated Stats Modal to accept a targetUser prop for viewing others' stats
-const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
+
+const AccountModal = ({ isOpen, onClose, user, stats, onSignOut }) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [historyData, setHistoryData] = useState({});
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [targetStats, setTargetStats] = useState(null); // For viewing friend's stats
-
-  const currentUser = targetUser || user;
-
-  // Fetch stats if viewing a friend
-  useEffect(() => {
-    if (isOpen && targetUser) {
-      // We need to fetch the friend's current stats (which are in the main doc)
-      const fetchTargetStats = async () => {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', targetUser.uid));
-          if (userDoc.exists()) {
-            setTargetStats(userDoc.data().stats);
-          }
-        } catch (e) { console.error("Error fetching friend stats", e); }
-      };
-      fetchTargetStats();
-    }
-  }, [isOpen, targetUser]);
-
-  const displayCurrentStats = targetUser ? (targetStats || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: 0 }) : stats;
 
   useEffect(() => {
-    if (isOpen && activeTab === 'history' && currentUser) {
-      fetchHistory();
-    }
-  }, [isOpen, activeTab, currentMonth, currentUser]);
-
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
-    try {
-      const historyRef = collection(db, 'users', currentUser.uid, 'history');
+    if (isOpen && activeTab === 'history' && user) {
+      const historyRef = collection(db, 'users', user.uid, 'history');
       const q = query(historyRef, orderBy('date', 'desc'));
-      const snapshot = await getDocs(q);
-
-      const data = {};
-      snapshot.forEach(doc => {
-        data[doc.id] = doc.data();
+      getDocs(q).then(snapshot => {
+        const data = {};
+        snapshot.forEach(doc => { data[doc.id] = doc.data(); });
+        setHistoryData(data);
       });
-      setHistoryData(data);
-    } catch (e) {
-      console.error("Failed to fetch history", e);
     }
-    setLoadingHistory(false);
-  };
+  }, [isOpen, activeTab, currentMonth, user]);
 
-  // --- MERGE LIVE STATS INTO HISTORY ---
   const getEffectiveHistory = () => {
     const todayId = formatDateId(new Date());
-    return {
-      ...historyData,
-      [todayId]: { ...displayCurrentStats, date: new Date() }
-    };
+    return { ...historyData, [todayId]: { ...stats, date: new Date() } };
   };
 
-  const effectiveHistoryData = getEffectiveHistory();
-
   const getDisplayStats = () => {
-    if (activeTab === 'today') return displayCurrentStats;
+    if (activeTab === 'today') return stats;
     if (selectedDate) {
       const dateId = formatDateId(selectedDate);
-      return effectiveHistoryData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: '-' };
+      return getEffectiveHistory()[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
     }
-    return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, dailyTasksCompleted: 0, currentStreak: '-' };
+    return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
   };
 
   const finalStats = getDisplayStats();
@@ -679,72 +640,219 @@ const StatsModal = ({ isOpen, onClose, stats, user, targetUser }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-2xl shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar mx-2 md:mx-0 flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6 flex-shrink-0">
-              <div className="flex flex-col">
-                {targetUser && <h4 className="text-white/50 text-xs uppercase tracking-widest mb-1">Viewing Stats for</h4>}
-                <h3 className="text-xl font-medium text-white">{targetUser ? (targetUser.displayName || 'Friend') : 'Your Statistics'}</h3>
+          <motion.div
+            layout // <--- SMOOTH RESIZE MAGIC
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* LEFT COLUMN */}
+            <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
+              <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative group">
+                <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
+                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               </div>
-              <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
-            </div>
+              <h2 className="text-2xl font-bold text-white mb-1">{user?.displayName || "Guest User"}</h2>
+              <p className="text-white/40 text-xs mb-8 font-mono">{user?.email || "No email linked"}</p>
+              <div className="w-full space-y-3">
+                <button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group">
+                  <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out
+                </button>
+              </div>
+              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">MINDGRIND ID: {user?.uid?.slice(0, 8)}...</div>
+            </motion.div>
 
-            <div className="flex gap-4 mb-6">
-              <button onClick={() => setActiveTab('today')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
-              <button onClick={() => setActiveTab('history')} className={`text-sm md:text-base font-medium transition-colors border-b-2 pb-1 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
-            </div>
+            {/* RIGHT COLUMN */}
+            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
+              <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
+                <div className="flex gap-6">
+                  <button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
+                  <button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
+                </div>
+                <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
+              </div>
 
-            {activeTab === 'history' && (
-              <div className="mb-6 animate-fade-in flex-shrink-0">
-                <CalendarView
-                  historyData={effectiveHistoryData}
-                  currentMonth={currentMonth}
-                  setCurrentMonth={setCurrentMonth}
-                  onSelectDate={setSelectedDate}
-                  selectedDate={selectedDate}
-                />
-                {!selectedDate && <p className="text-white/30 text-[10px] text-center mt-3 uppercase tracking-widest">Select a date to view details</p>}
-              </div>
-            )}
+              <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
+                {activeTab === 'history' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-8"
+                  >
+                    <CalendarView
+                      historyData={getEffectiveHistory()}
+                      currentMonth={currentMonth}
+                      setCurrentMonth={setCurrentMonth}
+                      onSelectDate={setSelectedDate}
+                      selectedDate={selectedDate}
+                    />
+                  </motion.div>
+                )}
 
-            <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 mb-3 flex-shrink-0 transition-opacity duration-300 ${activeTab === 'history' && !selectedDate ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-              <StatCard
-                label={activeTab === 'today' ? "Focus Time" : "Focus"}
-                value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} // Fallback for missing data
-                icon={Zap}
-              />
-              <StatCard
-                label="Tasks Completed"
-                value={finalStats.dailyTasksCompleted || 0}
-                icon={CheckSquare}
-              />
-              <div className="hidden md:block">
-                <StatCard
-                  label="Sessions"
-                  value={finalStats.dailySessions || 0}
-                  icon={Clock}
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} />
+                  <StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} />
+                  <StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />
+                  {activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}
+                </div>
+              </motion.div>
             </div>
-            <div className={`grid grid-cols-2 gap-3 flex-shrink-0 transition-opacity duration-300 ${activeTab === 'history' && !selectedDate ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
-              <div className="md:hidden">
-                <StatCard
-                  label="Sessions"
-                  value={finalStats.dailySessions || 0}
-                  icon={Clock}
-                />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// --- FRIEND PROFILE MODAL (Read Only, No Email, Smooth Transition) ---
+const FriendProfileModal = ({ isOpen, onClose, friend }) => {
+  const [activeTab, setActiveTab] = useState('today');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [historyData, setHistoryData] = useState({});
+  const [stats, setStats] = useState({ dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: 0 });
+
+  // 1. Listen to Friend's Real-time Stats & History
+  useEffect(() => {
+    if (isOpen && friend) {
+      // Fetch their latest stats (live)
+      const userDocRef = doc(db, "users", friend.uid);
+      const unsubUser = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setStats({
+            dailyFocusTime: data.stats?.dailyFocusTime || 0,
+            dailyBreakTime: data.stats?.dailyBreakTime || 0,
+            dailySessions: data.stats?.dailySessions || 0,
+            currentStreak: data.stats?.currentStreak || 0
+          });
+        }
+      });
+
+      // Fetch their history if tab is active
+      if (activeTab === 'history') {
+        const historyRef = collection(db, 'users', friend.uid, 'history');
+        const q = query(historyRef, orderBy('date', 'desc'));
+        getDocs(q).then(snapshot => {
+          const data = {};
+          snapshot.forEach(doc => { data[doc.id] = doc.data(); });
+          setHistoryData(data);
+        });
+      }
+
+      return () => unsubUser();
+    }
+  }, [isOpen, friend, activeTab]);
+
+  const getEffectiveHistory = () => {
+    const todayId = formatDateId(new Date());
+    return { ...historyData, [todayId]: { ...stats, date: new Date() } };
+  };
+
+  const getDisplayStats = () => {
+    if (activeTab === 'today') return stats;
+    if (selectedDate) {
+      const dateId = formatDateId(selectedDate);
+      return getEffectiveHistory()[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
+    }
+    return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
+  };
+
+  const finalStats = getDisplayStats();
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+          <motion.div
+            layout // <--- THE MAGIC PROP FOR SMOOTH RESIZING
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* LEFT COLUMN: FRIEND PROFILE */}
+            <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
+              <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
+
+              <div className="w-32 h-32 rounded-full p-1 border-2 border-white/10 mb-6 relative flex items-center justify-center">
+                <Avatar photoURL={friend?.photoURL} name={friend?.displayName} size="full" className="w-full h-full rounded-full" />
+
+                {friend?.isOnline && (
+                  // 1. The Orbit Track (Spins continuously)
+                  <div className="absolute inset-[-6px] rounded-full animate-[spin_8s_linear_infinite] pointer-events-none">
+                    {/* 2. The Star/Dot (Fixed to the edge of the spinning track) */}
+                    <div
+                      className={`absolute top-1/2 -right-[1px] w-4 h-4 rounded-full border-2 border-[#111] shadow-[0_0_15px_currentColor] transition-colors ${friend.isActive ? 'bg-green-500 text-green-500' : 'bg-yellow-500 text-yellow-500'
+                        }`}
+                      style={{ transform: 'translate(50%, -50%)' }} // Centers the dot perfectly on the orbit line
+                    />
+                  </div>
+                )}
               </div>
-              <StatCard
-                label="Break Time"
-                value={formatDetailedDuration(finalStats.dailyBreakTime || 0)}
-                icon={Coffee}
-              />
-              {activeTab === 'today' && (
-                <StatCard
-                  label="Streak"
-                  value={`${finalStats.currentStreak || 0} d`}
-                  icon={Flame}
-                />
-              )}
+
+              <h2 className="text-2xl font-bold text-white mb-2">{friend?.displayName}</h2>
+
+              {/* STATUS BADGE INSTEAD OF EMAIL */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-8">
+                <div className={`w-1.5 h-1.5 rounded-full ${friend?.isOnline ? (friend.isActive ? 'bg-green-500' : 'bg-yellow-500') : 'bg-gray-500'}`} />
+                <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">{friend?.statusText || "Offline"}</span>
+              </div>
+
+              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">
+                FRIEND ID: {friend?.uid?.slice(0, 8)}...
+              </div>
+            </motion.div>
+
+            {/* RIGHT COLUMN: STATS */}
+            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
+              {/* Header */}
+              <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
+                <div className="flex gap-6">
+                  <button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
+                  <button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
+                </div>
+                <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
+              </div>
+
+              {/* Content Area - ANIMATED HEIGHT */}
+              <motion.div
+                layout
+                className="overflow-y-auto custom-scrollbar p-6"
+              >
+                {activeTab === 'history' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mb-8"
+                  >
+                    <CalendarView
+                      historyData={getEffectiveHistory()}
+                      currentMonth={currentMonth}
+                      setCurrentMonth={setCurrentMonth}
+                      onSelectDate={setSelectedDate}
+                      selectedDate={selectedDate}
+                    />
+                  </motion.div>
+                )}
+
+                <div className={`grid grid-cols-2 gap-4`}>
+                  <StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} />
+                  <StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} />
+                  <StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />
+                  {activeTab === 'today' && (
+                    <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />
+                  )}
+                </div>
+              </motion.div>
             </div>
           </motion.div>
         </motion.div>
@@ -1028,7 +1136,6 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
 const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, user, isTimerRunning, devMode, setDevMode, customBackgrounds, onAddCustomBackground, onDeleteCustomBackground }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   const [errors, setErrors] = useState({});
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => { if (isOpen) { setLocalSettings(settings); setErrors({}); } }, [isOpen]);
@@ -1054,7 +1161,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
     }
   };
 
-  const handleSignOut = async () => { setIsSigningOut(true); await new Promise(r => setTimeout(r, 800)); localStorage.removeItem('pomodoro_user_name'); await signOut(auth); window.location.reload(); };
   const handleFileSelect = (e) => { const file = e.target.files[0]; if (file && (file.type === "image/jpeg" || file.type === "image/png")) { const reader = new FileReader(); reader.onloadend = () => { const base64String = reader.result; const newBg = { id: `custom-${Date.now()}`, src: base64String, }; onAddCustomBackground(newBg); handleToggle('background', base64String); if (onBackgroundChange) onBackgroundChange(base64String); }; reader.readAsDataURL(file); } };
   const allBackgrounds = [...BACKGROUND_OPTIONS, ...customBackgrounds];
 
@@ -1070,13 +1176,10 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
 
                 {['focus', 'shortBreak', 'longBreak'].map((mode) => (
                   <React.Fragment key={mode}>
-                    {/* Standard Time Input */}
                     <div className="flex justify-between items-center group gap-4">
                       <label className={`text-sm capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>{mode.replace(/([A-Z])/g, ' $1').trim()} (min)</label>
                       <input type="text" inputMode="numeric" value={localSettings[mode]} onChange={(e) => handleChange(e, mode)} className={`min-w-[60px] w-16 md:w-16 bg-white/5 border rounded-xl p-2.5 md:p-2 text-center text-white focus:outline-none transition-all duration-300 text-base md:text-sm ${errors[mode] ? 'border-red-500 focus:border-red-500 bg-red-500/10' : 'border-white/10 focus:border-white/50'}`} placeholder={settings[mode]} />
                     </div>
-
-                    {/* MOVED: Sessions Before Long Break (Only shows under Long Break) */}
                     {mode === 'longBreak' && (
                       <div className="flex justify-between items-center group gap-4">
                         <label className={`text-sm transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/70 group-hover:text-white'}`}>
@@ -1097,9 +1200,6 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                 <div className="w-full h-px bg-white/10 my-4"></div>
                 <Toggle label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} /><Toggle label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
                 {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (<><div className="w-full h-px bg-white/10 my-4"></div><Toggle label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} /></>)}
-
-                {/* OLD INPUT REMOVED FROM HERE */}
-
               </div>
               <div className="space-y-3 md:space-y-4">
                 <div className="flex items-center gap-2 mb-2"><ImageIcon size={14} className="text-white/70" /><label className="text-xs uppercase tracking-widest text-white/50 font-medium">Environment</label></div>
@@ -1116,90 +1216,46 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                         : "border-transparent hover:border-white/30"
                         }`}
                     >
-                      {/* --- CONDITIONAL RENDERING FOR VIDEO VS IMAGE --- */}
                       {bg.src ? (
                         isVideo(bg.src) ? (
-                          <video
-                            src={bg.src}
-                            className="w-full h-full object-cover"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
+                          <video src={bg.src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
                         ) : (
-                          <img
-                            src={bg.src}
-                            alt={bg.label}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={bg.src} alt={bg.label} className="w-full h-full object-cover" />
                         )
                       ) : (
                         <div className="w-full h-full bg-[#111] flex items-center justify-center">
-                          <span className="text-[10px] text-white/50 uppercase tracking-widest">
-                            None
-                          </span>
+                          <span className="text-[10px] text-white/50 uppercase tracking-widest">None</span>
                         </div>
                       )}
-
-                      {/* Selected Indicator */}
                       {localSettings.background === bg.src && (
                         <div className="absolute inset-0 bg-white/10 flex items-center justify-center">
                           <Check size={16} className="text-white drop-shadow-md" />
                         </div>
                       )}
-
                       {isVideo(bg.src) && (<div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white/80 uppercase tracking-widest border border-white/10 z-10 pointer-events-none">Animated</div>)}
-
-                      {/* Delete Button for Custom Uploads */}
                       {bg.id.toString().startsWith("custom-") && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteCustomBackground(bg.id);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); onDeleteCustomBackground(bg.id); }}
                           className="absolute top-1 right-1 min-w-[32px] min-h-[32px] md:min-w-0 md:min-h-0 p-1.5 md:p-1.5 bg-black/60 hover:bg-red-500/80 active:bg-red-500 rounded-full text-white/70 hover:text-white transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 z-20 backdrop-blur-sm flex items-center justify-center"
                           title="Remove background"
                         >
                           <Trash2 size={10} />
                         </button>
                       )}
-
-                      {/* Label Overlay */}
-                      {bg.label && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-[10px] text-white block text-center truncate">
-                            {bg.label}
-                          </span>
-                        </div>
-                      )}
                     </button>
                   ))}
-
-                  {/* Add Custom Button */}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="relative aspect-video rounded-xl overflow-hidden border-2 border-dashed border-white/20 hover:border-white/50 transition-all duration-200 group flex flex-col items-center justify-center gap-2 bg-white/5 hover:bg-white/10"
                   >
-                    <Plus
-                      size={24}
-                      className="text-white/40 group-hover:text-white/80 transition-colors"
-                    />
-                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest">
-                      Add Custom
-                    </span>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/png, image/jpeg"
-                      onChange={handleFileSelect}
-                    />
+                    <Plus size={24} className="text-white/40 group-hover:text-white/80 transition-colors" />
+                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest">Add Custom</span>
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg" onChange={handleFileSelect} />
                   </button>
                 </div>
               </div>
             </div>
-            <div className="pt-4 md:pt-6 border-t border-white/10 flex flex-col gap-3 mt-4 md:mt-6">{isTimerRunning && (<button onClick={handleManualSave} className="w-full min-h-[44px] bg-red-500/10 border border-red-500/50 text-red-400 text-xs md:text-xs font-bold px-4 py-3 rounded-xl hover:bg-red-500 active:bg-red-600 hover:text-white transition-all duration-300">Save & Reset Timer</button>)}{user && (<button onClick={handleSignOut} disabled={isSigningOut} className="w-full min-h-[44px] flex items-center justify-center gap-2 text-xs text-red-400/70 hover:text-red-400 active:text-red-500 py-2.5 md:py-2 border border-red-500/20 hover:border-red-500/50 active:border-red-500/70 rounded-xl transition-colors disabled:opacity-50">{isSigningOut ? <Loader2 size={12} className="animate-spin" /> : null}{isSigningOut ? "Signing Out..." : "Sign Out"}</button>)}</div>
+            {/* FOOTER REMOVED HERE */}
           </motion.div>
         </motion.div>
       )}
@@ -1402,12 +1458,25 @@ const MUSIC_TRACKS = [
 
 const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek, volume, onVolumeChange }) => {
   const [view, setView] = useState('list');
+  const prevVolumeRef = useRef(0.5); // Stores volume before muting
 
   useEffect(() => {
     if (currentTrack && isOpen && view === 'list') {
       // Optional: Auto-jump to player logic
     }
   }, [currentTrack]);
+
+  // Handle Mute / Unmute
+  const toggleMute = () => {
+    if (volume > 0) {
+      // Mute: Save current volume and set to 0
+      prevVolumeRef.current = volume;
+      onVolumeChange(0);
+    } else {
+      // Unmute: Restore previous volume (or default to 0.5)
+      onVolumeChange(prevVolumeRef.current || 0.5);
+    }
+  };
 
   const formatTime = (time) => {
     if (isNaN(time)) return "0:00";
@@ -1451,18 +1520,15 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                       return (
                         <div
                           key={track.id}
-                          // Clicking the row still opens the player
                           onClick={() => { onPlay(track); setView('player'); }}
                           className={`group flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${isActive ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/10'}`}
                         >
                           <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/5">
-                            {/* ... (Cover Image Logic remains the same) ... */}
                             {track.cover ? (
                               <img src={track.cover} alt={track.title} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center"><Music size={16} className="text-white/20" /></div>
                             )}
-                            {/* ... (Visualizer Logic remains the same) ... */}
                             {isActive && isPlaying && (
                               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                 <div className="flex gap-0.5 items-end h-3">
@@ -1479,20 +1545,17 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                             <p className="text-[10px] text-white/40 uppercase tracking-widest">{isActive && isPlaying ? 'Now Playing' : ''}</p>
                           </div>
 
-                          {/* --- UPDATED SECTION: FUNCTIONAL BUTTON --- */}
                           {isActive && (
                             <button
                               onClick={(e) => {
-                                e.stopPropagation(); // Stops the row click (opening player)
-                                isPlaying ? onPause() : onPlay(track); // Toggles playback
+                                e.stopPropagation();
+                                isPlaying ? onPause() : onPlay(track);
                               }}
                               className="p-2 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-all z-10"
                             >
                               {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
                             </button>
                           )}
-                          {/* ------------------------------------------ */}
-
                         </div>
                       );
                     })}
@@ -1520,24 +1583,21 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                       <p className="text-xs text-white/40 uppercase tracking-widest mt-1">Focus Sound</p>
                     </div>
 
-                    {/* Progress Bar - Draggable & Taller Hit Area */}
+                    {/* Progress Bar */}
                     <div className="w-full flex items-center gap-3 mb-6 px-2">
                       <span className="text-[10px] text-white/40 font-mono w-8 text-right">{formatTime(progress)}</span>
 
                       <div className="flex-1 relative h-6 flex items-center group">
-                        {/* Visual Track */}
                         <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
                           <div
                             className="h-full bg-white transition-all duration-100 ease-out"
                             style={{ width: `${duration ? (progress / duration) * 100 : 0}%` }}
                           />
                         </div>
-                        {/* Drag Thumb (Visual Only) */}
                         <div
                           className="absolute h-3 w-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                           style={{ left: `${duration ? (progress / duration) * 100 : 0}%`, transform: 'translateX(-50%)' }}
                         />
-                        {/* Interactive Input (Invisible but Draggable) */}
                         <input
                           type="range"
                           min="0"
@@ -1567,9 +1627,16 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                         )}
                       </button>
 
-                      {/* Volume Slider */}
+                      {/* Volume Slider - UPDATED */}
                       <div className="flex items-center gap-2 w-28">
-                        <Volume2 size={16} className="text-white/50 flex-shrink-0" />
+                        <button
+                          onClick={toggleMute}
+                          className="text-white/50 hover:text-white transition-colors flex-shrink-0 outline-none"
+                          title={volume === 0 ? "Unmute" : "Mute"}
+                        >
+                          {volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                        </button>
+
                         <div className="flex-1 relative h-6 flex items-center group">
                           {/* Visual Track */}
                           <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -1596,9 +1663,6 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                 )}
               </AnimatePresence>
             </div>
-
-            {/* REMOVED: Redundant Mini Player Block was here */}
-
           </motion.div>
         </motion.div>
       )}
@@ -1835,60 +1899,30 @@ const NoteSystemModals = ({
   onReorder,
   onSaveOrder
 }) => {
-  // Editor State
+  // --- STATE ---
   const [editorTitle, setEditorTitle] = useState("");
   const [editorText, setEditorText] = useState("");
   const [editorColor, setEditorColor] = useState(NOTE_COLORS[0]);
   const [editorTags, setEditorTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
 
-  // Library State
-  const [selectedTag, setSelectedTag] = useState("All");
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [showSlashMenu, setShowSlashMenu] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashIndex, setSlashIndex] = useState(-1);
 
+  const [selectedTag, setSelectedTag] = useState("All");
   const [draggingId, setDraggingId] = useState(null);
+
+  // Refs
   const draggingIdRef = useRef(null);
   const containerRef = useRef(null);
   const lastSwapTime = useRef(0);
-
-  // Refs for Focus Management
   const bodyInputRef = useRef(null);
   const tagInputRef = useRef(null);
-
-  // Drag detection refs
   const dragStartPos = useRef({ x: 0, y: 0 });
-  const isDragClick = useRef(false);
 
-  // --- SHORTCUTS ---
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') {
-        if (editingNote) {
-          if (editorTitle.trim() || editorText.trim()) handleSave();
-          else setEditingNote(null);
-          return;
-        }
-        if (isLibraryOpen) closeLibrary();
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [editingNote, isLibraryOpen, editorTitle, editorText, editorColor, editorTags]);
-
-  // --- EDITOR SYNC ---
-  useEffect(() => {
-    if (editingNote) {
-      setEditorTitle(editingNote.title || "");
-      setEditorText(editingNote.text || "");
-      setEditorColor(editingNote.color || NOTE_COLORS[0]);
-      setEditorTags(editingNote.tags || []);
-    } else {
-      setEditorTitle("");
-      setEditorText("");
-      setEditorColor(NOTE_COLORS[0]);
-      setEditorTags([]);
-    }
-  }, [editingNote]);
-
+  // --- HANDLERS ---
   const handleSave = () => {
     if (!editorText.trim() && !editorTitle.trim()) {
       if (editingNote && editingNote.id) onDelete(editingNote.id);
@@ -1903,190 +1937,206 @@ const NoteSystemModals = ({
       });
     }
     setEditingNote(null);
+    setShowSlashMenu(false);
   };
 
-  // --- NAVIGATION HANDLERS ---
-  const handleTitleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      // Jump to Tag Input instead of Body
-      tagInputRef.current?.focus();
+  // --- SHORTCUTS ---
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        if (showSlashMenu) { e.preventDefault(); e.stopImmediatePropagation(); setShowSlashMenu(false); return; }
+        if (editingNote) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          if (editorTitle.trim() || editorText.trim()) handleSave();
+          else setEditingNote(null);
+          return;
+        }
+        if (isLibraryOpen) { e.preventDefault(); e.stopImmediatePropagation(); closeLibrary(); }
+      }
+    };
+    window.addEventListener('keydown', handleEsc, true);
+    return () => window.removeEventListener('keydown', handleEsc, true);
+  }, [editingNote, isLibraryOpen, editorTitle, editorText, editorColor, editorTags, showSlashMenu]);
+
+  // --- SYNC EDITOR STATE ---
+  useEffect(() => {
+    if (editingNote) {
+      setEditorTitle(editingNote.title || "");
+      setEditorText(editingNote.text || "");
+      setEditorColor(editingNote.color || NOTE_COLORS[0]);
+      setEditorTags(editingNote.tags || []);
+    } else {
+      setEditorTitle("");
+      setEditorText("");
+      setEditorColor(NOTE_COLORS[0]);
+      setEditorTags([]);
     }
+  }, [editingNote]);
+
+  // --- SPOTLIGHT EFFECT ---
+  const handleGlowMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
   };
+
+  // --- TAG & SLASH LOGIC ---
+  const allExistingTags = [...new Set(notes.flatMap(n => n.tags || []))];
+  const allTags = ["All", ...allExistingTags];
+  const tagSuggestions = tagInput.trim()
+    ? allExistingTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !editorTags.includes(t))
+    : [];
+
+  useEffect(() => { setActiveSuggestionIndex(0); }, [tagInput]);
+
+  const handleAddTag = (tag) => {
+    const cleanTag = tag.trim();
+    if (cleanTag && !editorTags.includes(cleanTag)) { setEditorTags([...editorTags, cleanTag]); }
+    setTagInput("");
+  };
+
+  const removeTag = (tagToRemove) => { setEditorTags(editorTags.filter(t => t !== tagToRemove)); };
 
   const handleTagKeyDown = (e) => {
-    // If Enter is pressed...
     if (e.key === 'Enter') {
-      if (tagInput.trim()) {
-        // If has text, add tag
-        e.preventDefault();
-        handleAddTag(e);
-      } else {
-        // If empty, jump to Body
-        e.preventDefault();
-        bodyInputRef.current?.focus();
-      }
+      e.preventDefault();
+      if (e.shiftKey) { if (tagInput.trim()) handleAddTag(tagInput.trim()); return; }
+      if (tagSuggestions.length > 0 && activeSuggestionIndex >= 0) { handleAddTag(tagSuggestions[activeSuggestionIndex]); return; }
+      if (tagInput.trim()) { handleAddTag(tagInput.trim()); } else { bodyInputRef.current?.focus(); }
     }
+    if (e.key === 'Backspace' && tagInput === '') {
+      if (editorTags.length > 0) { e.preventDefault(); const newTags = [...editorTags]; newTags.pop(); setEditorTags(newTags); }
+    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveSuggestionIndex(prev => Math.min(prev + 1, tagSuggestions.length - 1)); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActiveSuggestionIndex(prev => Math.max(prev - 1, 0)); }
   };
 
-  // --- SMART MARKDOWN HANDLERS ---
+  const handleTitleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); tagInputRef.current?.focus(); } };
+
+  // --- MARKDOWN UTILS ---
+  const insertMarkdown = (syntax) => {
+    const textarea = bodyInputRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const value = textarea.value;
+    const previousLineBreak = value.lastIndexOf('\n', start - 1);
+    const lineStart = previousLineBreak + 1;
+    let insertion = "";
+    if (syntax === 'list') insertion = "- ";
+    if (syntax === 'task') insertion = "[ ] ";
+    if (syntax === 'bold' || syntax === 'italic') {
+      const marker = syntax === 'bold' ? '**' : '*';
+      const end = textarea.selectionEnd;
+      const selection = value.substring(start, end);
+      const newText = value.substring(0, start) + marker + selection + marker + value.substring(end);
+      setEditorText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        const offset = selection ? start + marker.length + selection.length + marker.length : start + marker.length;
+        textarea.setSelectionRange(offset, offset);
+      }, 0);
+      return;
+    }
+    const newText = value.substring(0, lineStart) + insertion + value.substring(lineStart);
+    setEditorText(newText);
+    setTimeout(() => { textarea.focus(); const newPos = (start < lineStart) ? start : start + insertion.length; textarea.setSelectionRange(newPos, newPos); }, 0);
+  };
+
+  // --- SLASH COMMANDS ---
+  const SLASH_COMMANDS = [
+    { id: 'task', label: 'Task List', icon: CheckSquare, action: 'task' },
+    { id: 'list', label: 'Bullet List', icon: List, action: 'list' },
+    { id: 'bold', label: 'Bold', icon: Bold, action: 'bold' },
+    { id: 'italic', label: 'Italic', icon: Italic, action: 'italic' },
+  ];
+  const filteredCommands = SLASH_COMMANDS.filter(c => c.id.includes(slashQuery.toLowerCase()) || c.label.toLowerCase().includes(slashQuery.toLowerCase()));
+
+  const executeSlashCommand = (command) => {
+    const textarea = bodyInputRef.current;
+    if (!textarea) return;
+    const value = textarea.value;
+    const beforeSlash = value.substring(0, slashIndex);
+    const afterCursor = value.substring(textarea.selectionStart);
+    setEditorText(beforeSlash + afterCursor);
+    setShowSlashMenu(false);
+    setSlashQuery("");
+    setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = slashIndex; insertMarkdown(command.action); }, 0);
+  };
+
+  const handleBodyChange = (e) => {
+    const newValue = e.target.value;
+    setEditorText(newValue);
+    const textarea = e.target;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = newValue.substring(0, cursorPos);
+    const lastSlash = textBeforeCursor.lastIndexOf('/');
+    if (lastSlash !== -1) {
+      const charBeforeSlash = lastSlash > 0 ? textBeforeCursor[lastSlash - 1] : '\n';
+      if (charBeforeSlash === ' ' || charBeforeSlash === '\n' || lastSlash === 0) {
+        const query = textBeforeCursor.substring(lastSlash + 1);
+        if (!query.includes(' ') && !query.includes('\n')) {
+          setShowSlashMenu(true);
+          setSlashIndex(lastSlash);
+          setSlashQuery(query);
+          return;
+        }
+      }
+    }
+    setShowSlashMenu(false);
+  };
 
   const handleBodyKeyDown = (e) => {
+    if (showSlashMenu) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredCommands.length > 0) executeSlashCommand(filteredCommands[0]);
+        return;
+      }
+      if (e.key === 'Escape') { e.preventDefault(); setShowSlashMenu(false); return; }
+    }
     if (e.key === 'Enter') {
       const textarea = bodyInputRef.current;
       if (!textarea) return;
-
       const start = textarea.selectionStart;
       const value = textarea.value;
-
-      // Find current line
       const previousLineBreak = value.lastIndexOf('\n', start - 1);
       const currentLineStart = previousLineBreak + 1;
       const currentLine = value.substring(currentLineStart, start);
-
-      // Regex to detect List Item (- ) or Task Box ([ ] or [x] )
       const listMatch = currentLine.match(/^(\s*)(-|\[([ x])\])\s/);
-
       if (listMatch) {
-        e.preventDefault(); // Stop default newline
-
-        const fullMatch = listMatch[0]; // e.g., "- " or "  [ ] "
-        const indent = listMatch[1];    // e.g., "  "
-        const marker = listMatch[2];    // e.g., "-" or "[ ]"
-
-        // 1. EMPTY LIST ITEM CASE: User pressed Enter on a line with JUST a marker
-        //    Action: Remove the marker (exit list mode)
+        e.preventDefault();
+        const indent = listMatch[1];
+        const marker = listMatch[2];
         if (currentLine.trim() === marker || currentLine.trim() === marker + ']') {
           const newValue = value.substring(0, currentLineStart) + value.substring(start);
           setEditorText(newValue);
-          // Need setTimeout to set cursor correctly after React render
-          setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = currentLineStart;
-          }, 0);
+          setTimeout(() => { textarea.selectionStart = textarea.selectionEnd = currentLineStart; }, 0);
           return;
         }
-
-        // 2. CONTINUE LIST CASE
-        //    Action: Create new line with same indentation and marker
-        const nextMarker = marker.startsWith('[') ? '[ ]' : '-'; // Always uncheck new tasks
+        const nextMarker = marker.startsWith('[') ? '[ ]' : '-';
         const insertion = `\n${indent}${nextMarker} `;
-
         const newValue = value.substring(0, start) + insertion + value.substring(start);
         setEditorText(newValue);
-
         setTimeout(() => {
           const newCursorPos = start + insertion.length;
           textarea.selectionStart = textarea.selectionEnd = newCursorPos;
         }, 0);
-      } else {
-        // Normal behavior for non-list lines (let React/Browser handle it or do manual insert if controlled)
-        // Since we are controlled input, standard behavior works, but we preventDefault for consistency? 
-        // Actually, best to let default happen if no match, BUT we are in a controlled component 
-        // so we might as well manually insert \n to be safe with undo stack or just return.
-        // returning lets default Event happen which updates Textarea value.
       }
     }
   };
 
-  const insertMarkdown = (syntax) => {
-    const textarea = bodyInputRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const value = textarea.value;
-
-    // Find the START of the current line
-    const previousLineBreak = value.lastIndexOf('\n', start - 1);
-    const lineStart = previousLineBreak + 1;
-
-    let insertion = "";
-    if (syntax === 'list') insertion = "- ";
-    if (syntax === 'task') insertion = "[ ] ";
-    if (syntax === 'bold') {
-      // Bold is inline, so we wrap selection
-      const end = textarea.selectionEnd;
-      const selection = value.substring(start, end);
-      const newText = value.substring(0, start) + "**" + selection + "**" + value.substring(end);
-      setEditorText(newText);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + 2, end + 2);
-      }, 0);
-      return;
-    }
-    if (syntax === 'italic') {
-      const end = textarea.selectionEnd;
-      const selection = value.substring(start, end);
-      const newText = value.substring(0, start) + "*" + selection + "*" + value.substring(end);
-      setEditorText(newText);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + 1, end + 1);
-      }, 0);
-      return;
-    }
-
-    // For List/Task: Insert at START of line
-    const newText = value.substring(0, lineStart) + insertion + value.substring(lineStart);
-    setEditorText(newText);
-
-    setTimeout(() => {
-      textarea.focus();
-      // Move cursor to end of inserted prefix (relative to where it was, shifted by insertion)
-      // If cursor was at 5, and we inserted 2 chars at 0, cursor is now 7.
-      const newPos = (start < lineStart) ? start : start + insertion.length;
-      textarea.setSelectionRange(newPos, newPos);
-    }, 0);
-  };
-
-  // --- TAG HANDLERS ---
-  const handleAddTag = (e) => {
-    if (tagInput.trim()) {
-      if (!editorTags.includes(tagInput.trim())) {
-        setEditorTags([...editorTags, tagInput.trim()]);
-      }
-      setTagInput("");
-    }
-  };
-
-  const removeTag = (tagToRemove) => {
-    setEditorTags(editorTags.filter(t => t !== tagToRemove));
-  };
-
-  // --- INTERACTIVE PREVIEW TOGGLE ---
-  // This allows clicking checkboxes in the "All Notes" view
-  const handleToggleLine = (note, lineIndex, newStatus) => {
-    const lines = note.text.split('\n');
-    if (lines[lineIndex]) {
-      // Replace [ ] with [x] or vice versa
-      const line = lines[lineIndex];
-      const newLine = newStatus
-        ? line.replace(/^(\s*)\[ \]/, '$1[x]')
-        : line.replace(/^(\s*)\[x\]/i, '$1[ ]');
-
-      lines[lineIndex] = newLine;
-      const newText = lines.join('\n');
-
-      // Save immediately
-      onSave({ ...note, text: newText, updatedAt: Date.now() });
-    }
-  };
-
-
-  // --- DRAG LOGIC ---
+  // --- DRAG & LOGIC ---
   const handleDragStart = (id, e) => {
     setDraggingId(id);
     draggingIdRef.current = id;
     dragStartPos.current = { x: e.clientX, y: e.clientY };
-    isDragClick.current = false;
   };
 
   const handlePointerMove = (e) => {
     if (!draggingIdRef.current || !containerRef.current) return;
-    const moveDist = Math.sqrt(Math.pow(e.clientX - dragStartPos.current.x, 2) + Math.pow(e.clientY - dragStartPos.current.y, 2));
-    if (moveDist > 5) isDragClick.current = true;
     if (Date.now() - lastSwapTime.current < 250) return;
-
     const noteElements = Array.from(containerRef.current.querySelectorAll('[data-note-id]'));
     let targetId = null;
     for (let el of noteElements) {
@@ -2094,11 +2144,9 @@ const NoteSystemModals = ({
       if (id === draggingIdRef.current) continue;
       const rect = el.getBoundingClientRect();
       if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-        targetId = id;
-        break;
+        targetId = id; break;
       }
     }
-
     if (targetId) {
       const fromIndex = notes.findIndex(n => n.id === draggingIdRef.current);
       const toIndex = notes.findIndex(n => n.id === targetId);
@@ -2129,22 +2177,16 @@ const NoteSystemModals = ({
     };
   }, [draggingId, notes]);
 
-  const handleNoteClick = (e, note) => {
-    e.stopPropagation();
-    if (isDragClick.current) return;
+  // --- NOTE TAP LOGIC ---
+  const handleNoteTap = (e, note) => {
     setEditingNote(note);
   };
 
-  // --- FILTER LOGIC ---
-  const allTags = ["All", ...new Set(notes.flatMap(n => n.tags || []))];
-  const filteredNotes = selectedTag === "All"
-    ? notes
-    : notes.filter(n => n.tags && n.tags.includes(selectedTag));
-
+  const filteredNotes = selectedTag === "All" ? notes : notes.filter(n => n.tags && n.tags.includes(selectedTag));
 
   return (
     <AnimatePresence>
-      {/* --- LIBRARY MODAL --- */}
+      {/* LIBRARY MODAL */}
       {isLibraryOpen && (
         <motion.div
           initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
@@ -2156,16 +2198,9 @@ const NoteSystemModals = ({
         >
           <div className="w-full flex flex-col items-center pt-12 md:pt-16 pb-4" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
-
-            {/* TAG FILTER BAR */}
             <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
               {allTags.map(tag => (
-                <TagPill
-                  key={tag}
-                  label={tag}
-                  active={selectedTag === tag}
-                  onClick={() => setSelectedTag(tag)}
-                />
+                <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
               ))}
             </div>
           </div>
@@ -2175,18 +2210,25 @@ const NoteSystemModals = ({
               <div className="flex flex-wrap gap-6">
 
                 {/* ADD BUTTON */}
-                {selectedTag === "All" && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 hover:bg-white/10 transition-all rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]"
-                    onClick={(e) => { e.stopPropagation(); setEditingNote({}); }}
-                  >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onMouseMove={handleGlowMove}
+                  className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const initialTags = selectedTag !== "All" ? [selectedTag] : [];
+                    setEditingNote({ tags: initialTags });
+                  }}
+                >
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
+                  <div className="relative z-10 flex flex-col items-center gap-2">
                     <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                  </motion.div>
-                )}
+                    <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
+                  </div>
+                </motion.div>
 
-                {/* NOTES */}
+                {/* NOTES GRID */}
                 {filteredNotes.map((note) => (
                   <motion.div
                     key={note.id}
@@ -2200,49 +2242,36 @@ const NoteSystemModals = ({
                     dragMomentum={false}
                     onDragStart={(e) => handleDragStart(note.id, e)}
 
+                    onMouseMove={handleGlowMove}
+                    onTap={(e) => handleNoteTap(e, note)}
+
+                    // --- THE FIX: Stop click event bubbling to background ---
+                    onClick={(e) => e.stopPropagation()}
+
                     style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
 
                     initial={{ opacity: 0, scale: 0.8 }}
-                    animate={draggingId === note.id
-                      ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 }
-                      : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }
-                    }
+                    animate={draggingId === note.id ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 } : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
 
                     className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
-
-                    onPointerDown={(e) => {
-                      e.stopPropagation();
-                      isDragClick.current = false;
-                      dragStartPos.current = { x: e.clientX, y: e.clientY };
-                    }}
-                    onClick={(e) => handleNoteClick(e, note)}
                   >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%)' }} />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
 
-                    <div className="relative z-10 flex flex-col h-full">
-                      {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 pointer-events-none select-none">{note.title}</h4>}
-
-                      <div className="flex-1 overflow-hidden pointer-events-auto mask-bottom">
-                        {/* Interactive Render in Preview */}
-                        <RichTextRenderer
-                          text={note.text}
-                          className="text-xs md:text-sm"
-                          onToggle={(index, status) => handleToggleLine(note, index, status)}
-                        />
+                    <div className="relative z-10 flex flex-col h-full pointer-events-none">
+                      {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
+                      <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
+                        <RichTextRenderer text={note.text} className="text-xs md:text-sm" onToggle={(index, status) => handleToggleLine(note, index, status)} />
                       </div>
-
                       {note.tags && note.tags.length > 0 && (
                         <div className="mt-2 flex gap-1 flex-wrap">
                           {note.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">
-                              #{tag}
-                            </span>
+                            <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">#{tag}</span>
                           ))}
                         </div>
                       )}
                     </div>
-
                     <button
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); if (confirm("Delete this note?")) onDelete(note.id); }}
@@ -2255,16 +2284,13 @@ const NoteSystemModals = ({
               </div>
             </div>
           </div>
-
-          <div className="absolute top-6 right-6">
-            <button onClick={closeLibrary} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
-              <X size={24} />
-            </button>
+          <div className="absolute top-6 right-6 md:top-8 md:right-12 z-50">
+            <button onClick={closeLibrary} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"><X size={24} /></button>
           </div>
         </motion.div>
       )}
 
-      {/* --- EDITOR MODAL --- */}
+      {/* EDITOR MODAL */}
       {editingNote && (
         <motion.div
           initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
@@ -2280,24 +2306,13 @@ const NoteSystemModals = ({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
-            // --- CHANGE HERE: Removed 'aspect-auto' and 'md:aspect-square', replaced with just 'aspect-square' ---
             className="w-[85vw] md:w-[550px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-2xl max-h-[85vh]"
             style={{ backgroundColor: editorColor }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
 
-            {/* TITLE */}
-            <input
-              autoFocus
-              type="text"
-              value={editorTitle}
-              onChange={(e) => setEditorTitle(e.target.value)}
-              onKeyDown={handleTitleKeyDown}
-              placeholder="Title..."
-              className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-2 p-0"
-            />
+            <input autoFocus type="text" value={editorTitle} onChange={(e) => setEditorTitle(e.target.value)} onKeyDown={handleTitleKeyDown} placeholder="Title..." className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-2 p-0" />
 
-            {/* TAGS INPUT */}
             <div className="relative z-10 flex flex-wrap gap-2 mb-4 items-center min-h-[32px]">
               {editorTags.map(tag => (
                 <span key={tag} className="flex items-center gap-1 bg-black/10 px-2 py-1 rounded-md text-xs font-bold text-black/70">
@@ -2305,18 +2320,35 @@ const NoteSystemModals = ({
                   <button onClick={() => removeTag(tag)} className="hover:text-black"><X size={10} /></button>
                 </span>
               ))}
-              <input
-                ref={tagInputRef}
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder={editorTags.length === 0 ? "Add tags (press Enter)..." : "+ tag..."}
-                className="bg-transparent border-none outline-none text-xs text-black/60 placeholder-black/30 w-32 focus:w-48 transition-all"
-              />
+              <div className="relative">
+                <input ref={tagInputRef} type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={handleTagKeyDown} placeholder={editorTags.length === 0 ? "Add tags..." : "+ tag"} className="bg-transparent border-none outline-none text-xs text-black/60 placeholder-black/30 w-32 focus:w-48 transition-all" />
+                <AnimatePresence>
+                  {tagSuggestions.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute top-full left-0 mt-2 bg-[#111]/90 backdrop-blur-md shadow-2xl rounded-xl overflow-hidden border border-white/10 z-[100] min-w-[180px]">
+                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-white/30 border-b border-white/5">Suggested</div>
+                      {tagSuggestions.map((tag, i) => (
+                        <div key={tag} onClick={() => handleAddTag(tag)} className={`px-4 py-2 text-xs cursor-pointer flex items-center justify-between transition-colors ${i === activeSuggestionIndex ? 'bg-white/20 text-white font-bold' : 'text-white/70 hover:bg-white/10'}`}><span>#{tag}</span>{i === activeSuggestionIndex && <span className="text-[10px] opacity-50">Enter</span>}</div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
-            {/* TOOLBAR */}
+            <AnimatePresence>
+              {showSlashMenu && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute z-50 bottom-24 left-8 right-8 bg-[#111]/90 backdrop-blur-md shadow-2xl rounded-xl border border-white/10 overflow-hidden">
+                  <div className="bg-white/5 px-4 py-2 text-[10px] uppercase font-bold text-white/40 border-b border-white/5">Basic Blocks</div>
+                  {filteredCommands.length > 0 ? filteredCommands.map((cmd, i) => (
+                    <button key={cmd.id} onClick={() => executeSlashCommand(cmd)} className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-left transition-colors ${i === 0 ? 'bg-white/5' : ''}`}>
+                      <div className="w-8 h-8 rounded border border-white/10 flex items-center justify-center bg-white/10 text-white"><cmd.icon size={14} /></div>
+                      <div className="flex flex-col"><span className="text-sm font-bold text-white/90">{cmd.label}</span><span className="text-[10px] text-white/40">Type /{cmd.id}</span></div>
+                    </button>
+                  )) : (<div className="px-4 py-3 text-xs text-white/40 italic">No matching commands</div>)}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="relative z-10 flex gap-1 mb-2 border-b border-black/10 pb-2">
               <button onClick={() => insertMarkdown('bold')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Bold"><Bold size={14} /></button>
               <button onClick={() => insertMarkdown('italic')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Italic"><Italic size={14} /></button>
@@ -2325,35 +2357,11 @@ const NoteSystemModals = ({
               <button onClick={() => insertMarkdown('task')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Task List"><CheckSquare size={14} /></button>
             </div>
 
-            {/* TEXT AREA */}
-            <textarea
-              ref={bodyInputRef}
-              value={editorText}
-              onChange={(e) => setEditorText(e.target.value)}
-              onKeyDown={handleBodyKeyDown}
-              placeholder="Write your thought..."
-              className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-base md:text-lg font-medium leading-relaxed font-sans custom-scrollbar p-0 font-mono"
-            />
+            <textarea ref={bodyInputRef} value={editorText} onChange={handleBodyChange} onKeyDown={handleBodyKeyDown} placeholder="Write / for commands..." className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-base md:text-lg font-medium leading-relaxed font-sans custom-scrollbar p-0 font-mono" />
 
-            {/* FOOTER */}
             <div className="relative z-20 flex justify-between items-center pt-4 mt-2 border-t border-black/10">
-              <div className="flex gap-2">
-                {NOTE_COLORS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setEditorColor(color)}
-                    className={`w-6 h-6 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-
-              <button
-                onClick={handleSave}
-                className="px-6 py-2 bg-black text-white font-bold uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg"
-              >
-                Done
-              </button>
+              <div className="flex gap-2">{NOTE_COLORS.map(color => (<button key={color} onClick={() => setEditorColor(color)} className={`w-6 h-6 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`} style={{ backgroundColor: color }} />))}</div>
+              <button onClick={handleSave} className="px-6 py-2 bg-black text-white font-bold uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg">Done</button>
             </div>
           </motion.div>
         </motion.div>
@@ -2438,7 +2446,7 @@ export default function App() {
   const [beginBtnRect, setBeginBtnRect] = useState(null);
   const [targetPlayBtnRect, setTargetPlayBtnRect] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -2448,6 +2456,7 @@ export default function App() {
   const [musicLoading, setMusicLoading] = useState(false);
   const [musicProgress, setMusicProgress] = useState(0);
   const [musicDuration, setMusicDuration] = useState(0);
+  const [showStats, setShowStats] = useState(false);
   const musicAudioRef = useRef(new Audio());
   useEffect(() => {
     if (musicAudioRef.current) {
@@ -2604,73 +2613,136 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(false);
 
   useEffect(() => {
-    const sounds = { 'focus': '/sounds/timer-end.mp3', 'shortBreak': '/sounds/short-break.mp3', 'longBreak': '/sounds/long-break.mp3' };
+    const sounds = { 'focus': '/sounds/timer-end.mp3', 'shortBreak': '/sounds/timer-end.mp3', 'longBreak': '/sounds/timer-end.mp3' };
     Object.keys(sounds).forEach(key => { const audio = new Audio(sounds[key]); audio.preload = 'auto'; audio.volume = 1.0; audioRefs.current[key] = audio; });
   }, []);
   useEffect(() => { localStorage.setItem('zen_custom_bgs', JSON.stringify(customBackgrounds)); }, [customBackgrounds]);
+  // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
     const handleKeyPress = (e) => {
+      // 1. Ignore if modifier keys are pressed (Ctrl, Alt, Meta)
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+
       const activeElement = document.activeElement;
       const isInputFocused = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable);
 
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
-
+      // --- ESCAPE KEY LOGIC (High Priority) ---
       if (e.key === 'Escape') {
+        // A. Close Modals (LIFO - Last In First Out logic)
         if (showKeyboardHelp) { setShowKeyboardHelp(false); return; }
         if (showSettings) { setShowSettings(false); return; }
+        if (showAccount) { setShowAccount(false); return; }
         if (showStats) { setShowStats(false); return; }
         if (showFriends) { setShowFriends(false); return; }
+        if (showMusic) { setShowMusic(false); return; }
         if (viewingFriendStats) { setViewingFriendStats(null); setShowStats(false); return; }
+        if (isNoteLibraryOpen) { setIsNoteLibraryOpen(false); return; }
+
+        // B. Close Confirmations
+        if (showStrictConfirm) { setShowStrictConfirm(false); return; }
+        if (showStrictWarning) { /* Strict warning usually blocks Esc, but we can allow dismissing if needed */ }
+        if (showStrictDisableConfirm) { setShowStrictDisableConfirm(false); return; }
         if (showResetConfirm) { setShowResetConfirm(false); return; }
-        if (isInputFocused) { e.preventDefault(); activeElement.blur(); if (activeElement.id === 'session-name-input') { setIsEditingName(false); } return; }
+
+        // C. Blur Inputs / Edit Modes
+        if (isInputFocused) {
+          e.preventDefault();
+          activeElement.blur();
+          if (activeElement.id === 'session-name-input') { setIsEditingName(false); }
+          if (activeElement.id === 'new-task-input') { setPendingTask(''); } // Optional: clear task input
+          return;
+        }
+
+        // D. Close Note Editor
+        if (editingNote) {
+          // Optional: Auto-save or just close? 
+          // Usually better to save, but Esc implies "Cancel/Exit"
+          // For now, let's just close or trigger the save handler manually if you prefer
+          return;
+        }
+
+        return; // Stop further execution for Escape
       }
 
+      // --- IGNORE OTHER SHORTCUTS IF TYPING ---
       if (isInputFocused) return;
 
+      // --- OTHER SHORTCUTS ---
+
+      // Toggle Help
       if (e.shiftKey && e.key === '?') { e.preventDefault(); setShowKeyboardHelp(prev => !prev); return; }
-      if (e.key === ' ' && onboardingStep === 3) { e.preventDefault(); setIsActive(!isActive); return; }
+
+      // Space: Toggle Timer (Only in Session)
+      if (e.key === ' ' && onboardingStep === 3) { e.preventDefault(); toggleTimer(); return; }
+
+      // Tab: Cycle Modes (Only if timer stopped)
       if (e.key === 'Tab' && onboardingStep === 3) {
+        // Check if timer is reset (timeLeft equals settings duration)
         const isAtDefaultPosition = !isActive && timeLeft === settings[mode] * 60;
-        if (isAtDefaultPosition) { e.preventDefault(); const modeOrder = ['focus', 'shortBreak', 'longBreak']; const currentIndex = modeOrder.indexOf(mode); const nextIndex = (currentIndex + 1) % modeOrder.length; const nextMode = modeOrder[nextIndex]; setMode(nextMode); setTimeLeft(settings[nextMode] * 60); return; }
+
+        // OR just allow switching whenever paused:
+        if (!isActive) {
+          e.preventDefault();
+          const modeOrder = ['focus', 'shortBreak', 'longBreak'];
+          const currentIndex = modeOrder.indexOf(mode);
+          const nextIndex = (currentIndex + 1) % modeOrder.length;
+          const nextMode = modeOrder[nextIndex];
+          handleModeChange(nextMode); // Use your handler to ensure sync
+          return;
+        }
       }
 
-      // --- NEW SHORTCUT: Toggle Music ('P') ---
+      // P: Toggle Music
       if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
         if (isMusicPlaying) {
-          // Pause
-          musicAudioRef.current.pause();
-          setIsMusicPlaying(false);
+          handlePauseMusic();
         } else {
-          // Play (Resume current or start default)
+          // Play current or default
           const trackToPlay = currentTrack || MUSIC_TRACKS[0];
-
-          if (currentTrack?.id === trackToPlay.id) {
-            // Just resume
-            musicAudioRef.current.play().catch(e => console.error("Resume failed", e));
-            setIsMusicPlaying(true);
-          } else {
-            // Load and play new (or default)
-            setCurrentTrack(trackToPlay);
-            setMusicLoading(true);
-            musicAudioRef.current.src = trackToPlay.src;
-            musicAudioRef.current.load();
-            musicAudioRef.current.play().catch(e => console.error("Play failed", e));
-            setIsMusicPlaying(true);
-          }
+          handlePlayMusic(trackToPlay);
         }
         return;
       }
-      // ----------------------------------------
 
-      if (e.key === 't' || e.key === 'T') { e.preventDefault(); const taskInput = document.getElementById('new-task-input'); if (taskInput) { taskInput.click(); setTimeout(() => { taskInput.focus(); const length = taskInput.value.length; taskInput.setSelectionRange(length, length); }, 0); } }
+      // T: Focus Task/Note Input (Using Library now?)
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        // If you want T to open Notes Library:
+        setIsNoteLibraryOpen(true);
+      }
+
+      // S: Settings
       if (e.key === 's' || e.key === 'S') { e.preventDefault(); setShowSettings(prev => !prev); }
-      if (e.key === 'o' || e.key === 'O') { e.preventDefault(); setIsEditingName(true); setTimeout(() => { const sessionInput = document.getElementById('session-name-input'); if (sessionInput) { sessionInput.focus(); sessionInput.select(); } }, 50); }
+
+      // O: Edit Session Name
+      if (e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        setIsEditingName(true);
+        // Timeout to allow render
+        setTimeout(() => {
+          const input = document.getElementById('session-name-input');
+          if (input) { input.focus(); input.select(); }
+        }, 50);
+      }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isActive, onboardingStep, showSettings, showStats, showFriends, showKeyboardHelp, showResetConfirm, mode, timeLeft, settings, viewingFriendStats, isMusicPlaying, currentTrack]); // Added isMusicPlaying & currentTrack to deps
+
+  }, [
+    // --- CRITICAL: ALL STATE VARIABLES MUST BE HERE ---
+    isActive, onboardingStep, mode, timeLeft, settings,
+    // Modals
+    showSettings, showFriends, showKeyboardHelp, showResetConfirm,
+    showAccount, showMusic, showStats, viewingFriendStats,
+    showStrictConfirm, showStrictWarning, showStrictDisableConfirm,
+    isNoteLibraryOpen, editingNote,
+    // Music
+    isMusicPlaying, currentTrack, volume,
+    // Inputs
+    isEditingName, // If you use these inside the handler
+  ]);
 
   const playAlarm = (currentMode) => { const audio = audioRefs.current[currentMode]; if (audio) { audio.currentTime = 0; const playPromise = audio.play(); if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Audio play failed, falling back to beep:", error); fallbackBeep(); }); } } else { fallbackBeep(); } };
   const fallbackBeep = () => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (AudioContext) { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 440; osc.type = 'sine'; gain.gain.value = 0.1; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1); osc.stop(ctx.currentTime + 1); } } catch (e) { console.error("Audio fallback failed", e); } };
@@ -3226,6 +3298,15 @@ export default function App() {
 
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
   const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem('pomodoro_user_name');
+      window.location.reload();
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
   const finishSessionInput = (e) => {
     if (e.key === 'Enter') {
       setOnboardingStep(2);
@@ -3466,32 +3547,74 @@ export default function App() {
   const isTimerRunning = isActive || (timeLeft < settings[mode] * 60 && timeLeft > 0);
 
   const handleSettingsSave = (newSettings) => {
+    // 1. Calculate the difference for the CURRENT mode (e.g., did we change Focus from 25 -> 30?)
+    const oldDuration = settings[mode];
+    const newDuration = newSettings[mode];
+    const deltaMinutes = newDuration - oldDuration; // e.g., +5 or -5 or 0
+
+    // 2. Update local state
     setSettings(newSettings);
     setShowSettings(false);
-    setIsActive(false);
-    setTimeLeft(newSettings[mode] * 60);
-    endTimeRef.current = null;
 
-    // Sync after settings change (resets timer)
-    const timerStatePayload = {
-      isActive: false,
-      targetEndTime: null,
-      mode: mode,
-      timeLeft: newSettings[mode] * 60,
-      sessionName
-    };
+    if (isActive) {
+      // --- A. TIMER IS RUNNING ---
+      // We do NOT stop the timer. We dynamicallly adjust it.
 
-    // Update Firestore immediately to prevent race condition
-    if (user) {
-      const payload = {
-        settings: newSettings, // Save settings immediately
-        timerState: {
-          ...timerStatePayload,
-          lastUpdated: Date.now()
-        }
-      };
-      lastRemoteUpdate.current = payload.timerState.lastUpdated;
-      setDoc(doc(db, "users", user.uid), payload, { merge: true });
+      let newTargetEndTime = endTimeRef.current;
+      let newTimeLeft = timeLeft;
+
+      if (deltaMinutes !== 0) {
+        // Convert minutes to ms and adjust the Target End Time
+        const msToAdd = deltaMinutes * 60 * 1000;
+        newTargetEndTime = endTimeRef.current + msToAdd;
+        endTimeRef.current = newTargetEndTime;
+
+        // Adjust visual countdown immediately
+        newTimeLeft = timeLeft + (deltaMinutes * 60);
+        setTimeLeft(newTimeLeft);
+      }
+
+      // Sync the ADJUSTED timer to Firestore (so mobile/other tabs see the jump)
+      if (user) {
+        const payload = {
+          settings: newSettings, // Save new settings
+          timerState: {
+            isActive: true,
+            targetEndTime: newTargetEndTime,
+            mode: mode,
+            timeLeft: newTimeLeft,
+            sessionName,
+            lastUpdated: Date.now()
+          }
+        };
+        // Update Ref to prevent loop
+        lastRemoteUpdate.current = payload.timerState.lastUpdated;
+        setDoc(doc(db, "users", user.uid), payload, { merge: true });
+      }
+
+    } else {
+      // --- B. TIMER IS PAUSED/STOPPED ---
+      // Reset the display to the new duration
+      const newDurationSeconds = newSettings[mode] * 60;
+      setTimeLeft(newDurationSeconds);
+      endTimeRef.current = null;
+
+      // Sync the RESET timer to Firestore
+      if (user) {
+        const payload = {
+          settings: newSettings,
+          timerState: {
+            isActive: false,
+            targetEndTime: null,
+            mode: mode,
+            timeLeft: newDurationSeconds,
+            sessionName,
+            lastUpdated: Date.now()
+          }
+        };
+        lastRemoteUpdate.current = payload.timerState.lastUpdated;
+        setDoc(doc(db, "users", user.uid), payload, { merge: true });
+      }
     }
   };
 
@@ -3531,7 +3654,7 @@ export default function App() {
   };
 
   // Show friends if they are Active OR Pinned
-  const dashboardFriends = friends.filter(f => (f.isOnline && f.isActive) || f.isPinned);
+  const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
 
   return (
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
@@ -3616,8 +3739,8 @@ export default function App() {
             <button onClick={() => setShowFriends(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Users size={22} />
             </button>
-            <button onClick={() => setShowStats(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
-              <BarChart2 size={22} />
+            <button onClick={() => setShowAccount(true)} className="rounded-full overflow-hidden ml-2 w-8 h-8">
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
             </button>
             <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Settings size={22} />
@@ -3629,89 +3752,110 @@ export default function App() {
         <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
           <div className="flex items-center gap-4">
 
-            {/* --- DELETED QUOTE BLOCK FROM HERE --- */}
-
-            <button onClick={() => setShowStats(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
-              <BarChart2 size={20} />
-            </button>
+            {/* 1. SETTINGS ICON (Now on the Left) */}
             <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
               <Settings size={20} />
             </button>
+
+            {/* 2. ACCOUNT ICON (Now on the Right - Profile Pic) */}
+            <button onClick={() => setShowAccount(true)} className="relative group rounded-full overflow-hidden w-9 h-9">
+              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" className="w-full h-full rounded-full" />
+            </button>
+
           </div>
         </div>
 
-        {/* --- DESKTOP FOOTER LEFT: FRIENDS & MUSIC CONTROLS --- */}
+        {/* --- DESKTOP FOOTER LEFT: DOCK & FRIENDS --- */}
         <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
-          {/* Live Friend Indicators */}
+
+          {/* Live Friend Indicators (Above the Dock) */}
           {dashboardFriends.length > 0 && (
-            <div className="flex flex-col gap-2 mb-3">
+            <div className="flex flex-col gap-2 mb-4 items-start pl-1">
               {dashboardFriends.map(f => (
-                <button key={f.uid} onClick={() => handleViewFriendStats(f)} className="flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full animate-fade-in-up hover:bg-white/10 transition-colors text-left group/pill">
-                  <div className={`w-1.5 h-1.5 rounded-full ${f.isOnline && f.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-white/20'}`}></div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium text-white flex items-center gap-1">
-                      {f.displayName}
-                      {f.isPinned && <Pin size={10} className="text-white/50 fill-white/50 opacity-0 group-hover/pill:opacity-100" />}
-                    </span>
-                  </div>
+                <button
+                  key={f.uid}
+                  onClick={() => handleViewFriendStats(f)}
+                  className="group flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full animate-fade-in-up hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                >
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors ${f.isOnline ? (f.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-500'}`} />
+                  <span className="text-xs font-medium text-white flex items-center gap-1">
+                    {f.displayName}
+                    {f.isPinned && <Pin size={10} className="text-white/50 fill-white/50" />}
+                  </span>
+                  <span className="text-xs text-white/50 overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-1 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-0 group-hover:border-l group-hover:border-white/10 group-hover:pl-2">
+                    {f.statusText}
+                  </span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* New wrapper for Friends, Music, and Strict Mode */}
-          <div className="flex items-center gap-3">
+          {/* THE DYNAMIC DOCK */}
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="flex items-center gap-1 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl"
+          >
 
-            {/* 1. FRIENDS BUTTON (Updated Transition) */}
-            <button
+            {/* 1. FRIENDS BUTTON */}
+            <motion.button
+              layout
               onClick={() => setShowFriends(true)}
-              className="cursor-pointer p-2 rounded-full hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] text-white/70 hover:text-white group flex items-center gap-2"
+              className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center"
             >
               <Users size={20} />
-              <span className="text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-2 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0">
+              <motion.span layout className="text-sm font-medium overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">
                 Friends
-              </span>
-            </button>
+              </motion.span>
+            </motion.button>
 
-            {/* 2. MUSIC BUTTON (Updated: Spinning & Highlighted when Active) */}
-            <button
+            {/* Divider */}
+            <div className="w-px h-4 bg-white/10 mx-0.5" />
+
+            {/* 2. MUSIC BUTTON */}
+            <motion.div
+              layout
+              role="button"
               onClick={() => setShowMusic(true)}
-              className={`cursor-pointer p-2 rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group flex items-center gap-2 border ${isMusicPlaying
-                ? 'bg-white border-white text-black' // Active Style (Like Strict Mode)
-                : 'bg-transparent border-transparent hover:bg-white/10 text-white/70 hover:text-white' // Default Style
-                }`}
+              className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
-              <Music
-                size={20}
-                // slow spin (3s) looks much smoother/calmer than default animate-spin
-                className={isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}
-              />
+              <Music size={20} className={isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''} />
 
-              {/* Text Label: Only expands if NOT playing */}
-              <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-2 ${!isMusicPlaying
-                ? 'group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0'
-                : '' // If playing, stay collapsed (circular)
-                }`}>
-                Music
-              </span>
-            </button>
+              <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">
+                {isMusicPlaying ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }}
+                    className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"
+                  >
+                    <Pause size={10} fill="black" />
+                  </button>
+                ) : (
+                  <span className="text-sm font-medium ml-2">Music</span>
+                )}
+              </motion.div>
+            </motion.div>
 
-            {/* 3. STRICT MODE PILL (Existing Reference) */}
-            <button
+            {/* Divider */}
+            <div className="w-px h-4 bg-white/10 mx-0.5" />
+
+            {/* 3. STRICT MODE BUTTON */}
+            <motion.button
+              layout
               onClick={() => {
                 if (!strictMode) { setShowStrictConfirm(true); return; }
                 const fullDuration = settings.focus * 60;
                 if (mode === 'focus' && timeLeft !== fullDuration) { return; }
                 setShowStrictDisableConfirm(true);
               }}
-              className={`cursor-pointer p-2 rounded-full transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] group flex items-center gap-2 border ${strictMode ? 'bg-white border-white text-black' : 'bg-transparent border-transparent hover:bg-white/10 text-white/70 hover:text-white'}`}
+              className={`relative p-2 rounded-full transition-colors group flex items-center ${strictMode ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               {strictMode ? <Lock size={20} /> : <Unlock size={20} />}
-              <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${strictMode ? 'max-w-[100px] opacity-100 ml-0' : 'max-w-0 opacity-0 -ml-2 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-0'}`}>
+              <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${strictMode ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>
                 {strictMode ? (mode === 'focus' ? 'Strict On' : 'Strict (Break)') : 'Strict Mode'}
-              </span>
-            </button>
-          </div>
+              </motion.span>
+            </motion.button>
+
+          </motion.div>
         </div>
 
         {/* --- DESKTOP LOGO (Changed) --- */}
@@ -3793,8 +3937,21 @@ export default function App() {
           />
         </div>
       </div >
-
-      <StatsModal isOpen={showStats} onClose={() => { setShowStats(false); setViewingFriendStats(null); }} stats={stats} user={user} targetUser={viewingFriendStats} />
+      <AccountModal
+        isOpen={showAccount}
+        onClose={() => setShowAccount(false)}
+        user={user}
+        stats={stats}
+        onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
+      />
+      <FriendProfileModal
+        isOpen={showStats} // Using showStats state to trigger this
+        onClose={() => {
+          setShowStats(false);
+          setViewingFriendStats(null);
+        }}
+        friend={viewingFriendStats}
+      />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
       {/* --- ADD THIS LINE --- */}
       <MusicModal
