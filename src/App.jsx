@@ -2118,60 +2118,87 @@ const LiquidResetBtn = ({ onReset }) => {
   }, [status]);
 
   return (
-    <motion.div
-      ref={containerRef}
-      layout
-      initial={false}
-      // --- UPDATED DIMENSIONS HERE ---
-      animate={status === 'confirming'
-        ? { width: 170, height: 66, borderRadius: 48, backgroundColor: "rgba(220, 38, 38, 0.15)", borderColor: "rgba(220, 38, 38, 0.5)" } // Larger Pill
-        : { width: 48, height: 48, borderRadius: 24, backgroundColor: "transparent", borderColor: "rgba(255, 255, 255, 0.3)" } // Original Circle
-      }
-      transition={{ type: "spring", stiffness: 400, damping: 25 }} // Slightly bouncier
-      className="border flex items-center justify-center overflow-hidden cursor-pointer relative z-30"
-    >
-      <AnimatePresence mode="popLayout">
-        {status === 'idle' ? (
-          <motion.button
-            key="reset-icon"
-            initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
-            whileHover={{ rotate: -180, transition: { duration: 0.5 } }}
-            onClick={(e) => { e.stopPropagation(); setStatus('confirming'); }}
-            className="w-full h-full flex items-center justify-center text-white/80 hover:text-white"
-          >
-            <RotateCcw size={22} />
-          </motion.button>
-        ) : (
-          <motion.div
-            key="confirm-actions"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="flex items-center gap-4 w-full justify-center px-2"
-          >
-            {/* Confirm Check */}
-            <button
-              onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }}
-              className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md"
-            >
-              <Check size={18} strokeWidth={3} />
-            </button>
+    // 1. Static Layout Anchor (48x48)
+    // Ensures the dock layout around it doesn't shift
+    <div className="relative w-12 h-12 flex-shrink-0 z-50">
 
-            <span className="text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide">Reset?</span>
-
-            {/* Cancel X */}
-            <button
-              onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
-              className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all"
+      {/* 2. Absolute Animated Container */}
+      <motion.div
+        ref={containerRef}
+        layout
+        initial={false}
+        // Force the transform origin to the left so it grows right
+        style={{ transformOrigin: "0% 50%" }}
+        // Match top-0 and fixed height (48px) to prevent vertical shifting
+        className="absolute top-0 left-0 border flex items-center justify-center overflow-hidden cursor-pointer shadow-lg bg-[#111]"
+        animate={status === 'confirming'
+          ? {
+            width: 180,
+            height: 48, // Fixed height to match idle state (no vertical shift)
+            borderRadius: 24,
+            backgroundColor: "rgba(220, 38, 38, 0.15)",
+            borderColor: "rgba(220, 38, 38, 0.5)"
+          }
+          : {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            backgroundColor: "transparent",
+            borderColor: "rgba(255, 255, 255, 0.3)"
+          }
+        }
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          {status === 'idle' ? (
+            <motion.button
+              key="reset-icon"
+              layout="position"
+              initial={{ opacity: 0, scale: 0.5, rotate: -90 }}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => { e.stopPropagation(); setStatus('confirming'); }}
+              className="absolute inset-0 w-full h-full flex items-center justify-center text-white/80 hover:text-white"
             >
-              <X size={14} strokeWidth={3} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+              <RotateCcw size={22} />
+            </motion.button>
+          ) : (
+            <motion.div
+              key="confirm-actions"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              transition={{ duration: 0.2, delay: 0.1 }} // Slight delay to let width expand first
+              className="flex items-center justify-between w-full px-2 pr-3 h-full"
+            >
+              {/* 3. Cancel Button (X) - Sits on the LEFT (Stable) */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
+                className="w-8 h-8 rounded-full bg-white/10 text-white/50 flex items-center justify-center hover:bg-white/20 hover:text-white transition-all flex-shrink-0 z-20"
+                title="Cancel"
+              >
+                <X size={16} strokeWidth={3} />
+              </button>
+
+              {/* Text Label */}
+              <span className="text-sm font-bold text-red-200 select-none whitespace-nowrap tracking-wide mx-2">
+                Reset?
+              </span>
+
+              {/* 4. Confirm Button (Check) - Sits on the RIGHT */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onReset(); setStatus('idle'); }}
+                className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 hover:scale-110 transition-all shadow-md flex-shrink-0 z-20"
+                title="Confirm"
+              >
+                <Check size={18} strokeWidth={3} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
   );
 };
 
