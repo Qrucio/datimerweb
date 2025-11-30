@@ -1875,7 +1875,7 @@ const MusicModal = ({
                   >
                     <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative">
-                        <img src="https://media.giphy.com/media/BDcSDDsSAMBZ5Ap89p/giphy.gif" className="w-full h-full object-cover" />
+                        <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" />
                         {isLofiPlaying && <div className="absolute inset-0 bg-red-500/20 animate-pulse"></div>}
                       </div>
                       <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2">Lofi Girl Radio</h3>
