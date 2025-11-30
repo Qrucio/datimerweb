@@ -1,9 +1,39 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { createPortal } from 'react-dom';
+
+// Custom Snake Icon (Pixel style to match the game vibe)
+const SnakeIcon = ({ size = 24, className = "" }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      d="M21 7H17V11H13V15H9V19H3V15H7V11H11V7H15V3H21V7Z"
+      fill="currentColor"
+    />
+    <circle cx="18.5" cy="5.5" r="1.5" fill="black" fillOpacity="0.5" />
+  </svg>
+);
+
+function useInterval(callback, delay) {
+  const savedCallback = useRef();
+  useEffect(() => { savedCallback.current = callback; }, [callback]);
+  useEffect(() => {
+    if (delay !== null) {
+      const id = setInterval(() => savedCallback.current(), delay);
+      return () => clearInterval(id);
+    }
+  }, [delay]);
+}
 
 // --- ERROR BOUNDARY COMPONENT ---
 class ErrorBoundary extends React.Component {
@@ -3167,6 +3197,334 @@ const NoteSystemModals = ({
   );
 };
 
+const SnakeGame = ({ onExit, timeLeft }) => {
+  const GRID_SIZE = 20;
+  const [snake, setSnake] = useState([{ x: 10, y: 10 }]);
+  const [food, setFood] = useState({ x: 15, y: 5 });
+  const [direction, setDirection] = useState({ x: 0, y: -1 });
+  const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('zen_snake_highscore') || '0'));
+  const [isPaused, setIsPaused] = useState(false);
+  const gameBoardRef = useRef(null);
+
+  // Controls (WASD + Arrow Keys)
+  const handleInput = useCallback((e) => {
+    // 1. STOP PROPAGATION: Prevents global app shortcuts (like 'S' for Settings) from firing
+    e.stopPropagation();
+    if (gameOver) return;
+
+    const key = e.key.toLowerCase();
+
+    setDirection(prev => {
+      // Prevent 180 degree turns
+      if ((key === 'arrowup' || key === 'w') && prev.y === 1) return prev;
+      if ((key === 'arrowdown' || key === 's') && prev.y === -1) return prev;
+      if ((key === 'arrowleft' || key === 'a') && prev.x === 1) return prev;
+      if ((key === 'arrowright' || key === 'd') && prev.x === -1) return prev;
+
+      if (key === 'arrowup' || key === 'w') return { x: 0, y: -1 };
+      if (key === 'arrowdown' || key === 's') return { x: 0, y: 1 };
+      if (key === 'arrowleft' || key === 'a') return { x: -1, y: 0 };
+      if (key === 'arrowright' || key === 'd') return { x: 1, y: 0 };
+
+      return prev;
+    });
+  }, [gameOver]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => handleInput(e);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleInput]);
+
+  useInterval(() => {
+    if (gameOver || isPaused) return;
+
+    setSnake(prevSnake => {
+      const newHead = { x: prevSnake[0].x + direction.x, y: prevSnake[0].y + direction.y };
+
+      // Wall Wrap
+      if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
+        setGameOver(true);
+        return prevSnake;
+      }
+      // Self Collision
+      if (prevSnake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
+        setGameOver(true);
+        return prevSnake;
+      }
+
+      const newSnake = [newHead, ...prevSnake];
+
+      if (newHead.x === food.x && newHead.y === food.y) {
+        setScore(s => {
+          const newScore = s + 10;
+          if (newScore > highScore) {
+            setHighScore(newScore);
+            localStorage.setItem('zen_snake_highscore', newScore);
+          }
+          return newScore;
+        });
+        let newFood;
+        do {
+          newFood = {
+            x: Math.floor(Math.random() * GRID_SIZE),
+            y: Math.floor(Math.random() * GRID_SIZE)
+          };
+        } while (newSnake.some(s => s.x === newFood.x && s.y === newFood.y));
+        setFood(newFood);
+      } else {
+        newSnake.pop();
+      }
+      return newSnake;
+    });
+  }, 120);
+
+  const resetGame = () => {
+    setSnake([{ x: 10, y: 10 }]);
+    setFood({ x: 15, y: 5 });
+    setDirection({ x: 0, y: -1 });
+    setGameOver(false);
+    setScore(0);
+  };
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div
+      id="snake-game-container"
+      className="flex flex-col items-center justify-center w-full h-full relative bg-[#111] overflow-hidden p-4"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* HUD HEADER */}
+      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 pointer-events-none">
+        <div className="flex flex-col items-start gap-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs font-bold text-white/40 tracking-widest uppercase">Score</span>
+            <span className="text-2xl font-mono text-white font-bold">{score}</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] font-bold text-white/30 tracking-widest uppercase">Best</span>
+            <span className="text-sm font-mono text-yellow-500">{highScore}</span>
+          </div>
+        </div>
+
+        <button
+          onClick={onExit}
+          className="pointer-events-auto p-3 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all group"
+        >
+          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+        </button>
+      </div>
+
+      {/* TIMER */}
+      <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
+        <div className={`text-6xl md:text-7xl font-clock font-bold tracking-tight drop-shadow-2xl transition-colors ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white/90'}`}>
+          {formatTime(timeLeft)}
+        </div>
+        <span className="text-xs font-bold text-white/30 uppercase tracking-[0.2em] mt-2">Break Time</span>
+      </div>
+
+      {/* GAME BOARD */}
+      <div className="relative z-10 mt-24 flex-shrink-0 w-full max-w-[500px] aspect-square max-h-[55vh] flex items-center justify-center">
+        <div
+          ref={gameBoardRef}
+          className="w-full h-full bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden relative grid"
+          style={{
+            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+            gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
+          }}
+        >
+          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
+            const x = i % GRID_SIZE;
+            const y = Math.floor(i / GRID_SIZE);
+            const isSnake = snake.some(s => s.x === x && s.y === y);
+            const isHead = snake[0].x === x && snake[0].y === y;
+            const isFood = food.x === x && food.y === y;
+
+            return (
+              <div key={i} className="w-full h-full relative border-[0.5px] border-white/[0.02]">
+                {isSnake && (
+                  // FLICKER FIX: Standard div, no layoutId
+                  <div
+                    className={`absolute inset-[1px] rounded-sm ${isHead ? 'bg-white z-10 shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.3)]'}`}
+                  />
+                )}
+                {isFood && (
+                  // Food keeps layoutId for smooth spawn animation
+                  <motion.div
+                    layoutId="food"
+                    className="absolute inset-[2px] rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-pulse"
+                  />
+                )}
+              </div>
+            )
+          })}
+
+          {/* GAME OVER OVERLAY */}
+          <AnimatePresence>
+            {gameOver && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-6 text-center"
+              >
+                <h3 className="text-3xl md:text-4xl font-serif-display text-white mb-2">Game Over</h3>
+                <div className="text-white/50 mb-8 font-mono">Final Score: <span className="text-white font-bold">{score}</span></div>
+
+                <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                  <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold text-sm uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                    Play Again
+                  </button>
+                  <button onClick={onExit} className="w-full py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-xs uppercase tracking-widest rounded-full transition-colors">
+                    Exit Arcade
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* CONTROLS HINT */}
+      <div className="mt-6 flex items-center gap-6 text-white/20 text-[10px] font-mono uppercase tracking-widest flex-shrink-0">
+        <span className="flex items-center gap-1"><span className="border border-white/20 px-1 rounded">WASD</span> to Move</span>
+        <span className="flex items-center gap-1"><span className="border border-white/20 px-1 rounded">Arrows</span> to Move</span>
+      </div>
+    </div>
+  );
+};
+
+
+const GameCenter = ({ mode, timeLeft }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeGame, setActiveGame] = useState(null);
+
+  // Auto-close logic
+  useEffect(() => {
+    if (mode === 'focus' || timeLeft === 0) {
+      setIsOpen(false);
+      setActiveGame(null);
+    }
+  }, [mode, timeLeft]);
+
+  // Don't render if focusing
+  if (mode === 'focus') return null;
+
+  return (
+    <>
+      {/* 1. THE PILL (Positioned Layout) */}
+      <div className="mt-12 z-30 relative h-14 w-full flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {!isOpen && (
+            <motion.div
+              key="game-pill"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="absolute"
+            >
+              <motion.button
+                layoutId="game-container"
+                onClick={() => setIsOpen(true)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
+              >
+                {/* RADIAL GRADIENT ANIMATION FIX */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
+                <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* 2. THE MODAL (Portal to Body) */}
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              id="arcade-modal" // ID for blocking shortcuts
+              key="arcade-modal"
+              layoutId="game-container"
+              className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !activeGame && setIsOpen(false)}
+            >
+              {activeGame === 'snake' ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Ensure SnakeGame is defined/imported */}
+                  <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="w-full max-w-5xl flex flex-col items-center max-h-full overflow-y-auto custom-scrollbar"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="w-full flex justify-between items-center mb-12 px-4 shrink-0">
+                    <div className="flex flex-col">
+                      <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
+                      <p className="text-white/40 text-sm">Recharge your mind. 5 minutes at a time.</p>
+                    </div>
+                    <button
+                      onClick={() => setIsOpen(false)}
+                      className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full px-4 pb-10">
+                    <motion.button
+                      onClick={() => setActiveGame('snake')}
+                      whileHover={{ scale: 1.02, y: -4 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors"
+                    >
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="w-16 h-16 bg-green-900/20 border border-green-500/20 rounded-2xl flex items-center justify-center text-green-400 mb-6 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,197,94,0.1)] group-hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]">
+                        <SnakeIcon size={32} />
+                      </div>
+                      <div className="text-left relative z-10">
+                        <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">Snake</h3>
+                        <p className="text-white/40 text-sm leading-relaxed">The classic retro challenge. Eat apples, grow long, don't crash.</p>
+                      </div>
+                    </motion.button>
+                    {[1, 2].map((i) => (
+                      <div key={i} className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 opacity-50 select-none">
+                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center"><Sparkles size={20} className="text-white/20" /></div>
+                        <span className="text-white/20 font-mono text-xs uppercase tracking-widest">Coming Soon</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  );
+};
 // A visible, compliant mini-player for Desktop
 // A visible, compliant mini-player for Desktop
 const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
@@ -3511,7 +3869,13 @@ function MainApp() {
   // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
     const handleKeyPress = (e) => {
-      // 1. Ignore if modifier keys are pressed (Ctrl, Alt, Meta)
+      // 1. BLOCK ALL SHORTCUTS IF GAME IS OPEN
+      // This checks if the portal exists OR the specific game container exists
+      if (document.getElementById('arcade-modal') || document.getElementById('snake-game-container')) {
+        return;
+      }
+
+      // 2. Ignore if modifier keys are pressed (Ctrl, Alt, Meta)
       if (e.ctrlKey || e.altKey || e.metaKey) return;
 
       const activeElement = document.activeElement;
@@ -4278,7 +4642,7 @@ function MainApp() {
       if (!endTimeRef.current) { endTimeRef.current = Date.now() + timeLeft * 1000; }
       lastTickTime = Date.now();
 
-      // 2. Start new timer and assign to Ref
+      // 2. Start new timer
       timerIntervalRef.current = setInterval(() => {
         const now = Date.now();
         const diff = endTimeRef.current - now;
@@ -4304,18 +4668,13 @@ function MainApp() {
         // --- PRECISE TIME TRACKING ---
         const delta = now - lastTickTime;
         accumulatedTimeRef.current += delta;
-
         const elapsedSeconds = Math.floor(accumulatedTimeRef.current / 1000);
 
         if (elapsedSeconds > 0) {
           accumulatedTimeRef.current -= (elapsedSeconds * 1000);
-
-          // Buffer for DB
           if (!devMode) {
             unsavedSecondsRef.current += elapsedSeconds;
           }
-
-          // Update UI
           setStats(prevStats => {
             const newStats = { ...prevStats };
             if (mode === 'focus') {
@@ -4326,66 +4685,84 @@ function MainApp() {
             return newStats;
           });
         }
-
         lastTickTime = now;
 
-        // Timer Finished Logic
+        // --- TIMER FINISHED LOGIC (SMOOTH TRANSITION FIX) ---
         if (secondsRemaining <= 0) {
-          setIsActive(false);
-          endTimeRef.current = null;
           if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-          // CRITICAL: Flush any remaining seconds when timer ends
+          // 1. Flush Stats & Play Sound
           flushUnsavedTime();
-
           playAlarm(mode);
 
+          // 2. Pre-calculate Next State (Avoids 00:00 flash)
+          let nextMode = mode;
+          let nextTimeLeft = 0;
+          let nextIsActive = false;
+          let nextPomoCount = pomoCount;
+
           if (mode === 'focus') {
-            // --- 1. STATS LOGIC (PRESERVED) ---
+            // Stats Update
             if (!devMode) {
-              // Update sessions count locally
               setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
-              // We don't need to sync sessions count here, the flushUnsavedTime handled the seconds,
-              // and the next save loop will handle the session count.
             }
 
-            // --- 2. STRICT MODE: EXIT FULLSCREEN ON BREAK ---
+            // Strict Mode Exit
             if (strictMode) {
               document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
             }
-            // ------------------------------------------------
 
-            const newPomoCount = pomoCount + 1;
-            setPomoCount(newPomoCount);
-            if (newPomoCount >= settings.pomosBeforeLongBreak) {
-              setMode('longBreak');
-              setTimeLeft(settings.longBreak * 60);
-              setPomoCount(0);
-              if (settings.autoStartBreaks) setIsActive(true);
+            // Determine Break Type
+            nextPomoCount = pomoCount + 1;
+            setPomoCount(nextPomoCount);
+
+            if (nextPomoCount >= settings.pomosBeforeLongBreak) {
+              nextMode = 'longBreak';
+              nextTimeLeft = settings.longBreak * 60;
+              setPomoCount(0); // Reset cycle
             } else {
-              setMode('shortBreak');
-              setTimeLeft(settings.shortBreak * 60);
-              if (settings.autoStartBreaks) setIsActive(true);
+              nextMode = 'shortBreak';
+              nextTimeLeft = settings.shortBreak * 60;
             }
+
+            if (settings.autoStartBreaks) nextIsActive = true;
+
           } else {
-            // --- 3. STRICT MODE: ENTER FULLSCREEN ON FOCUS ---
-            setMode('focus');
+            // End of Break -> Back to Focus
+            nextMode = 'focus';
+
+            // Strict Mode Enter
             if (strictMode) {
               document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
             }
-            // -------------------------------------------------
 
-            setTimeLeft(settings.focus * 60);
-            if (settings.autoStartWork) setIsActive(true);
+            nextTimeLeft = settings.focus * 60;
+            if (settings.autoStartWork) nextIsActive = true;
           }
 
-          // Sync completion state to server
+          // 3. Update Local State (Atomic batch update)
+          setMode(nextMode);
+          setTimeLeft(nextTimeLeft);
+          setIsActive(nextIsActive);
+
+          // 4. Handle Auto-Start Target
+          let nextTarget = null;
+          if (nextIsActive) {
+            nextTarget = Date.now() + (nextTimeLeft * 1000);
+            endTimeRef.current = nextTarget;
+          } else {
+            endTimeRef.current = null;
+          }
+
+          // 5. Sync FINAL State to Server (Don't sync 00:00!)
+          // This tells the server/other clients "I am now starting the next session" immediately.
           syncTimerState({
-            isActive: false,
-            targetEndTime: null,
-            mode: mode === 'focus' ? (pomoCount + 1 >= settings.pomosBeforeLongBreak ? 'longBreak' : 'shortBreak') : 'focus',
-            timeLeft: 0,
-            sessionName
+            isActive: nextIsActive,
+            targetEndTime: nextTarget,
+            mode: nextMode,
+            timeLeft: nextTimeLeft,
+            sessionName,
+            lastUpdated: Date.now()
           });
         }
       }, 100);
@@ -4394,11 +4771,156 @@ function MainApp() {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
 
-    // Cleanup on unmount
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, mode, settings, pomoCount, devMode, strictMode]); // Added strictMode to dependencies
+  }, [isActive, mode, settings, pomoCount, devMode, strictMode]);
+
+  // --- TIMER INTERVAL & TRANSITION LOGIC ---
+  useEffect(() => {
+    // 1. Safety Clear: Ensure no rogue timers exist
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+    let lastTickTime = Date.now();
+
+    if (isActive) {
+      if (!endTimeRef.current) { endTimeRef.current = Date.now() + timeLeft * 1000; }
+      lastTickTime = Date.now();
+
+      // 2. Start new timer
+      timerIntervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const diff = endTimeRef.current - now;
+        const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
+
+        setTimeLeft(prev => {
+          if (prev !== secondsRemaining) return secondsRemaining;
+          return prev;
+        });
+
+        // Sync heartbeat to server every minute
+        if (now - lastHeartbeatRef.current > 60000) {
+          lastHeartbeatRef.current = now;
+          syncTimerState({
+            isActive: true,
+            targetEndTime: endTimeRef.current,
+            mode: mode,
+            timeLeft: secondsRemaining,
+            sessionName: sessionName
+          });
+        }
+
+        // --- PRECISE TIME TRACKING ---
+        const delta = now - lastTickTime;
+        accumulatedTimeRef.current += delta;
+        const elapsedSeconds = Math.floor(accumulatedTimeRef.current / 1000);
+
+        if (elapsedSeconds > 0) {
+          accumulatedTimeRef.current -= (elapsedSeconds * 1000);
+          if (!devMode) {
+            unsavedSecondsRef.current += elapsedSeconds;
+          }
+          setStats(prevStats => {
+            const newStats = { ...prevStats };
+            if (mode === 'focus') {
+              newStats.dailyFocusTime += elapsedSeconds;
+            } else {
+              newStats.dailyBreakTime += elapsedSeconds;
+            }
+            return newStats;
+          });
+        }
+        lastTickTime = now;
+
+        // --- TIMER FINISHED LOGIC (SMOOTH TRANSITION FIX) ---
+        if (secondsRemaining <= 0) {
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+
+          // 1. Flush Stats & Play Sound
+          flushUnsavedTime();
+          playAlarm(mode);
+
+          // 2. Pre-calculate Next State (Avoids 00:00 flash)
+          let nextMode = mode;
+          let nextTimeLeft = 0;
+          let nextIsActive = false;
+          let nextPomoCount = pomoCount;
+
+          if (mode === 'focus') {
+            // Stats Update
+            if (!devMode) {
+              setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
+            }
+
+            // Strict Mode Exit
+            if (strictMode) {
+              document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
+            }
+
+            // Determine Break Type
+            nextPomoCount = pomoCount + 1;
+            setPomoCount(nextPomoCount);
+
+            if (nextPomoCount >= settings.pomosBeforeLongBreak) {
+              nextMode = 'longBreak';
+              nextTimeLeft = settings.longBreak * 60;
+              setPomoCount(0); // Reset cycle
+            } else {
+              nextMode = 'shortBreak';
+              nextTimeLeft = settings.shortBreak * 60;
+            }
+
+            if (settings.autoStartBreaks) nextIsActive = true;
+
+          } else {
+            // End of Break -> Back to Focus
+            nextMode = 'focus';
+
+            // Strict Mode Enter
+            if (strictMode) {
+              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
+            }
+
+            nextTimeLeft = settings.focus * 60;
+            if (settings.autoStartWork) nextIsActive = true;
+          }
+
+          // 3. Update Local State (Atomic batch update)
+          // CRITICAL: Set state directly to the NEXT duration, skipping 0.
+          setMode(nextMode);
+          setTimeLeft(nextTimeLeft);
+          setIsActive(nextIsActive);
+
+          // 4. Handle Auto-Start Target
+          let nextTarget = null;
+          if (nextIsActive) {
+            nextTarget = Date.now() + (nextTimeLeft * 1000);
+            endTimeRef.current = nextTarget;
+          } else {
+            endTimeRef.current = null;
+          }
+
+          // 5. Sync FINAL State to Server (Don't sync 00:00!)
+          // This tells the server/other clients "I am now starting the next session" immediately.
+          syncTimerState({
+            isActive: nextIsActive,
+            targetEndTime: nextTarget,
+            mode: nextMode,
+            timeLeft: nextTimeLeft,
+            sessionName,
+            lastUpdated: Date.now()
+          });
+        }
+      }, 100);
+    } else {
+      endTimeRef.current = null;
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [isActive, mode, settings, pomoCount, devMode, strictMode]);
 
   useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
   useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
@@ -4825,6 +5347,8 @@ function MainApp() {
                 disabled={strictMode && mode === 'focus'}
               />
             </div>
+
+            <GameCenter mode={mode} timeLeft={timeLeft} />
 
           </div>
         </main>
