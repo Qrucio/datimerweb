@@ -5,6 +5,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { TYPING_WORDS } from './words';
 
 // Custom Snake Icon (Pixel style to match the game vibe)
 const SnakeIcon = ({ size = 24, className = "" }) => (
@@ -3400,12 +3401,261 @@ const SnakeGame = ({ onExit, timeLeft }) => {
   );
 };
 
+// --- TYPING GAME COMPONENT ---
 
-const GameCenter = ({ mode, timeLeft }) => {
+const TypingGame = ({ onExit, timeLeft, background }) => {
+  const [text, setText] = useState("");
+  const [input, setInput] = useState("");
+  const [startTime, setStartTime] = useState(null);
+  const [wpm, setWpm] = useState(0);
+  const [accuracy, setAccuracy] = useState(100);
+  const [mistakes, setMistakes] = useState(0);
+  const [gameState, setGameState] = useState("waiting");
+  const inputRef = useRef(null);
+
+  // Focus management
+  useEffect(() => {
+    const focusInput = () => { if (gameState !== 'finished') inputRef.current?.focus(); };
+    window.addEventListener('click', focusInput);
+    focusInput();
+    return () => window.removeEventListener('click', focusInput);
+  }, [gameState]);
+
+  useEffect(() => { resetGame(); }, []);
+
+  const resetGame = () => {
+    const newText = Array.from({ length: 30 }, () => TYPING_WORDS[Math.floor(Math.random() * TYPING_WORDS.length)]).join(" ");
+    setText(newText);
+    setInput("");
+    setStartTime(null);
+    setMistakes(0);
+    setGameState("waiting");
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      if (gameState !== 'waiting' || input.length > 0) {
+        e.stopPropagation();
+        resetGame();
+      } else {
+        e.stopPropagation();
+        onExit();
+      }
+    }
+
+    if (e.ctrlKey && e.key === 'Backspace') {
+      e.preventDefault();
+      if (input.length === 0) return;
+      const lastChar = input.slice(-1);
+      if (lastChar === ' ') {
+        setInput(prev => prev.slice(0, -1));
+      } else {
+        const lastSpaceIndex = input.lastIndexOf(' ');
+        if (lastSpaceIndex === -1) {
+          setInput("");
+        } else {
+          setInput(input.substring(0, lastSpaceIndex + 1));
+        }
+      }
+    }
+  };
+
+  const handleInputChange = (e) => {
+    if (gameState === "finished") return;
+
+    const val = e.target.value;
+    const oldLength = input.length;
+    const newLength = val.length;
+
+    if (newLength > oldLength) {
+      const charTyped = val.slice(-1);
+      const charExpected = text[newLength - 1];
+      if (charTyped !== charExpected) {
+        setMistakes(prev => prev + 1);
+      }
+    }
+
+    setInput(val);
+
+    if (gameState === "waiting") {
+      setGameState("playing");
+      setStartTime(Date.now());
+    }
+
+    if (val.length === text.length) {
+      finishGame(val);
+    }
+  };
+
+  const finishGame = (finalInput) => {
+    const end = Date.now();
+    setGameState("finished");
+    const timeInMinutes = (end - startTime) / 60000;
+    const words = finalInput.length / 5;
+    const calculatedWpm = Math.round(words / timeInMinutes) || 0;
+    const rawAccuracy = ((text.length - mistakes) / text.length) * 100;
+    const calculatedAcc = Math.max(0, Math.round(rawAccuracy));
+    setWpm(calculatedWpm);
+    setAccuracy(calculatedAcc);
+  };
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const renderWordBlocks = () => {
+    const words = text.split(" ");
+    let charIndexCounter = 0;
+
+    return words.map((word, wordIdx) => {
+      const isLastWord = wordIdx === words.length - 1;
+      const charsInWord = isLastWord ? word.split('') : [...word.split(''), ' '];
+
+      const wordBlock = (
+        <div key={wordIdx} className="inline-block whitespace-nowrap">
+          {charsInWord.map((char, localIdx) => {
+            const globalIndex = charIndexCounter + localIdx;
+            const inputChar = input[globalIndex];
+            const hasBeenTyped = globalIndex < input.length;
+            const isCurrent = globalIndex === input.length;
+            const isWrong = hasBeenTyped && inputChar !== char;
+            const isCorrect = hasBeenTyped && inputChar === char;
+
+            let styleClass = "relative inline-block whitespace-pre font-mono text-3xl md:text-4xl lg:text-5xl transition-colors duration-100 leading-normal ";
+
+            if (isWrong) {
+              styleClass += "text-red-500 opacity-100";
+            } else if (isCorrect) {
+              styleClass += "text-white opacity-100";
+            } else {
+              styleClass += "text-white/20";
+            }
+
+            return (
+              <span key={globalIndex} className={styleClass}>
+                {isCurrent && (
+                  <motion.span
+                    layoutId="typing-cursor"
+                    className="absolute inset-0 bg-cyan-400/30 rounded-md -z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    <span className="absolute left-0 top-1 bottom-1 w-[2px] bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                  </motion.span>
+                )}
+                {char}
+              </span>
+            );
+          })}
+        </div>
+      );
+
+      charIndexCounter += charsInWord.length;
+      return wordBlock;
+    });
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      // Changed to flex column to control vertical distribution better
+      className="fixed inset-0 z-[100] flex flex-col p-6 md:p-12 cursor-text overflow-hidden"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {/* 1. BACKGROUND LAYER */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        {background && (
+          isVideo(background) ? (
+            <video src={background} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={background} alt="bg" className="w-full h-full object-cover" />
+          )
+        )}
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-xl" />
+      </div>
+
+      <input ref={inputRef} type="text" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} className="absolute opacity-0 top-0 left-0 w-0 h-0" autoComplete="off" spellCheck="false" />
+
+      {/* 2. TOP HUD (Timer Center, Exit Right) */}
+      <div className="relative z-50 w-full flex justify-center items-start shrink-0 h-20">
+
+        {/* Timer (Absolute Center) */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+          <div className={`text-4xl md:text-5xl font-clock font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+            {formatTime(timeLeft)}
+          </div>
+          {/* Label removed as requested */}
+        </div>
+
+        {/* Exit Button (Absolute Right) */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onExit(); }}
+          className="absolute top-0 right-0 pointer-events-auto p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <X size={32} />
+        </button>
+      </div>
+
+      {/* 3. GAME AREA (Flex-1 centers it vertically in the remaining space) */}
+      {gameState !== "finished" ? (
+        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-7xl mx-auto relative z-10">
+
+          {/* Words */}
+          <div className="flex flex-wrap justify-center select-none drop-shadow-2xl gap-y-2">
+            {renderWordBlocks()}
+          </div>
+
+          {/* Hints / Status */}
+          <div className="mt-16 text-center flex flex-col gap-2">
+            <span className={`text-white/30 text-xs font-bold uppercase tracking-widest transition-opacity duration-500 ${gameState === 'waiting' ? 'opacity-100' : 'opacity-0'}`}>
+              Start typing to begin
+            </span>
+            <div className="flex items-center justify-center gap-2 text-white/20 text-[10px] font-mono uppercase tracking-widest">
+              <span>Press <span className="border border-white/20 px-1 rounded mx-0.5">Esc</span> to restart</span>
+            </div>
+          </div>
+
+        </div>
+      ) : (
+        /* RESULTS SCREEN (Centered) */
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center z-50 relative">
+          <h2 className="text-white font-serif-display text-4xl mb-12">Session Complete</h2>
+          <div className="flex gap-16 mb-16">
+            <div className="flex flex-col items-center group">
+              <span className="text-8xl md:text-9xl font-clock font-bold text-white transition-all cursor-default">{wpm}</span>
+              <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">WPM</span>
+            </div>
+            <div className="w-px bg-white/10"></div>
+            <div className="flex flex-col items-center group">
+              <span className="text-8xl md:text-9xl font-clock font-bold text-white transition-all cursor-default">{accuracy}%</span>
+              <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">Accuracy</span>
+            </div>
+          </div>
+          <div className="flex gap-6">
+            <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="px-10 py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-all flex items-center gap-3">
+              <RotateCcw size={18} strokeWidth={2.5} /> Restart
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="px-10 py-4 bg-transparent border border-white/20 text-white hover:bg-white hover:text-black font-bold uppercase tracking-widest rounded-full transition-all">
+              Close
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+};
+
+// Update the props to include 'background'
+const GameCenter = ({ mode, timeLeft, background }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
 
-  // Auto-close logic
   useEffect(() => {
     if (mode === 'focus' || timeLeft === 0) {
       setIsOpen(false);
@@ -3413,12 +3663,12 @@ const GameCenter = ({ mode, timeLeft }) => {
     }
   }, [mode, timeLeft]);
 
-  // Don't render if focusing
+  // Don't render the pill in Focus mode
   if (mode === 'focus') return null;
 
   return (
     <>
-      {/* 1. THE PILL (Positioned Layout) */}
+      {/* 1. THE PILL (Trigger Button) */}
       <div className="mt-12 z-30 relative h-14 w-full flex items-center justify-center">
         <AnimatePresence mode="wait">
           {!isOpen && (
@@ -3436,7 +3686,6 @@ const GameCenter = ({ mode, timeLeft }) => {
                 whileTap={{ scale: 0.95 }}
                 className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
               >
-                {/* RADIAL GRADIENT ANIMATION FIX */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
                 <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
@@ -3446,12 +3695,12 @@ const GameCenter = ({ mode, timeLeft }) => {
         </AnimatePresence>
       </div>
 
-      {/* 2. THE MODAL (Portal to Body) */}
+      {/* 2. THE MODAL */}
       {createPortal(
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              id="arcade-modal" // ID for blocking shortcuts
+              id="arcade-modal"
               key="arcade-modal"
               layoutId="game-container"
               className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center p-4"
@@ -3461,6 +3710,7 @@ const GameCenter = ({ mode, timeLeft }) => {
               onClick={() => !activeGame && setIsOpen(false)}
             >
               {activeGame === 'snake' ? (
+                // --- SNAKE GAME CONTAINER ---
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -3468,10 +3718,13 @@ const GameCenter = ({ mode, timeLeft }) => {
                   className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Ensure SnakeGame is defined/imported */}
                   <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
                 </motion.div>
+              ) : activeGame === 'typing' ? (
+                // --- TYPING GAME (Fullscreen Overlay) ---
+                <TypingGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} background={background} />
               ) : (
+                // --- GAME MENU ---
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -3484,36 +3737,33 @@ const GameCenter = ({ mode, timeLeft }) => {
                       <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
                       <p className="text-white/40 text-sm">Recharge your mind. 5 minutes at a time.</p>
                     </div>
-                    <button
-                      onClick={() => setIsOpen(false)}
-                      className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all"
-                    >
+                    <button onClick={() => setIsOpen(false)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
                       <X size={24} />
                     </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full px-4 pb-10">
-                    <motion.button
-                      onClick={() => setActiveGame('snake')}
-                      whileHover={{ scale: 1.02, y: -4 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors"
-                    >
+
+                    {/* Snake Card */}
+                    <motion.button onClick={() => setActiveGame('snake')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                      <div className="w-16 h-16 bg-green-900/20 border border-green-500/20 rounded-2xl flex items-center justify-center text-green-400 mb-6 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,197,94,0.1)] group-hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]">
-                        <SnakeIcon size={32} />
-                      </div>
-                      <div className="text-left relative z-10">
-                        <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">Snake</h3>
-                        <p className="text-white/40 text-sm leading-relaxed">The classic retro challenge. Eat apples, grow long, don't crash.</p>
-                      </div>
+                      <div className="w-16 h-16 bg-green-900/20 border border-green-500/20 rounded-2xl flex items-center justify-center text-green-400 mb-6 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,197,94,0.1)] group-hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"><SnakeIcon size={32} /></div>
+                      <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">Snake</h3><p className="text-white/40 text-sm leading-relaxed">The classic retro challenge.</p></div>
                     </motion.button>
-                    {[1, 2].map((i) => (
-                      <div key={i} className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 opacity-50 select-none">
-                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center"><Sparkles size={20} className="text-white/20" /></div>
-                        <span className="text-white/20 font-mono text-xs uppercase tracking-widest">Coming Soon</span>
-                      </div>
-                    ))}
+
+                    {/* Typing Card */}
+                    <motion.button onClick={() => setActiveGame('typing')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-cyan-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      <div className="w-16 h-16 bg-cyan-900/20 border border-cyan-500/20 rounded-2xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 group-hover:bg-cyan-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,211,238,0.1)] group-hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"><Keyboard size={32} /></div>
+                      <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">Typeshit</h3><p className="text-white/40 text-sm leading-relaxed">Find flow through words.</p></div>
+                    </motion.button>
+
+                    {/* Placeholder */}
+                    <div className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 opacity-50 select-none">
+                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center"><Sparkles size={20} className="text-white/20" /></div>
+                      <span className="text-white/20 font-mono text-xs uppercase tracking-widest">Coming Soon</span>
+                    </div>
+
                   </div>
                 </motion.div>
               )}
@@ -5348,7 +5598,7 @@ function MainApp() {
               />
             </div>
 
-            <GameCenter mode={mode} timeLeft={timeLeft} />
+            <GameCenter mode={mode} timeLeft={timeLeft} background={settings.background} />
 
           </div>
         </main>
