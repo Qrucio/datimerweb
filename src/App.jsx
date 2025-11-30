@@ -1875,11 +1875,11 @@ const MusicModal = ({
                   >
                     <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative">
-                        <img src="https://media.giphy.com/media/BDcSDDsSAMBZ5Ap89p/giphy.gif" className="w-full h-full object-cover" />
+                        <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" />
                         {isLofiPlaying && <div className="absolute inset-0 bg-red-500/20 animate-pulse"></div>}
                       </div>
                       <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2">Lofi Girl Radio</h3>
-                      <p className="text-white/40 text-xs md:text-sm mb-6 md:mb-8">Beats to relax/study to. 24/7 Live Stream.</p>
+                      <p className="text-white/40 text-xs md:text-sm mb-6 md:mb-8">beats to relax/study to. All hail Lofi Girl!</p>
                       <button onClick={onToggleLofi} className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 ${isLofiPlaying ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' : 'bg-white text-black hover:bg-gray-200 shadow-white/10'}`}>
                         {isLofiPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
                         {isLofiPlaying ? 'Pause Radio' : 'Start Radio'}
