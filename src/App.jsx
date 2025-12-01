@@ -1,11 +1,49 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell } from 'lucide-react';
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously, } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, increment, writeBatch } from "firebase/firestore";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, } from "firebase/auth";
+import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './words';
+
+// --- HANDLE GENERATOR HELPERS ---
+const generateCandidateHandle = (name) => {
+  // Cleans name, takes first 10 chars, adds random 4-digit suffix
+  const cleanName = name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 10);
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `@${cleanName}_${suffix}`.toLowerCase();
+};
+
+const getUniqueHandle = async (baseName) => {
+  let isUnique = false;
+  let attempt = 0;
+  let handle = "";
+
+  // Try up to 5 times to find a unique handle
+  while (!isUnique && attempt < 5) {
+    handle = generateCandidateHandle(baseName);
+
+    // Check against Public Profiles (Efficient Query)
+    const q = query(
+      collection(db, "publicProfiles"),
+      where("handle_lowercase", "==", handle.toLowerCase())
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      isUnique = true;
+    }
+    attempt++;
+  }
+
+  // Fallback: Use timestamp to guarantee uniqueness if loop fails
+  if (!isUnique) {
+    handle = `@${baseName.slice(0, 5)}_${Date.now().toString().slice(-6)}`;
+  }
+
+  return handle;
+};
 
 // Custom Snake Icon (Pixel style to match the game vibe)
 const SnakeIcon = ({ size = 24, className = "" }) => (
@@ -218,10 +256,10 @@ const isSameDay = (d1, d2) => {
     d1.getFullYear() === d2.getFullYear();
 };
 
-const isYesterday = (d1, d2) => {
-  const yesterday = new Date(d2);
+const isYesterday = (today, pastDate) => {
+  const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  return isSameDay(d1, yesterday);
+  return isSameDay(pastDate, yesterday);
 };
 
 const formatDateId = (date) => {
@@ -613,12 +651,23 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
   );
 };
 
-// Helper Component for consistent avatars
-// 1. IMPROVED AVATAR COMPONENT (With Referrer Fix)
-const Avatar = ({ photoURL, name, size = "md", isPinned = false, isPro = false }) => {
+const Avatar = ({
+  userData,
+  photoURL,
+  name,
+  size = "md",
+  isPinned = false,
+  isPro = false
+}) => {
   const [imageError, setImageError] = useState(false);
 
-  useEffect(() => { setImageError(false); }, [photoURL]);
+  // Extract values: Prefer direct props, fallback to userData object
+  const finalPhoto = photoURL || userData?.photoURL;
+  const finalName = name || userData?.displayName || userData?.name;
+  const finalIsPro = isPro || userData?.isPro || userData?.subscription?.plan === 'pro';
+  const finalIsPinned = isPinned || userData?.isPinned;
+
+  useEffect(() => { setImageError(false); }, [finalPhoto]);
 
   const sizeClasses = {
     sm: "w-6 h-6 text-[10px]",
@@ -628,51 +677,149 @@ const Avatar = ({ photoURL, name, size = "md", isPinned = false, isPro = false }
   };
 
   return (
-    // Added 'group' to container for potential hover effects
     <div className={`relative flex-shrink-0 ${sizeClasses[size]} select-none group`}>
-
-      {/* --- PRO GLOW EFFECT (Layer 0) --- */}
-      {/* 1. -inset-1: Pushes the ring 4px outside the image.
-          2. blur-sm: Softens the edges for a "glow" look. 
-          3. animate-[spin_3s...]: Rotates the gradient.
-      */}
-      {isPro && (
-        <div className="absolute -inset-1 rounded-full overflow-hidden z-0">
-          <div className="w-full h-full animate-[spin_3s_linear_infinite] rounded-full"
-            style={{
-              background: 'conic-gradient(from 0deg, transparent 0deg, #FDE047 180deg, transparent 360deg)',
-              opacity: 0.8
-            }}
-          />
-        </div>
+      {/* --- PREMIUM PRO EFFECTS --- */}
+      {finalIsPro && (
+        <>
+          {/* Layer 1: Ambient Golden Glow (Blurred & Pulsing) */}
+          <div className="absolute -inset-[3px] rounded-full bg-gradient-to-br from-yellow-600 via-amber-400 to-yellow-600 opacity-40 blur-[3px] animate-pulse z-0" />
+          {/* Layer 2: Rotating Metallic Reflection (Sharp Ring) */}
+          <div className="absolute -inset-[1.5px] rounded-full overflow-hidden z-0">
+            <div
+              className="w-[200%] h-[200%] absolute top-[-50%] left-[-50%] animate-[spin_4s_linear_infinite]"
+              style={{ background: 'conic-gradient(transparent 0deg, #b45309 60deg, #fcd34d 180deg, #b45309 300deg, transparent 360deg)' }}
+            />
+          </div>
+        </>
       )}
 
-      {/* --- MAIN IMAGE CONTAINER (Layer 10) --- */}
-      {/* Z-10 ensures image sits ON TOP of the glow */}
-      <div className={`relative z-10 w-full h-full rounded-full overflow-hidden bg-[#111] ${isPro ? 'border-2 border-transparent bg-clip-padding' : 'border border-white/10'}`}>
-        {photoURL && !imageError ? (
-          <img
-            src={photoURL}
-            alt={name}
-            referrerPolicy="no-referrer"
-            onError={() => setImageError(true)}
-            className="w-full h-full object-cover"
-          />
+      {/* --- MAIN IMAGE CONTAINER --- */}
+      <div className={`relative z-10 w-full h-full rounded-full overflow-hidden bg-[#111] ${finalIsPro ? 'border-[1.5px] border-transparent bg-clip-padding' : 'border border-white/10'}`}>
+        {finalPhoto && !imageError ? (
+          <img src={finalPhoto} alt={finalName} referrerPolicy="no-referrer" onError={() => setImageError(true)} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase">
-            {name ? name.charAt(0) : '?'}
+            {finalName ? finalName.charAt(0) : '?'}
           </div>
         )}
       </div>
 
-      {/* --- PIN INDICATOR (Layer 20) --- */}
-      {isPinned && (
+      {/* --- PIN INDICATOR --- */}
+      {finalIsPinned && (
         <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-20">
           <Pin size={8} className="text-black fill-black" />
         </div>
       )}
     </div>
   );
+};
+
+const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
+  const content = {
+    notes: {
+      title: "Limit Reached",
+      description: <>Free users are limited to 3 notes. Upgrade to <span className="text-yellow-400 font-bold">Pro</span> for unlimited notes, exclusive themes, and more.</>,
+      icon: StickyNoteIcon
+    },
+    arcade: {
+      title: "Unlock Arcade",
+      description: <>Gain access to <span className="text-yellow-400 font-bold">Pro</span> exclusive games, multiplayer modes, and global leaderboards.</>,
+      icon: Gamepad2
+    },
+    ambience: {
+      title: "Soundscape Locked",
+      description: <>You have chosen your 3 free sounds. Upgrade to <span className="text-yellow-400 font-bold">Pro</span> to unlock the full library and mix unlimited sounds.</>,
+      icon: CloudRain
+    },
+    // --- NEW SECTION ---
+    music: {
+      title: "Unlock Focus Music",
+      description: <>Curated Focus Tracks are a <span className="text-yellow-400 font-bold">Pro</span> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
+      icon: Music
+    }
+  };
+
+  const currentContent = content[source] || content.notes;
+  const Icon = currentContent.icon;
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className="relative w-full max-w-sm p-8 bg-[#111] border border-yellow-500/30 rounded-3xl text-center overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-yellow-500/10 blur-[50px] pointer-events-none" />
+            <div className="relative z-10 w-16 h-16 mx-auto mb-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
+              <Icon size={32} />
+            </div>
+            <h2 className="relative z-10 text-2xl font-serif-display text-white mb-2">{currentContent.title}</h2>
+            <p className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-2">{currentContent.description}</p>
+            <button onClick={() => { if (onUpgrade) onUpgrade(); }} className="relative z-10 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-yellow-500/20">Upgrade to Pro</button>
+            <button onClick={onClose} className="mt-4 text-xs text-white/30 hover:text-white uppercase tracking-widest font-bold transition-colors">Maybe Later</button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+};
+
+// --- ADD THIS FUNCTION ---
+const handleUpgradeToPro = async () => {
+  if (!user) return;
+
+  // Simulate a Pro Upgrade for testing
+  try {
+    // 1. Update Private User Doc
+    await setDoc(doc(db, "users", user.uid), {
+      subscription: { plan: 'pro', status: 'active', since: Date.now() }
+    }, { merge: true });
+
+    // 2. Update Public Profile (so friends see the gold ring)
+    await setDoc(doc(db, "publicProfiles", user.uid), {
+      isPro: true
+    }, { merge: true });
+
+    // 3. Update Local State
+    setIsPro(true);
+    setProModalSource(null); // Close the modal
+
+    // (Optional) Trigger the celebration modal manually if needed
+    // but the useEffect watching 'isPro' should handle it.
+
+  } catch (e) {
+    console.error("Upgrade simulation failed:", e);
+  }
+};
+
+const handleSaveAmbienceSelection = async (selectedIds) => {
+  if (!user) return;
+  try {
+    await setDoc(doc(db, "users", user.uid), {
+      preferences: {
+        unlockedAmbiences: selectedIds,
+        ambienceSetupDone: true
+      }
+    }, { merge: true });
+
+    setUnlockedAmbiences(selectedIds);
+    setAmbienceSetupDone(true);
+  } catch (e) {
+    console.error("Failed to save ambience selection", e);
+  }
 };
 
 // 1. Accept 'user' prop
@@ -750,13 +897,31 @@ const ProCelebrationModal = ({ isPro, user }) => {
   );
 };
 
-// Remember to update the prop list: { ..., isPro }
-const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
+const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDeleteRequest }) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [historyData, setHistoryData] = useState({});
 
+  // --- HANDLE EDITING STATE ---
+  const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const [newHandle, setNewHandle] = useState("");
+  const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
+  const [handleSuggestions, setHandleSuggestions] = useState([]);
+  const [handleError, setHandleError] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
+
+  // Initialize Handle State
+  useEffect(() => {
+    if (user && isOpen) {
+      const current = user.handle || stats.handle || "";
+      setNewHandle(current.replace(/^@/, ''));
+      checkCooldown();
+    }
+  }, [user, isOpen, stats]);
+
+  // Load History
   useEffect(() => {
     if (isOpen && activeTab === 'history' && user) {
       const historyRef = collection(db, 'users', user.uid, 'history');
@@ -768,6 +933,118 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
       });
     }
   }, [isOpen, activeTab, currentMonth, user]);
+
+  // --- LIVE CHECK AVAILABILITY ---
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (isEditingHandle && newHandle.length >= 3) {
+        // Ignore if it matches current handle (case insensitive)
+        const currentHandle = user.handle || "";
+        const cleanCurrent = currentHandle.replace(/^@/, '');
+
+        if (newHandle.toLowerCase() === cleanCurrent.toLowerCase()) {
+          setHandleStatus("available");
+          return;
+        }
+
+        setHandleStatus("checking");
+        const fullHandle = `@${newHandle}`;
+
+        // Query DB
+        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          setHandleStatus("available");
+        } else {
+          // Double check it's not the user themselves (redundant safety)
+          if (snap.docs[0].id === user.uid) {
+            setHandleStatus("available");
+          } else {
+            setHandleStatus("taken");
+            // Generate suggestions
+            const base = newHandle.replace(/[^a-zA-Z0-9_]/g, '');
+            const s1 = `${base}_${Math.floor(Math.random() * 99)}`;
+            const s2 = `${base}${new Date().getFullYear()}`;
+            const s3 = `its_${base}`;
+            setHandleSuggestions([s1, s2, s3]);
+          }
+        }
+      } else if (newHandle.length > 0 && newHandle.length < 3) {
+        setHandleStatus("idle"); // Too short to check
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [newHandle, isEditingHandle, user]);
+
+  // --- COOLDOWN CHECKER ---
+  const checkCooldown = async () => {
+    if (!user) return;
+    const DEV_IDS = ['cmxtLQPCqkfhkhNQZ04ZlXjCPbV2', 'QHlFAC3H34fiIVT2LaWlAoOrjmH2'];
+    if (DEV_IDS.includes(user.uid)) {
+      setDaysRemaining(0);
+      return;
+    }
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists()) {
+      const lastChange = userSnap.data().lastHandleChange || 0;
+      const now = Date.now();
+      const diffTime = Math.abs(now - lastChange);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays < 14) {
+        setDaysRemaining(14 - diffDays);
+      } else {
+        setDaysRemaining(0);
+      }
+    }
+  };
+
+  const handleSaveHandle = async () => {
+    if (handleStatus !== 'available') return;
+    if (newHandle.length < 3) return setHandleError("Too short.");
+    if (daysRemaining > 0) return setHandleError(`Wait ${daysRemaining} days.`);
+
+    setIsSaving(true);
+    setHandleError(null);
+    const fullHandle = `@${newHandle}`;
+
+    try {
+      const batch = writeBatch(db);
+      const publicRef = doc(db, "publicProfiles", user.uid);
+      batch.set(publicRef, {
+        uid: user.uid,
+        displayName: user.displayName || "User",
+        photoURL: user.photoURL || null,
+        handle: fullHandle,
+        handle_lowercase: fullHandle.toLowerCase()
+      }, { merge: true });
+
+      const privateRef = doc(db, "users", user.uid);
+      batch.set(privateRef, {
+        handle: fullHandle,
+        lastHandleChange: Date.now()
+      }, { merge: true });
+
+      await batch.commit();
+
+      setIsEditingHandle(false);
+      setDaysRemaining(14);
+
+    } catch (err) {
+      console.error("HANDLE SAVE ERROR:", err);
+      setHandleError("Error saving.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onHandleChange = (e) => {
+    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
+    setNewHandle(val);
+    setHandleError(null);
+    if (val.length > 0) setHandleStatus("checking");
+  };
 
   const getEffectiveHistory = () => {
     const todayId = formatDateId(new Date());
@@ -784,6 +1061,13 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
   };
 
   const finalStats = getDisplayStats();
+
+  // Dynamic Styles for Input
+  const getInputContainerStyle = () => {
+    if (handleStatus === 'available') return 'border-green-500/50 bg-green-500/5';
+    if (handleStatus === 'taken') return 'border-red-500/50 bg-red-500/5';
+    return 'border-white/20 bg-black/40';
+  };
 
   return (
     <AnimatePresence>
@@ -802,37 +1086,116 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
 
-              {/* --- AVATAR WITH PRO RING --- */}
-              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full p-1 mb-6 relative group">
-                <Avatar
-                  photoURL={user?.photoURL}
-                  name={user?.displayName}
-                  size="full"
-                  isPro={isPro} // <--- PASSED HERE
-                />
-                <div className="absolute inset-0 rounded-full border-2 border-white/20 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              {/* Avatar */}
+              <div className="w-24 h-24 md:w-32 md:h-32 mb-2 relative z-10">
+                <Avatar userData={user} isPro={isPro} size="full" />
               </div>
-              {/* --------------------------- */}
 
-              <h2 className="text-2xl font-bold text-white mb-1">{user?.displayName || "Guest User"}</h2>
-              <p className="text-white/40 text-xs mb-8 font-mono">{user?.email || "No email linked"}</p>
+              <h2 className="text-2xl font-bold text-white leading-tight">{user?.displayName || "Guest User"}</h2>
 
-              {/* PRO BADGE (Optional visual reinforcement) */}
+              {/* --- HANDLE SECTION --- */}
+              <div className="mb-6 w-full flex flex-col items-center min-h-[24px] justify-center relative z-20">
+                {isEditingHandle ? (
+                  <div className="flex flex-col items-center gap-2 animate-fade-in-up w-full">
+
+                    {/* Input Container */}
+                    <div className={`flex items-center justify-between rounded-xl pl-4 pr-2 py-1 transition-all duration-300 relative w-full max-w-[220px] border ${getInputContainerStyle()}`}>
+                      <div className="flex items-center flex-1 min-w-0">
+                        <span className="text-white/40 select-none mr-0.5 text-sm">@</span>
+                        <input
+                          type="text"
+                          value={newHandle}
+                          onChange={onHandleChange}
+                          placeholder="username"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setIsEditingHandle(false);
+                              setHandleError(null);
+                              setNewHandle(user.handle ? user.handle.replace(/^@/, '') : "");
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSaveHandle();
+                            }
+                          }}
+                          className="bg-transparent border-none outline-none text-sm font-medium text-white placeholder-white/20 w-full py-1"
+                          autoFocus
+                          maxLength={15}
+                        />
+                      </div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <button onClick={() => { setIsEditingHandle(false); setHandleError(null); setHandleStatus('idle'); setNewHandle(user.handle ? user.handle.replace(/^@/, '') : ""); }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
+                        <button
+                          onClick={handleSaveHandle}
+                          disabled={isSaving || handleStatus !== 'available'}
+                          className={`p-1 rounded-full transition-colors ${(isSaving || handleStatus !== 'available') ? 'text-white/20 cursor-not-allowed' : 'text-white hover:bg-white/20'}`}
+                        >
+                          {isSaving || handleStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Suggestions Area */}
+                    <div className="min-h-[16px] w-full flex flex-col items-center">
+                      {handleStatus === 'taken' && (
+                        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-2">
+                          <span className="text-[10px] text-red-400 font-medium">Handle taken. Suggestions:</span>
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {handleSuggestions.map(s => (
+                              <button
+                                key={s}
+                                onClick={() => { setNewHandle(s); setHandleStatus("available"); }}
+                                className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/70 hover:text-white transition-colors border border-white/5"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {handleError && <span className="text-[10px] text-red-400 font-medium whitespace-nowrap">{handleError}</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative group flex items-center justify-center">
+                    <p className="text-white text-base font-medium tracking-wide">{user?.handle || stats.handle || "@no_handle"}</p>
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2">
+                      <button onClick={() => setIsEditingHandle(true)} disabled={daysRemaining > 0} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full ${daysRemaining > 0 ? 'cursor-not-allowed text-white/5' : 'hover:bg-white/10 text-white/50 hover:text-white'}`}>
+                        {daysRemaining > 0 ? <Lock size={12} /> : <Pencil size={12} />}
+                      </button>
+                      {daysRemaining > 0 && (<div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#111] border border-white/10 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"><p className="text-[10px] text-white/50 whitespace-nowrap">Change in {daysRemaining} days</p></div>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pro Badge */}
               {isPro && (
                 <div className="mb-6 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
                   <Sparkles size={10} /> PRO MEMBER
                 </div>
               )}
 
-              <div className="w-full space-y-3">
+              {/* --- BOTTOM ACTIONS --- */}
+              <div className="w-full space-y-3 mt-auto">
                 <button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group">
                   <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out
                 </button>
+
+                <div className="pt-2">
+                  <button
+                    onClick={onDeleteRequest}
+                    className="text-[10px] text-red-900 hover:text-red-600 underline decoration-red-900/30 hover:decoration-red-600 transition-colors font-mono uppercase tracking-widest cursor-pointer opacity-60 hover:opacity-100"
+                  >
+                    Delete Account
+                  </button>
+                </div>
               </div>
-              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">MINDGRIND ID: {user?.uid?.slice(0, 8)}...</div>
+
             </motion.div>
 
-            {/* RIGHT COLUMN (Same as before) */}
+            {/* RIGHT COLUMN (Stats) */}
             <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
               <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
                 <div className="flex gap-6">
@@ -844,19 +1207,8 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
 
               <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
                 {activeTab === 'history' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="mb-8"
-                  >
-                    <CalendarView
-                      historyData={getEffectiveHistory()}
-                      currentMonth={currentMonth}
-                      setCurrentMonth={setCurrentMonth}
-                      onSelectDate={setSelectedDate}
-                      selectedDate={selectedDate}
-                    />
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8">
+                    <CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} />
                   </motion.div>
                 )}
 
@@ -874,7 +1226,6 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro }) => {
     </AnimatePresence>
   );
 };
-// --- FRIEND PROFILE MODAL (Read Only, No Email, Smooth Transition) ---
 const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -884,27 +1235,34 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
 
   useEffect(() => {
     if (isOpen && friend) {
-      const userDocRef = doc(db, "users", friend.uid);
+      // FIX: Listen to 'publicProfiles' instead of 'users' to bypass security rules
+      const userDocRef = doc(db, "publicProfiles", friend.uid);
+
       const unsubUser = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          // stats are nested in the public profile now
+          const remoteStats = data.stats || {};
+
           setStats({
-            dailyFocusTime: data.stats?.dailyFocusTime || 0,
-            dailyBreakTime: data.stats?.dailyBreakTime || 0,
-            dailySessions: data.stats?.dailySessions || 0,
-            currentStreak: data.stats?.currentStreak || 0
+            dailyFocusTime: remoteStats.dailyFocusTime || 0,
+            dailyBreakTime: remoteStats.dailyBreakTime || 0,
+            dailySessions: remoteStats.dailySessions || 0,
+            currentStreak: remoteStats.currentStreak || 0
           });
         }
       });
 
+      // Note: History subcollection might still be private depending on your Firestore rules.
+      // If history doesn't load, you'd need to sync history to publicProfiles (complex) or update rules.
       if (activeTab === 'history') {
         const historyRef = collection(db, 'users', friend.uid, 'history');
-        const q = query(historyRef, orderBy('date', 'desc'));
+        const q = query(historyRef, orderBy('date', 'desc'), limit(31));
         getDocs(q).then(snapshot => {
           const data = {};
           snapshot.forEach(doc => { data[doc.id] = doc.data(); });
           setHistoryData(data);
-        });
+        }).catch(e => console.log("History hidden by privacy rules"));
       }
       return () => unsubUser();
     }
@@ -943,31 +1301,26 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
 
-              <div className="w-32 h-32 rounded-full p-1 mb-6 relative flex items-center justify-center">
-                {/* --- UPDATED AVATAR --- */}
-                <Avatar
-                  photoURL={friend?.photoURL}
-                  name={friend?.displayName}
-                  size="full"
-                  isPro={friend?.isPro} // <--- READ FROM FRIEND
-                />
-                {/* ---------------------- */}
-
-                {friend?.isOnline && (
-                  <div className="absolute inset-[-6px] rounded-full animate-[spin_8s_linear_infinite] pointer-events-none">
-                    <div
-                      className={`absolute top-1/2 -right-[1px] w-4 h-4 rounded-full border-2 border-[#111] shadow-[0_0_15px_currentColor] transition-colors ${friend.isActive ? 'bg-green-500 text-green-500' : 'bg-yellow-500 text-yellow-500'}`}
-                      style={{ transform: 'translate(50%, -50%)' }}
-                    />
-                  </div>
-                )}
+              {/* Avatar Container: Unified to w-32 h-32 to guarantee space for the glow's negative inset */}
+              <div className="w-32 h-32 mb-2 relative z-10">
+                <Avatar userData={friend} isPro={friend?.isPro} size="full" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-2">{friend?.displayName}</h2>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-8">
-                <div className={`w-1.5 h-1.5 rounded-full ${friend?.isOnline ? (friend.isActive ? 'bg-green-500' : 'bg-yellow-500') : 'bg-gray-500'}`} />
-                <span className="text-[10px] font-mono text-white/60 uppercase tracking-widest">{friend?.statusText || "Offline"}</span>
+              <h2 className="text-2xl font-bold text-white leading-tight">{friend?.displayName}</h2>
+
+              {/* UPDATED: Handle Display (White, Centered, Prominent) */}
+              <p className="text-white text-base font-medium tracking-wide mb-6 opacity-90">
+                {friend?.handle || "@unknown"}
+              </p>
+
+              {/* STATUS PILL */}
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
+                <div className={`w-2 h-2 rounded-full ${friend?.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-yellow-500') : 'bg-gray-500'}`} />
+                <span className="text-[10px] font-mono text-white/80 uppercase tracking-widest font-bold">
+                  {friend?.statusText?.split('•')[0] || "Offline"}
+                </span>
               </div>
+
               <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">FRIEND ID: {friend?.uid?.slice(0, 8)}...</div>
             </motion.div>
 
@@ -1081,23 +1434,33 @@ const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
 );
 
 
-const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFriend, onTogglePin, onViewStats, onSearchUsers }) => {
-  // ... (Search logic remains the same) ...
+const SocialModal = ({
+  isOpen, onClose, user, friends, friendRequests,
+  onSendRequest, onAcceptRequest, onDeclineRequest,
+  onBlockUser, onUnblockUser, checkOutgoingRequest,
+  onRemoveFriend, onTogglePin, onViewStats, onSearchUsers,
+  blockedUsers, initialView = 'list'
+}) => {
+  const [view, setView] = useState(initialView);
   const [searchText, setSearchText] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [rawSearchResults, setRawSearchResults] = useState([]);
+  const [requestStatuses, setRequestStatuses] = useState({});
   const [searchPerformed, setSearchPerformed] = useState(false);
-  const [successMsg, setSuccessMsg] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
+      setView(initialView);
       setSearchText("");
       setRawSearchResults([]);
       setSearchPerformed(false);
-      setSuccessMsg(null);
+      setErrorMsg(null);
+      setRequestStatuses({});
     }
-  }, [isOpen]);
+  }, [isOpen, initialView]);
 
+  // Search Debounce
   useEffect(() => {
     const timer = setTimeout(async () => {
       if (!searchText.trim()) {
@@ -1110,23 +1473,39 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
       setIsSearching(false);
       setRawSearchResults(results);
       setSearchPerformed(true);
-    }, 500);
+
+      if (results.length > 0) {
+        const statuses = {};
+        for (const res of results) {
+          const isSent = await checkOutgoingRequest(res.uid);
+          statuses[res.uid] = isSent ? 'sent' : 'none';
+        }
+        setRequestStatuses(statuses);
+      }
+    }, 800);
     return () => clearTimeout(timer);
-  }, [searchText, onSearchUsers]);
+  }, [searchText, onSearchUsers, checkOutgoingRequest, blockedUsers]);
 
   const filteredSearchResults = rawSearchResults.filter(result =>
-    !friends.some(friend => friend.uid === result.uid)
+    !friends.some(friend => friend.uid === result.uid) && result.uid !== user.uid
   );
 
-  const handleAddResult = async (email) => {
-    const result = await onAddFriend(email);
-    if (result.success) {
-      setSearchText("");
-      setRawSearchResults([]);
-      setSearchPerformed(false);
-      setSuccessMsg(`Added friend successfully!`);
-      setTimeout(() => setSuccessMsg(null), 3000);
+  const handleSendRequest = async (targetUser) => {
+    setRequestStatuses(prev => ({ ...prev, [targetUser.uid]: 'sent' }));
+    const result = await onSendRequest(targetUser);
+    if (!result.success) {
+      setRequestStatuses(prev => ({ ...prev, [targetUser.uid]: 'none' }));
+      setErrorMsg(result.error);
+      setTimeout(() => setErrorMsg(null), 3000);
     }
+  };
+
+  const handleBlock = async (targetUser) => {
+    await onBlockUser(targetUser);
+    if (friendRequests.some(req => req.uid === targetUser.uid)) {
+      onDeclineRequest(targetUser.uid);
+    }
+    setRawSearchResults(prev => prev.filter(r => r.uid !== targetUser.uid));
   };
 
   const sortedFriends = [...friends].sort((a, b) => {
@@ -1135,126 +1514,222 @@ const SocialModal = ({ isOpen, onClose, user, friends, onAddFriend, onRemoveFrie
     return 0;
   });
 
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 10 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
+    exit: { opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.15, ease: "easeOut" } }
+  };
+
+  const slideVariants = {
+    enter: (direction) => ({ x: direction > 0 ? 20 : -20, opacity: 0 }),
+    center: { x: 0, opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
+    exit: (direction) => ({ x: direction < 0 ? 20 : -20, opacity: 0, transition: { duration: 0.15, ease: "easeIn" } })
+  };
+
+  const direction = view === 'list' ? -1 : 1;
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-md shadow-2xl overflow-y-auto max-h-[85vh] no-scrollbar mx-2 md:mx-0 flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-medium text-white">Friends</h3>
-              <button onClick={onClose} className="min-w-[32px] min-h-[32px] flex items-center justify-center p-1 text-white/50 hover:text-white active:text-white/70"><X size={20} /></button>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            layout
+            variants={modalVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-md shadow-2xl overflow-hidden mx-2 md:mx-0 flex flex-col max-h-[85vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-6 shrink-0">
+              <h3 className="text-xl font-medium text-white">Social</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setView(view === 'blocked' ? 'list' : 'blocked')}
+                  className={`p-2 rounded-full transition-colors ${view === 'blocked' ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-white/50 hover:text-white'}`}
+                  title="Blocked Users"
+                >
+                  <Ban size={20} />
+                </button>
+                <button
+                  onClick={() => setView(view === 'requests' ? 'list' : 'requests')}
+                  className={`relative p-2 rounded-full transition-colors ${view === 'requests' ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}
+                >
+                  <Bell size={20} />
+                  {friendRequests.length > 0 && view !== 'requests' && (
+                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-[#111]" />
+                  )}
+                </button>
+                <button onClick={onClose} className="w-9 h-9 flex items-center justify-center p-1 bg-white/5 rounded-full text-white/50 hover:text-white active:text-white/70 hover:bg-white/10 transition-colors"><X size={20} /></button>
+              </div>
             </div>
 
-            {/* Search Section */}
-            <div className="mb-4 relative">
-              <div className="relative z-10">
-                <input
-                  type="text"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Search by Name or Email..."
-                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-white/30 transition-colors"
-                />
-                <div className="absolute right-2 top-2 p-1.5 text-white/30">
-                  {isSearching ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                </div>
-              </div>
-              {isSearching && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/10 overflow-hidden rounded-b-xl">
-                  <motion.div
-                    className="h-full bg-white/50"
-                    initial={{ x: "-100%" }}
-                    animate={{ x: "100%" }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                  />
-                </div>
-              )}
-            </div>
+            <div className="overflow-y-auto custom-scrollbar flex-1 -mr-2 pr-2">
+              <AnimatePresence mode="wait" custom={direction}>
 
-            {successMsg && <p className="text-green-400 text-xs mb-4 ml-1">{successMsg}</p>}
+                {/* VIEW: BLOCKED LIST */}
+                {view === 'blocked' && (
+                  <motion.div key="blocked" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-xs uppercase tracking-widest text-red-400 font-bold">Blocked Users</h4>
+                    </div>
+                    {!blockedUsers || blockedUsers.length === 0 ? (
+                      <div className="text-center py-12 text-white/20 text-sm italic">No blocked users.</div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {blockedUsers.map(bUser => (
+                          <div key={bUser.uid} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3 opacity-70">
+                              <Avatar userData={bUser} size="md" />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-white">{bUser.displayName || "Unknown User"}</span>
+                                <span className="text-[10px] text-white/50">Blocked</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => onUnblockUser(bUser.uid)}
+                              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-lg transition-colors"
+                            >
+                              UNBLOCK
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
 
-            {searchText && searchPerformed && !isSearching && filteredSearchResults.length === 0 && (
-              <div className="mb-6 text-center py-4 border border-white/5 rounded-xl bg-white/5">
-                <p className="text-white/40 text-xs">No new users found.</p>
-              </div>
-            )}
+                {/* VIEW: REQUESTS */}
+                {view === 'requests' && (
+                  <motion.div key="requests" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold">Pending Requests</h4>
+                      <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/60">{friendRequests.length}</span>
+                    </div>
+                    {friendRequests.length === 0 ? (
+                      <div className="text-center py-12 text-white/20 text-sm italic">No pending requests.</div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {friendRequests.map(req => (
+                          <div key={req.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Avatar userData={req} size="md" />
 
-            {filteredSearchResults.length > 0 && (
-              <div className="mb-6 animate-fade-in">
-                <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
-                <div className="flex flex-col gap-2">
-                  {filteredSearchResults.map(result => (
-                    <div key={result.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar photoURL={result.photoURL} name={result.displayName} size="md" />
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-white">{result.displayName}</span>
-                          <span className="text-[10px] text-white/50">{result.email}</span>
+                              {/* Horizontal Layout for Request Name + Handle */}
+                              <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
+                                <span className="text-sm font-bold text-white">{req.displayName}</span>
+                                <span className="text-xs text-white/50 font-medium">{req.handle}</span>
+                              </div>
+
+                            </div>
+                            <div className="flex gap-3 pr-2 items-center">
+                              <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(req)} />
+                              <LiquidButton icon={X} label="Deny?" variant="danger" onConfirm={() => onDeclineRequest(req.uid)} />
+                              <button onClick={() => onAcceptRequest(req)} className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-green-400 hover:scale-110 transition-all shadow-md z-20"><Check size={14} strokeWidth={3} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* VIEW: LIST (Search & Friends) */}
+                {view === 'list' && (
+                  <motion.div key="list" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
+                    <div className="mb-4 relative">
+                      <div className="relative z-10">
+                        <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Find users..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-white/30 transition-colors" />
+                        <div className="absolute right-2 top-2 p-1.5 text-white/30">
+                          {isSearching ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
                         </div>
                       </div>
-                      <button onClick={() => handleAddResult(result.email)} className="px-3 py-1.5 bg-white text-black text-[10px] font-bold rounded-lg hover:bg-gray-200 transition-colors tracking-wide">
-                        ADD FRIEND
-                      </button>
                     </div>
-                  ))}
-                </div>
-                <div className="w-full h-px bg-white/10 my-4"></div>
-              </div>
-            )}
 
-            {/* Friends List */}
-            <div className="flex flex-col gap-2">
-              <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4>
-              {friends.length === 0 ? (
-                <div className="text-center py-8 text-white/30 text-sm">No friends yet. Have you even got any?</div>
-              ) : (
-                sortedFriends.map((friend) => (
-                  <div
-                    key={friend.uid}
-                    onClick={() => onViewStats(friend)}
-                    className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative"
-                  >
-                    <div className="flex items-center gap-3 pointer-events-none">
-                      {/* --- UPDATED AVATAR --- */}
-                      <Avatar
-                        photoURL={friend.photoURL}
-                        name={friend.displayName}
-                        size="md"
-                        isPinned={friend.isPinned}
-                        isPro={friend.isPro} // <--- READ FROM FRIEND OBJECT
-                      />
-                      {/* ---------------------- */}
-                      <div>
-                        <div className="text-sm font-medium text-white leading-none mb-1 flex items-center gap-2">
-                          {friend.displayName}
+                    {errorMsg && <p className="text-red-400 text-xs mb-4 ml-1">{errorMsg}</p>}
+
+                    {filteredSearchResults.length > 0 && (
+                      <div className="mb-6 animate-fade-in">
+                        <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
+                        <div className="flex flex-col gap-2">
+                          {filteredSearchResults.map(result => {
+                            const isSent = requestStatuses[result.uid] === 'sent';
+                            return (
+                              <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <Avatar userData={result} size="md" />
+
+                                  {/* SIDE BY SIDE NAME & HANDLE */}
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-sm font-bold text-white leading-tight">{result.displayName}</span>
+                                    <span className="text-xs text-white/50">{result.handle}</span>
+                                  </div>
+
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(result)} />
+
+                                  {isSent ? (
+                                    <button disabled className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all scale-100 cursor-default">
+                                      <Check size={16} strokeWidth={3} />
+                                    </button>
+                                  ) : (
+                                    <button onClick={() => handleSendRequest(result)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-black hover:bg-gray-200 transition-all shadow-md active:scale-95">
+                                      <UserPlus size={16} strokeWidth={2.5} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="text-[10px] text-white/50 flex items-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
-                          {friend.statusText}
-                        </div>
+                        <div className="w-full h-px bg-white/10 my-4"></div>
                       </div>
-                    </div>
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => onTogglePin(friend.uid, friend.isPinned)}
-                        className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}
-                        title={friend.isPinned ? "Unpin" : "Pin"}
-                      >
-                        <Pin size={16} className={friend.isPinned ? "fill-white" : ""} />
-                      </button>
-                      <button
-                        onClick={() => { if (confirm("Remove this friend?")) onRemoveFriend(friend.uid); }}
-                        className="p-2 rounded-lg transition-colors text-white/20 hover:text-red-400 hover:bg-red-500/10"
-                        title="Remove Friend"
-                      >
-                        <UserMinus size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                    )}
 
+                    {/* Friend List */}
+                    <div className="flex flex-col gap-2">
+                      <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4>
+                      {friends.length === 0 ? (
+                        <div className="text-center py-8 text-white/30 text-sm">No friends yet.</div>
+                      ) : (
+                        sortedFriends.map((friend) => (
+                          <div key={friend.uid} onClick={() => onViewStats(friend)} className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative">
+                            <div className="flex items-center gap-3 pointer-events-none">
+                              <Avatar userData={friend} size="md" />
+                              <div className="flex flex-col justify-center">
+
+                                {/* SIDE BY SIDE NAME & HANDLE */}
+                                <div className="flex items-baseline gap-2 mb-1">
+                                  <span className="text-sm font-medium text-white leading-none">{friend.displayName}</span>
+                                  <span className="text-xs text-white/50">{friend.handle}</span>
+                                </div>
+
+                                <div className="text-[10px] text-white/50 flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
+                                  {friend.statusText}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => onTogglePin(friend.uid, friend.isPinned)} className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}><Pin size={16} className={friend.isPinned ? "fill-white" : ""} /></button>
+                              <LiquidButton icon={UserMinus} label="Remove?" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
         </motion.div>
       )}
@@ -1683,10 +2158,16 @@ const MusicModal = ({
   currentTrack, isPlaying, onPlay, onPause,
   isLoading, progress, duration, onSeek,
   // Ambience Props
-  ambienceState, onToggleAmbience, onAmbienceVolume,
+  ambienceState, onToggleAmbience, onAmbienceVolume, onStopAllAmbience,
   // Global Props
   volume, onVolumeChange,
-  isLofiPlaying, onToggleLofi
+  isLofiPlaying, onToggleLofi,
+  // Pro / Selection Props
+  isPro,
+  unlockedAmbiences = [],
+  ambienceSetupDone = false,
+  onSaveAmbienceSelection,
+  onOpenPro
 }) => {
   const [activeTab, setActiveTab] = useState('ambience');
 
@@ -1695,9 +2176,18 @@ const MusicModal = ({
     if (isOpen && isLofiPlaying) setActiveTab('lofi');
   }, [isOpen, isLofiPlaying]);
 
-  const toggleMute = () => {
-    onVolumeChange(volume > 0 ? 0 : 0.5);
-  };
+  // Determine Selection Mode
+  const isSelectionMode = !isPro && !ambienceSetupDone;
+
+  // --- CLEANUP ON CLOSE ---
+  useEffect(() => {
+    if (!isOpen && isSelectionMode) {
+      // If modal closes during selection, stop everything
+      onStopAllAmbience();
+    }
+  }, [isOpen, isSelectionMode, onStopAllAmbience]);
+
+  const toggleMute = () => onVolumeChange(volume > 0 ? 0 : 0.5);
 
   const formatTime = (time) => {
     if (isNaN(time)) return "0:00";
@@ -1707,8 +2197,22 @@ const MusicModal = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Logic to hide master volume
+  const handleConfirmSelection = () => {
+    // Save currently playing sounds as the "unlocked" ones
+    const selectedIds = Object.keys(ambienceState);
+    if (onSaveAmbienceSelection) {
+      onSaveAmbienceSelection(selectedIds);
+      // Stop them after confirming so they don't keep playing in non-loop mode? 
+      // Or let them continue (user will likely pause them manually later).
+      // Let's let them continue but switch to loop mode? 
+      // For simplicity, we save and let the MainApp logic handle subsequent plays.
+    }
+  };
+
   const showMasterVolume = activeTab !== 'ambience' || (activeTab === 'ambience' && (isPlaying || isLofiPlaying));
+
+  // Calculate selection count based on ACTIVE sounds
+  const selectedCount = isSelectionMode ? Object.keys(ambienceState).length : 0;
 
   return (
     <AnimatePresence>
@@ -1725,11 +2229,7 @@ const MusicModal = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="
-              w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] 
-              bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] 
-              shadow-2xl flex flex-col overflow-hidden relative
-            "
+            className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Gradients */}
@@ -1742,13 +2242,11 @@ const MusicModal = ({
                 <h2 className="text-2xl md:text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2>
                 <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p>
               </div>
-              <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90">
-                <X size={20} />
-              </button>
+              <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90"><X size={20} /></button>
             </div>
 
             {/* Tabs */}
-            <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar">
+            <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-between items-center">
               <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl whitespace-nowrap">
                 {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi Radio', icon: Radio }].map((tab) => {
                   const isActive = activeTab === tab.id;
@@ -1764,37 +2262,85 @@ const MusicModal = ({
               </div>
             </div>
 
-            {/* Main Content Area */}
+            {/* SELECTION BANNER */}
+            <AnimatePresence>
+              {isSelectionMode && activeTab === 'ambience' && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 md:px-8 pb-2 z-20">
+                  <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><Sparkles size={16} /></div>
+                      <div>
+                        <h4 className="text-white font-bold text-sm">Play to Select (Free Plan)</h4>
+                        <p className="text-white/50 text-xs">Chosen sounds will be yours forever. Others will lock.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-yellow-400 font-mono font-bold text-sm">{selectedCount} / 3</span>
+                      {selectedCount > 0 && (
+                        <button onClick={handleConfirmSelection} className="px-4 py-1.5 bg-yellow-400 text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-yellow-300 transition-colors shadow-lg">Confirm</button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="flex-1 overflow-hidden relative z-10">
               <AnimatePresence mode="wait">
 
                 {/* 1. AMBIENCE TAB */}
                 {activeTab === 'ambience' && (
-                  <motion.div
-                    key="ambience"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
-                  >
+                  <motion.div key="ambience" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
                       {AMBIENT_SOUNDS.map((track) => {
                         const trackState = ambienceState[track.id];
                         const isActive = !!trackState;
                         const Icon = track.icon;
 
+                        const isUnlocked = isPro || unlockedAmbiences.includes(track.id);
+
+                        const handleClick = () => {
+                          if (isSelectionMode) {
+                            // SELECTION MODE LOGIC
+                            if (isActive) {
+                              onToggleAmbience(track); // Stop (Deselect)
+                            } else {
+                              if (selectedCount < 3) {
+                                onToggleAmbience(track, true); // Play (Select) in PREVIEW mode (no loop)
+                              }
+                              // If >= 3, do nothing (or maybe shake effect?)
+                            }
+                          } else {
+                            // NORMAL MODE LOGIC
+                            if (isUnlocked) {
+                              onToggleAmbience(track, false); // Normal Play
+                            } else {
+                              onOpenPro('ambience');
+                            }
+                          }
+                        };
+
                         return (
                           <motion.div
                             key={track.id}
-                            onClick={() => onToggleAmbience(track)}
+                            onClick={handleClick}
                             className={`
-                              relative aspect-[4/3] rounded-2xl md:rounded-3xl p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-colors duration-300 border
+                              relative aspect-[4/3] rounded-2xl md:rounded-3xl p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all duration-300 border group
                               ${isActive
                                 ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]'
                                 : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
                               }
+                              ${(isSelectionMode && isActive) ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-black' : ''}
+                              ${(isSelectionMode && !isActive && selectedCount >= 3) ? 'opacity-30 grayscale cursor-not-allowed' : ''}
                             `}
                           >
+                            {/* LOCKED OVERLAY (Normal Mode) */}
+                            {!isSelectionMode && !isUnlocked && (
+                              <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-[2px]">
+                                <Lock size={24} className="text-white/50" />
+                              </div>
+                            )}
+
                             <div className="flex justify-between items-start pointer-events-none">
                               <span className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-colors duration-300 ${isActive ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}>
                                 <Icon size={20} strokeWidth={1.5} className={isActive ? "animate-pulse" : ""} />
@@ -1803,19 +2349,9 @@ const MusicModal = ({
                             </div>
 
                             <div className="relative z-20">
-                              <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>
-                                {track.title}
-                              </h4>
-                              <div
-                                className={`transition-all duration-300 ease-out overflow-hidden ${isActive ? 'h-5 opacity-100 mt-2' : 'h-0 opacity-0'}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ModernSlider
-                                  value={trackState?.volume || 0.5}
-                                  onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))}
-                                  color={isActive ? "black" : "white"}
-                                  className="py-1"
-                                />
+                              <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>{track.title}</h4>
+                              <div className={`transition-all duration-300 ease-out overflow-hidden ${isActive ? 'h-5 opacity-100 mt-2' : 'h-0 opacity-0'}`} onClick={(e) => e.stopPropagation()}>
+                                <ModernSlider value={trackState?.volume || 0.5} onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))} color={isActive ? "black" : "white"} className="py-1" />
                               </div>
                             </div>
                           </motion.div>
@@ -1825,33 +2361,46 @@ const MusicModal = ({
                   </motion.div>
                 )}
 
-                {/* 2. LIBRARY TAB */}
+                {/* 2. LIBRARY TAB (Locked for Non-Pro) */}
                 {activeTab === 'library' && (
-                  <motion.div
-                    key="library"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
-                  >
+                  <motion.div key="library" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
                     <div className="flex flex-col gap-3">
                       {MUSIC_TRACKS.map((track, i) => {
                         const isCurrent = currentTrack?.id === track.id && !isLofiPlaying;
                         const isPlayingState = isCurrent && isPlaying;
+
                         return (
                           <motion.div
                             key={track.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            onClick={() => isCurrent && isPlaying ? onPause() : onPlay(track)}
-                            className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}
+                            onClick={() => {
+                              if (isPro) {
+                                isCurrent && isPlaying ? onPause() : onPlay(track);
+                              } else {
+                                onOpenPro('music');
+                              }
+                            }}
+                            className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group relative overflow-hidden ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}
                           >
-                            <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg">
-                              {track.cover ? <img src={track.cover} alt="art" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>}
-                              <div className={`absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isCurrent || 'opacity-0 group-hover:opacity-100'}`}>
-                                {isPlayingState ? <Pause size={20} className="text-white fill-white" /> : <Play size={20} className="text-white fill-white ml-1" />}
+                            {/* LOCK OVERLAY */}
+                            {!isPro && (
+                              <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-yellow-500/30 text-yellow-400">
+                                  <Lock size={12} />
+                                  <span className="text-[10px] font-bold uppercase tracking-widest">Pro</span>
+                                </div>
                               </div>
+                            )}
+
+                            <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg">
+                              {track.cover ? <img src={track.cover} alt="art" className={`w-full h-full object-cover transition-opacity ${!isPro ? 'grayscale opacity-50' : 'opacity-80 group-hover:opacity-100'}`} /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>}
+                              {isPro && (
+                                <div className={`absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isCurrent || 'opacity-0 group-hover:opacity-100'}`}>
+                                  {isPlayingState ? <Pause size={20} className="text-white fill-white" /> : <Play size={20} className="text-white fill-white ml-1" />}
+                                </div>
+                              )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className={`text-sm md:text-lg font-medium truncate ${isCurrent ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>{track.title}</h4>
@@ -1867,13 +2416,7 @@ const MusicModal = ({
 
                 {/* 3. LOFI TAB */}
                 {activeTab === 'lofi' && (
-                  <motion.div
-                    key="lofi"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.05 }}
-                    className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8"
-                  >
+                  <motion.div key="lofi" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8">
                     <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative">
                         <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" />
@@ -1893,35 +2436,20 @@ const MusicModal = ({
 
             {/* Bottom Player Bar */}
             <div className="h-auto md:h-24 bg-gradient-to-t from-black via-[#0a0a0a]/95 to-transparent flex flex-col md:flex-row items-center px-6 md:px-8 py-4 md:py-0 gap-4 md:gap-6 z-30 shrink-0 absolute bottom-0 left-0 right-0 border-t border-white/5 md:border-t-0">
-
               <div className="flex items-center w-full md:w-auto gap-4">
-                {/* Play Button */}
                 <button
                   onClick={() => {
-                    // 1. If Lofi is playing, stop it (regardless of tab)
-                    if (isLofiPlaying) {
-                      onToggleLofi();
-                    }
-                    // 2. If Lofi Tab is active (and nothing playing), start Lofi
-                    else if (activeTab === 'lofi') {
-                      onToggleLofi();
-                    }
-                    // 3. Otherwise, try to play Music (if track exists)
-                    else if (currentTrack) {
-                      isPlaying ? onPause() : onPlay(currentTrack);
-                    }
+                    if (isLofiPlaying) { onToggleLofi(); }
+                    else if (activeTab === 'lofi') { onToggleLofi(); }
+                    else if (currentTrack) { isPlaying ? onPause() : onPlay(currentTrack); }
                   }}
                   className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] shrink-0"
                 >
                   {(isLofiPlaying || (currentTrack && isPlaying)) ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" className="ml-0.5" />}
                 </button>
-
-                {/* Track Info & Progress */}
                 <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
                   <div className="flex justify-between items-end">
-                    <span className="text-sm font-bold text-white truncate pr-2">
-                      {isLofiPlaying ? "Lofi Girl Radio" : (currentTrack ? currentTrack.title : "No Track Selected")}
-                    </span>
+                    <span className="text-sm font-bold text-white truncate pr-2">{isLofiPlaying ? "Lofi Girl Radio" : (currentTrack ? currentTrack.title : "No Track Selected")}</span>
                     {!isLofiPlaying && currentTrack && <span className="text-[10px] font-mono text-white/40 shrink-0">{formatTime(progress)} / {formatTime(duration)}</span>}
                   </div>
                   <div className="w-full">
@@ -1934,33 +2462,14 @@ const MusicModal = ({
                 </div>
               </div>
 
-              {/* Master Volume (Conditionally Hidden) */}
               <AnimatePresence>
                 {showMasterVolume && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center gap-3 w-full md:w-40 group pl-2 md:pl-0"
-                  >
-                    <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors shrink-0">
-                      {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                    </button>
-
-                    {/* The Slider Container */}
-                    <div className="flex-1">
-                      <ModernSlider
-                        value={volume}
-                        max={1}
-                        onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-                        color="white"
-                      />
-                    </div>
+                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="flex items-center gap-3 w-full md:w-40 group pl-2 md:pl-0">
+                    <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors shrink-0">{volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}</button>
+                    <div className="flex-1"><ModernSlider value={volume} max={1} onChange={(e) => onVolumeChange(parseFloat(e.target.value))} color="white" /></div>
                   </motion.div>
                 )}
               </AnimatePresence>
-
             </div>
           </motion.div>
         </motion.div>
@@ -2612,6 +3121,114 @@ const LiquidStrictBtn = ({
   );
 };
 
+const LiquidButton = ({
+  icon: Icon,
+  label = "Sure?",
+  onConfirm,
+  variant = "danger",
+  size = "sm",
+  disabled = false
+}) => {
+  const [status, setStatus] = useState('idle');
+  const containerRef = useRef(null);
+
+  const BASE_SIZE = size === 'sm' ? 32 : 40;
+  const EXPANDED_WIDTH = 130;
+  const EXPANDED_HEIGHT = size === 'sm' ? 36 : 44;
+
+  const styles = {
+    danger: {
+      idleBg: "rgba(255, 255, 255, 0.05)",
+      idleColor: "rgba(255, 255, 255, 0.5)",
+      idleHoverBg: "rgba(220, 38, 38, 0.2)",
+      idleHoverColor: "#f87171",
+      confirmBg: "rgba(220, 38, 38, 0.15)",
+      confirmBorder: "rgba(220, 38, 38, 0.3)",
+      labelColor: "text-red-500",
+      confirmBtnClass: "bg-red-500 text-white hover:bg-red-400"
+    },
+    success: {
+      idleBg: "rgba(255, 255, 255, 1)",
+      idleColor: "#000",
+      idleHoverBg: "rgba(74, 222, 128, 1)",
+      idleHoverColor: "#000",
+      confirmBg: "rgba(34, 197, 94, 0.15)",
+      confirmBorder: "rgba(34, 197, 94, 0.3)",
+      labelColor: "text-green-500",
+      confirmBtnClass: "bg-green-500 text-white hover:bg-green-400"
+    },
+    neutral: {
+      idleBg: "rgba(255, 255, 255, 0.05)",
+      idleColor: "rgba(255, 255, 255, 0.5)",
+      idleHoverBg: "rgba(255, 255, 255, 0.1)",
+      idleHoverColor: "#fff",
+      confirmBg: "rgba(255, 255, 255, 0.1)",
+      confirmBorder: "rgba(255, 255, 255, 0.1)",
+      labelColor: "text-white",
+      confirmBtnClass: "bg-white text-black"
+    }
+  }[variant];
+
+  useEffect(() => {
+    let timer;
+    if (status === 'confirming') { timer = setTimeout(() => setStatus('idle'), 3000); }
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) { setStatus('idle'); }
+    };
+    if (status === 'confirming') document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [status]);
+
+  if (disabled) {
+    return (<div className={`w-${size === 'sm' ? '8' : '10'} h-${size === 'sm' ? '8' : '10'} flex items-center justify-center opacity-30`}> <Icon size={size === 'sm' ? 14 : 18} /> </div>);
+  }
+
+  return (
+    <div className={`relative ${size === 'sm' ? 'w-8 h-8' : 'w-10 h-10'} flex items-center justify-center z-10`}>
+      <motion.div
+        ref={containerRef}
+        layout
+        onClick={(e) => e.stopPropagation()}
+        initial={false}
+        animate={status === 'confirming'
+          ? { width: EXPANDED_WIDTH, height: EXPANDED_HEIGHT, borderRadius: 20, backgroundColor: styles.confirmBg, borderColor: styles.confirmBorder, borderWidth: 1 }
+          : { width: BASE_SIZE, height: BASE_SIZE, borderRadius: 50, backgroundColor: styles.idleBg, borderColor: "rgba(0,0,0,0)", borderWidth: 0 }
+        }
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        className="absolute right-0 flex items-center justify-center overflow-hidden shadow-lg backdrop-blur-md"
+      >
+        <AnimatePresence mode="popLayout">
+          {status === 'idle' ? (
+            <motion.button
+              key="icon"
+              layout="position"
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1, color: styles.idleColor }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ duration: 0.2 }}
+              whileHover={{ backgroundColor: styles.idleHoverBg, color: styles.idleHoverColor }}
+              onClick={(e) => { e.stopPropagation(); setStatus('confirming'); }}
+              className="w-full h-full flex items-center justify-center"
+            >
+              <Icon size={size === 'sm' ? 14 : 18} strokeWidth={variant === 'success' ? 3 : 2} />
+            </motion.button>
+          ) : (
+            <motion.div key="content" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="flex items-center justify-between w-full px-1">
+              <button onClick={(e) => { e.stopPropagation(); setStatus('idle'); }} className="w-7 h-7 rounded-full bg-black/20 text-white/50 flex items-center justify-center hover:bg-black/40 hover:text-white transition-colors"> <X size={12} strokeWidth={3} /> </button>
+              <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${styles.labelColor}`}>{label}</span>
+              <button onClick={(e) => { e.stopPropagation(); onConfirm(); setStatus('idle'); }} className={`w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-95 ${styles.confirmBtnClass}`}> <Check size={14} strokeWidth={3} /> </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+};
+
 // --- APPLE-STYLE SEGMENTED TOGGLE (Defined Outside to fix animation glitches) ---
 // --- APPLE-STYLE TOGGLE (No Text, Click-to-Flip) ---
 const SegmentedToggle = ({ label, checked, onChange, id }) => (
@@ -2652,7 +3269,9 @@ const NoteSystemModals = ({
   onSave,
   onDelete,
   onReorder,
-  onSaveOrder
+  onSaveOrder,
+  isPro,
+  onOpenPro
 }) => {
   // --- STATE ---
   const [editorTitle, setEditorTitle] = useState("");
@@ -2669,7 +3288,7 @@ const NoteSystemModals = ({
   const [selectedTag, setSelectedTag] = useState("All");
   const [draggingId, setDraggingId] = useState(null);
 
-  // Refs
+  // --- REFS ---
   const draggingIdRef = useRef(null);
   const containerRef = useRef(null);
   const lastSwapTime = useRef(0);
@@ -2677,6 +3296,9 @@ const NoteSystemModals = ({
   const tagInputRef = useRef(null);
   const dragStartPos = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
+
+  // Limit Check Logic
+  const isLimitReached = !isPro && notes.length >= 3;
 
   // --- HANDLERS ---
   const handleSave = () => {
@@ -2696,19 +3318,17 @@ const NoteSystemModals = ({
     setShowSlashMenu(false);
   };
 
-  // --- CHECKBOX TOGGLE HANDLER (FOR LIBRARY VIEW) ---
   const handleToggleLine = (note, index, newStatus) => {
     let lines = note.text.split('\n');
     if (lines[index]) {
       const line = lines[index];
-      // Toggle [ ] <-> [x]
       const newLine = newStatus
         ? line.replace(/^(\s*)\[ \]/, '$1[x]')
         : line.replace(/^(\s*)\[x\]/i, '$1[ ]');
 
       lines[index] = newLine;
 
-      // --- AUTO-SORT LOGIC ---
+      // Auto-sort logic
       if (/^(\s*)\[([ x])\]/i.test(newLine)) {
         let start = index;
         while (start > 0 && /^(\s*)\[([ x])\]/i.test(lines[start - 1])) start--;
@@ -2728,7 +3348,6 @@ const NoteSystemModals = ({
 
         lines.splice(start, group.length, ...group);
       }
-      // -------------------------------
 
       onSave({ ...note, text: lines.join('\n'), updatedAt: Date.now() });
     }
@@ -2767,7 +3386,6 @@ const NoteSystemModals = ({
     }
   }, [editingNote]);
 
-  // --- SPOTLIGHT EFFECT ---
   const handleGlowMove = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -2776,7 +3394,6 @@ const NoteSystemModals = ({
     e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
   };
 
-  // --- TAG & SLASH LOGIC ---
   const allExistingTags = [...new Set(notes.flatMap(n => n.tags || []))];
   const allTags = ["All", ...allExistingTags];
   const tagSuggestions = tagInput.trim()
@@ -2809,7 +3426,6 @@ const NoteSystemModals = ({
 
   const handleTitleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); tagInputRef.current?.focus(); } };
 
-  // --- MARKDOWN UTILS ---
   const insertMarkdown = (syntax) => {
     const textarea = bodyInputRef.current;
     if (!textarea) return;
@@ -2838,7 +3454,6 @@ const NoteSystemModals = ({
     setTimeout(() => { textarea.focus(); const newPos = (start < lineStart) ? start : start + insertion.length; textarea.setSelectionRange(newPos, newPos); }, 0);
   };
 
-  // --- SLASH COMMANDS ---
   const SLASH_COMMANDS = [
     { id: 'task', label: 'Task List', icon: CheckSquare, action: 'task' },
     { id: 'list', label: 'Bullet List', icon: List, action: 'list' },
@@ -2973,7 +3588,6 @@ const NoteSystemModals = ({
     };
   }, [draggingId, notes]);
 
-  // --- NOTE TAP LOGIC ---
   const handleNoteTap = (e, note) => {
     setEditingNote(note);
   };
@@ -3005,24 +3619,49 @@ const NoteSystemModals = ({
             <div className="max-w-5xl mx-auto" ref={containerRef}>
               <div className="flex flex-wrap gap-6">
 
-                {/* ADD BUTTON */}
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  onMouseMove={handleGlowMove}
-                  className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const initialTags = selectedTag !== "All" ? [selectedTag] : [];
-                    setEditingNote({ tags: initialTags });
-                  }}
-                >
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
-                  <div className="relative z-10 flex flex-col items-center gap-2">
-                    <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                    <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
-                  </div>
-                </motion.div>
+                {/* ADD BUTTON or LOCKED BUTTON */}
+                {isLimitReached ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenPro();
+                    }}
+                  >
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <Lock size={32} className="text-white/30 group-hover:text-yellow-400 transition-colors" />
+                      <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-yellow-400 transition-colors font-medium">Unlock</span>
+                      {/* COUNT FOR LOCKED STATE */}
+                      <span className="text-[10px] font-mono text-white/30 font-medium">3 / 3</span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onMouseMove={handleGlowMove}
+                    className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const initialTags = selectedTag !== "All" ? [selectedTag] : [];
+                      setEditingNote({ tags: initialTags });
+                    }}
+                  >
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
+                    <div className="relative z-10 flex flex-col items-center gap-2">
+                      <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
+                      <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
+                      {/* COUNT FOR ACTIVE STATE (FREE USERS) */}
+                      {!isPro && (
+                        <span className="text-[10px] font-mono text-white/30 font-medium mt-1">
+                          {notes.length} / 3
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* NOTES GRID */}
                 <AnimatePresence>
@@ -3085,14 +3724,11 @@ const NoteSystemModals = ({
                       <div className="relative z-10 flex flex-col h-full pointer-events-none">
                         {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
                         <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
-
-                          {/* UPDATED: Pass toggle handler for checkboxes */}
                           <RichTextRenderer
                             text={note.text}
                             className="text-xs md:text-sm"
                             onToggle={(index, status) => handleToggleLine(note, index, status)}
                           />
-
                         </div>
                         {note.tags && note.tags.length > 0 && (
                           <div className="mt-2 flex gap-1 flex-wrap">
@@ -3652,7 +4288,8 @@ const TypingGame = ({ onExit, timeLeft, background }) => {
 };
 
 // Update the props to include 'background'
-const GameCenter = ({ mode, timeLeft, background }) => {
+// Update props to accept isPro and onOpenPro
+const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
 
@@ -3663,21 +4300,34 @@ const GameCenter = ({ mode, timeLeft, background }) => {
     }
   }, [mode, timeLeft]);
 
-  // Don't render the pill in Focus mode
+  // Helper to handle locked games
+  const handleGameClick = (gameId) => {
+    if (gameId === 'snake') {
+      setActiveGame('snake'); // Snake is always free
+    } else {
+      // All other games require Pro
+      if (isPro) {
+        setActiveGame(gameId);
+      } else {
+        onOpenPro(); // Trigger the modal
+      }
+    }
+  };
+
   if (mode === 'focus') return null;
 
   return (
     <>
-      {/* 1. THE PILL (Trigger Button) */}
-      <div className="mt-12 z-30 relative h-14 w-full flex items-center justify-center">
+      {/* 1. THE PILL (Trigger Button) - ANCHORED BELOW CONTROLS */}
+      <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
         <AnimatePresence mode="wait">
           {!isOpen && (
             <motion.div
               key="game-pill"
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="absolute"
+              className="relative"
             >
               <motion.button
                 layoutId="game-container"
@@ -3703,25 +4353,20 @@ const GameCenter = ({ mode, timeLeft, background }) => {
               id="arcade-modal"
               key="arcade-modal"
               layoutId="game-container"
-              className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-xl flex flex-col items-center justify-center p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              // MATCHING NOTES MODAL STYLE: bg-black/40 instead of 60, removed static backdrop-blur class
+              className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black/40"
+              // MATCHING NOTES MODAL ANIMATION: Animate backdropFilter here
+              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
+              exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+              transition={{ duration: 0.3 }}
               onClick={() => !activeGame && setIsOpen(false)}
             >
               {activeGame === 'snake' ? (
-                // --- SNAKE GAME CONTAINER ---
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
                   <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
                 </motion.div>
               ) : activeGame === 'typing' ? (
-                // --- TYPING GAME (Fullscreen Overlay) ---
                 <TypingGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} background={background} />
               ) : (
                 // --- GAME MENU ---
@@ -3735,7 +4380,8 @@ const GameCenter = ({ mode, timeLeft, background }) => {
                   <div className="w-full flex justify-between items-center mb-12 px-4 shrink-0">
                     <div className="flex flex-col">
                       <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
-                      <p className="text-white/40 text-sm">Recharge your mind. 5 minutes at a time.</p>
+                      {/* UPDATED TEXT */}
+                      <p className="text-white/40 text-sm">Non-distracting games that help you recharge without getting bored. Play them alone or with friends, if you've got any.</p>
                     </div>
                     <button onClick={() => setIsOpen(false)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
                       <X size={24} />
@@ -3744,25 +4390,39 @@ const GameCenter = ({ mode, timeLeft, background }) => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full px-4 pb-10">
 
-                    {/* Snake Card */}
-                    <motion.button onClick={() => setActiveGame('snake')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
+                    {/* Snake Card (FREE) */}
+                    <motion.button onClick={() => handleGameClick('snake')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                       <div className="w-16 h-16 bg-green-900/20 border border-green-500/20 rounded-2xl flex items-center justify-center text-green-400 mb-6 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,197,94,0.1)] group-hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"><SnakeIcon size={32} /></div>
                       <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">Snake</h3><p className="text-white/40 text-sm leading-relaxed">The classic retro challenge.</p></div>
                     </motion.button>
 
-                    {/* Typing Card */}
-                    <motion.button onClick={() => setActiveGame('typing')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-cyan-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
+                    {/* Typeshit Card (PRO LOCKED) */}
+                    <motion.button onClick={() => handleGameClick('typing')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-cyan-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                      {!isPro && (
+                        <div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                          <Lock size={14} className="text-white/70" />
+                        </div>
+                      )}
+
                       <div className="w-16 h-16 bg-cyan-900/20 border border-cyan-500/20 rounded-2xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 group-hover:bg-cyan-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,211,238,0.1)] group-hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"><Keyboard size={32} /></div>
                       <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">Typeshit</h3><p className="text-white/40 text-sm leading-relaxed">Find flow through words.</p></div>
                     </motion.button>
 
-                    {/* Placeholder */}
-                    <div className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 opacity-50 select-none">
-                      <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center"><Sparkles size={20} className="text-white/20" /></div>
-                      <span className="text-white/20 font-mono text-xs uppercase tracking-widest">Coming Soon</span>
-                    </div>
+                    {/* Placeholder (PRO LOCKED) */}
+                    <motion.button onClick={() => handleGameClick('coming-soon')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 hover:border-white/30 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
+
+                      {!isPro && (
+                        <div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                          <Lock size={14} className="text-white/70" />
+                        </div>
+                      )}
+
+                      <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 mb-6 group-hover:scale-110 group-hover:bg-white/10 group-hover:text-white transition-all duration-300"><Sparkles size={32} /></div>
+                      <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white/50 mb-2 group-hover:text-white transition-colors">Multiplayer</h3><p className="text-white/20 text-sm leading-relaxed">Coming Soon.</p></div>
+                    </motion.button>
 
                   </div>
                 </motion.div>
@@ -3827,7 +4487,120 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
 };
 
 function MainApp() {
-  // ... inside App component
+
+  const [user, setUser] = useState(null);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [onboardingHandle, setOnboardingHandle] = useState("");
+  const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
+  const [handleSuggestions, setHandleSuggestions] = useState([]);
+  const [isSavingHandle, setIsSavingHandle] = useState(false);
+  const [isDeletingName, setIsDeletingName] = useState(false);
+  const [isTypingName, setIsTypingName] = useState(false);
+  const [showLoginBtn, setShowLoginBtn] = useState(true);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
+  const [initialState] = useState(loadTimerState);
+  const [mode, setMode] = useState(initialState?.mode || 'focus');
+  const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
+  const [isActive, setIsActive] = useState(initialState?.isActive || false);
+  const [sessionName, setSessionName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [notes, setNotes] = useState([]);
+  const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(null); // If null -> New Note
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [pomoCount, setPomoCount] = useState(0);
+  const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
+
+  const [devMode, setDevMode] = useState(false);
+  const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
+  const [showSettings, setShowSettings] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [showMusic, setShowMusic] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [proModalSource, setProModalSource] = useState(null);
+  const [showStats, setShowStats] = useState(false);
+  const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
+  const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
+
+  // --- OPTIMIZED SYNC: Run ONCE on mount to migrate/ensure public profile exists ---
+  useEffect(() => {
+    if (!user) return;
+
+    const checkAndMigrateProfile = async () => {
+      try {
+        const publicRef = doc(db, "publicProfiles", user.uid);
+        const userRef = doc(db, "users", user.uid);
+
+        const [publicSnap, userSnap] = await Promise.all([
+          getDoc(publicRef),
+          getDoc(userRef)
+        ]);
+
+        // CASE 1: BRAND NEW USER (No public profile, No private data)
+        if (!publicSnap.exists() && !userSnap.exists()) {
+          console.log("Creating new user data...");
+          // Initialize PRIVATE data so stats can save immediately
+          await setDoc(userRef, {
+            email: user.email,
+            createdAt: Date.now(),
+            stats: DEFAULT_STATS,
+            settings: DEFAULT_SETTINGS,
+            handle: null // Will be set in onboarding
+          });
+          // We don't create publicProfile yet; Onboarding (Step 1) does that.
+          setIsMigrating(false);
+          setOnboardingStep(1);
+          setShowLoginBtn(false);
+          return;
+        }
+
+        // CASE 2: MIGRATION (Private data exists, but Public Profile missing)
+        if (userSnap.exists() && !publicSnap.exists()) {
+          console.log("Migrating legacy user...");
+          const data = userSnap.data();
+          const baseHandle = data.handle || await getUniqueHandle(user.displayName || "User");
+
+          // Create Public Profile
+          await setDoc(publicRef, {
+            uid: user.uid,
+            displayName: user.displayName || "User",
+            photoURL: user.photoURL || null,
+            handle: baseHandle,
+            handle_lowercase: baseHandle.toLowerCase(),
+            isPro: data.subscription?.plan === 'pro',
+            stats: data.stats || {},
+          });
+
+          // Ensure private doc has the handle
+          if (!data.handle) {
+            await setDoc(userRef, { handle: baseHandle }, { merge: true });
+          }
+        }
+
+        // CASE 3: EXISTING USER (Everything is good)
+        // Just checking if we need to sync handle to private doc (Sanity check)
+        if (publicSnap.exists() && userSnap.exists()) {
+          const pubData = publicSnap.data();
+          const privData = userSnap.data();
+          if (!privData.handle && pubData.handle) {
+            await setDoc(userRef, { handle: pubData.handle }, { merge: true });
+          }
+        }
+
+      } catch (e) {
+        console.error("Profile check failed:", e);
+      }
+    };
+
+    checkAndMigrateProfile();
+  }, [user]);
+
 
   const handleReorderNotes = (newOrder) => {
     setNotes(newOrder);
@@ -3899,37 +4672,7 @@ function MainApp() {
   // 3. LOFI GIRL
   const [isLofiPlaying, setIsLofiPlaying] = useState(false);
 
-  const [user, setUser] = useState(null);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
-  const [isDeletingName, setIsDeletingName] = useState(false);
-  const [isTypingName, setIsTypingName] = useState(false);
-  const [showLoginBtn, setShowLoginBtn] = useState(true);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
-  const [initialState] = useState(loadTimerState);
-  const [mode, setMode] = useState(initialState?.mode || 'focus');
-  const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
-  const [isActive, setIsActive] = useState(initialState?.isActive || false);
-  const [sessionName, setSessionName] = useState('');
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [notes, setNotes] = useState([]);
-  const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState(null); // If null -> New Note
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [pomoCount, setPomoCount] = useState(0);
-  const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
 
-  const [devMode, setDevMode] = useState(false);
-  const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAccount, setShowAccount] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
-  const [showMusic, setShowMusic] = useState(false);
-  const [isPro, setIsPro] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   // --- VOLUME SYNC ---
   useEffect(() => {
     if (musicAudioRef.current) musicAudioRef.current.volume = volume;
@@ -4075,6 +4818,50 @@ function MainApp() {
         document.exitFullscreen();
         setIsFullscreen(false);
       }
+    }
+  };
+
+  // --- HANDLE CONFIRMATION LOGIC ---
+  const confirmHandleAndContinue = async () => {
+    // 1. Validation
+    if (handleStatus !== 'available' || !onboardingHandle) return;
+
+    setIsSavingHandle(true);
+    const fullHandle = `@${onboardingHandle}`;
+
+    try {
+      const batch = writeBatch(db);
+
+      // 2. Update/Create Public Profile (Use SET with Merge)
+      const publicRef = doc(db, "publicProfiles", user.uid);
+      batch.set(publicRef, {
+        uid: user.uid,
+        displayName: user.displayName || "User",
+        photoURL: user.photoURL || null,
+        handle: fullHandle,
+        handle_lowercase: fullHandle.toLowerCase(),
+        // Initialize these for new users so profile modal doesn't crash
+        isPro: isPro || false,
+        stats: stats || DEFAULT_STATS
+      }, { merge: true });
+
+      // 3. Update/Create Private User Doc (Use SET with Merge)
+      const userRef = doc(db, "users", user.uid);
+      batch.set(userRef, {
+        handle: fullHandle,
+        lastHandleChange: Date.now()
+      }, { merge: true });
+
+      await batch.commit();
+
+      setTimeout(() => {
+        setIsSavingHandle(false);
+        setOnboardingStep(3);
+      }, 500);
+
+    } catch (e) {
+      console.error("Error saving handle:", e);
+      setIsSavingHandle(false);
     }
   };
 
@@ -4292,26 +5079,69 @@ function MainApp() {
   useEffect(() => {
     const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } };
     initAuth();
+
     const storedName = localStorage.getItem('pomodoro_user_name');
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser); setIsAuthChecking(false);
+      setUser(currentUser);
+      setIsAuthChecking(false);
+
       if (currentUser) {
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
 
-        // --- SOCIAL: Ensure email is saved for discovery ---
-        if (currentUser.email) {
-          await setDoc(doc(db, "users", currentUser.uid), {
-            email: currentUser.email,
-            displayName: currentUser.displayName,
-            photoURL: currentUser.photoURL
-          }, { merge: true });
-        }
+        // --- MIGRATION LOGIC STARTS HERE ---
+        try {
+          const publicRef = doc(db, "publicProfiles", currentUser.uid);
+          const publicSnap = await getDoc(publicRef);
+          const userRef = doc(db, "users", currentUser.uid);
+          const userSnap = await getDoc(userRef);
 
-        if (storedName) { setShowLoginBtn(false); setTimeout(() => { setOnboardingStep(3); }, 2000); } else { if (onboardingStep === 0) { handleNameTransition(firstName); } }
+          // Check if handle exists
+          const hasHandle = publicSnap.exists() && publicSnap.data().handle;
+
+          if (hasHandle) {
+            // User is good. Ensure private doc matches.
+            if (!userSnap.exists() || !userSnap.data().handle) {
+              await setDoc(userRef, { handle: publicSnap.data().handle }, { merge: true });
+            }
+
+            // Go to Dashboard
+            if (storedName) {
+              setShowLoginBtn(false);
+              setTimeout(() => setOnboardingStep(3), 1000);
+            } else {
+              setOnboardingStep(3);
+            }
+
+          } else {
+            // --- NO HANDLE FOUND ---
+            // If they have private data but no handle, they are a LEGACY user migrating.
+            if (userSnap.exists()) {
+              setIsMigrating(true);
+            } else {
+              setIsMigrating(false); // New user
+            }
+
+            // Pre-fill suggestion
+            const suggested = currentUser.displayName
+              ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
+              : "user";
+
+            setOnboardingHandle(suggested);
+
+            // Send to Step 1
+            setOnboardingStep(1);
+            setShowLoginBtn(false);
+          }
+        } catch (e) {
+          console.error("Auth profile check failed:", e);
+        }
+        // -----------------------------------
+
       } else {
         if (storedName) { setGreetingText("Hello, stranger"); setShowLoginBtn(true); localStorage.removeItem('pomodoro_user_name'); } else { setGreetingText("Hello, stranger"); setShowLoginBtn(true); }
-        setSessionName(""); setDataLoaded(false);
+        setDataLoaded(false);
       }
     });
     return () => unsubscribe();
@@ -4319,7 +5149,11 @@ function MainApp() {
 
   // --- SOCIAL: Friends Logic (UPDATED) ---
 
-  // 1. Listen to my friends list AND their metadata (pinned status)
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [blockedUsers, setBlockedUsers] = useState([]);
+  const [socialView, setSocialView] = useState('list'); // <--- ADD THIS STATE
+
+  // 1. Listen to friends
   useEffect(() => {
     if (!user) return;
     const friendsRef = collection(db, "users", user.uid, "friends");
@@ -4336,58 +5170,107 @@ function MainApp() {
     return () => unsub();
   }, [user]);
 
-  // 2. Listen to friend profiles and merge with Pin status
+  // 2. Listen to Friend Requests
   useEffect(() => {
-    if (!user || friendUids.length === 0) {
-      setFriends([]);
-      return;
-    }
+    if (!user) return;
+    const requestsRef = collection(db, "users", user.uid, "friendRequests");
+    const unsub = onSnapshot(requestsRef, (snapshot) => {
+      const reqs = [];
+      snapshot.forEach(doc => { reqs.push({ uid: doc.id, ...doc.data() }); });
+      setFriendRequests(reqs);
+    });
+    return () => unsub();
+  }, [user]);
 
+  // 3. Listen to BLOCKED users
+  useEffect(() => {
+    if (!user) return;
+    const blockedRef = collection(db, "users", user.uid, "blocked");
+    const unsub = onSnapshot(blockedRef, (snapshot) => {
+      const blocked = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        blocked.push({
+          uid: doc.id,
+          displayName: data.displayName || "Unknown User",
+          photoURL: data.photoURL || null,
+          email: data.email || null
+        });
+      });
+      setBlockedUsers(blocked);
+    });
+    return () => unsub();
+  }, [user]);
+
+  // 4. Friend Profiles Listener
+  useEffect(() => {
+    if (!user || friendUids.length === 0) { setFriends([]); return; }
     const unsubscribers = [];
     const currentFriendsData = {};
-
     friendUids.forEach(friendId => {
-      const unsub = onSnapshot(doc(db, "users", friendId), (doc) => {
+      // ... inside the friends useEffect ...
+      const unsub = onSnapshot(doc(db, "publicProfiles", friendId), (doc) => {
         if (doc.exists()) {
           const data = doc.data();
-          // Process Real-time Status
+
           let isOnline = false;
           let isActive = false;
           let statusText = "Offline";
           let mode = 'focus';
           let timeLeft = 0;
 
+          // --- GHOST TIMER FIX ---
           if (data.timerState) {
             const now = Date.now();
-            const lastUpdated = data.timerState.lastUpdated;
-            if (now - lastUpdated < 300000) { // 5 mins
+            const lastHeartbeat = data.timerState.lastUpdated || 0;
+            const timeSinceHeartbeat = now - lastHeartbeat;
+
+            // 1. TIMEOUT THRESHOLD (e.g., 2 minutes)
+            // If we haven't heard from their browser in 2 mins, they are Offline.
+            // (Your heartbeat interval is 60s, so 2 mins is a safe buffer)
+            if (timeSinceHeartbeat < 120000) {
               isOnline = true;
               mode = data.timerState.mode;
+
               if (data.timerState.isActive) {
-                isActive = true;
-                const target = data.timerState.targetEndTime;
-                timeLeft = Math.max(0, Math.ceil((target - now) / 1000));
-                statusText = `${mode === 'focus' ? 'Focusing' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+                // Calculate remaining time
+                const remaining = Math.max(0, Math.ceil((data.timerState.targetEndTime - now) / 1000));
+
+                // 2. OVERRUN CHECK
+                // If the timer hit 0 while they were gone, mark as 'Done' or 'Idle' instead of negative/active
+                if (remaining > 0) {
+                  isActive = true;
+                  timeLeft = remaining;
+                  statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+                } else {
+                  // Timer finished but they haven't reset it yet
+                  isActive = false;
+                  statusText = "Idle";
+                }
               } else {
                 statusText = "Paused";
               }
             } else {
-              statusText = "Away";
+              // Browser hasn't updated DB in > 2 mins -> Ghost/Offline
+              statusText = "Offline";
+              isOnline = false;
+              isActive = false;
             }
           }
 
           currentFriendsData[friendId] = {
+            // ... existing properties ...
             uid: friendId,
-            displayName: data.displayName || "Unknown Friend",
-            email: data.email,
+            displayName: data.displayName || "Unknown",
             photoURL: data.photoURL,
-            isOnline,
-            isActive,
-            statusText,
+            handle: data.handle,
+            isOnline,     // Uses the new strict check
+            isActive,     // Uses the new strict check
+            statusText,   // Uses the new strict check
             mode,
             timeLeft,
-            // Merge Pinned Status
-            isPinned: friendConfig[friendId]?.isPinned || false
+            isPinned: friendConfig[friendId]?.isPinned || false,
+            isPro: data.isPro || false
           };
 
           setFriends(Object.values(currentFriendsData));
@@ -4395,171 +5278,182 @@ function MainApp() {
       });
       unsubscribers.push(unsub);
     });
-
-    // 3. Local Timer for Friends (Countdown smoothly)
     const interval = setInterval(() => {
-      setFriends(prevFriends => {
-        return prevFriends.map(f => {
-          if (f.isActive && f.timeLeft > 0) {
-            const newTime = f.timeLeft - 1;
-            const mins = Math.floor(newTime / 60);
-            const secs = newTime % 60;
-            const timeString = `${mins}:${secs.toString().padStart(2, '0')}`;
-            return {
-              ...f,
-              timeLeft: Math.max(0, newTime),
-              statusText: `${f.mode === 'focus' ? 'Focusing' : 'Break'} • ${timeString}`
-            };
-          }
-          return f;
-        });
-      });
+      setFriends(prev => prev.map(f => (f.isActive && f.timeLeft > 0 ? { ...f, timeLeft: f.timeLeft - 1, statusText: `${f.mode === 'focus' ? 'Focusing' : 'Break'} • ${Math.floor((f.timeLeft - 1) / 60)}m` } : f)));
     }, 1000);
-
-    return () => {
-      unsubscribers.forEach(u => u());
-      clearInterval(interval);
-    };
+    return () => { unsubscribers.forEach(u => u()); clearInterval(interval); };
   }, [user, friendUids, friendConfig]);
 
-  // REPLACE your existing handleAddFriend function with this:
+  // --- ACTIONS ---
 
-  const handleAddFriend = async (email) => {
+  const handleSendRequest = useCallback(async (targetUser) => {
     if (!user) return { success: false, error: "Not logged in" };
-
-    // 1. Sanitize input: remove spaces and force lowercase
-    const cleanEmail = email.trim().toLowerCase();
-
-    if (!cleanEmail) return { success: false, error: "Please enter an email" };
+    if (targetUser.uid === user.uid) return { success: false, error: "You can't add yourself." };
 
     try {
-      console.log(`Searching for user with email: "${cleanEmail}"`); // Debug log
-
-      // 2. Query the users collection
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", cleanEmail));
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        console.warn("Query returned no results.");
-        return { success: false, error: "User not found. Ask them to log in again to sync their email." };
-      }
-
-      const friendDoc = snapshot.docs[0];
-      const friendId = friendDoc.id;
-
-      // 3. Prevent adding yourself
-      if (friendId === user.uid) {
-        return { success: false, error: "You can't add yourself as a friend." };
-      }
-
-      // 4. Check if already friends (Optional check to prevent overwriting/redundancy)
-      const friendRef = doc(db, "users", user.uid, "friends", friendId);
+      const friendRef = doc(db, "users", user.uid, "friends", targetUser.uid);
       const friendSnap = await getDoc(friendRef);
-      if (friendSnap.exists()) {
-        return { success: false, error: "User is already in your friends list." };
+      if (friendSnap.exists()) return { success: false, error: "Already friends." };
+
+      const incomingReqRef = doc(db, "users", user.uid, "friendRequests", targetUser.uid);
+      const incomingSnap = await getDoc(incomingReqRef);
+
+      if (incomingSnap.exists()) {
+        const batch = writeBatch(db);
+        batch.set(doc(db, "users", user.uid, "friends", targetUser.uid), { addedAt: Date.now() });
+        batch.set(doc(db, "users", targetUser.uid, "friends", user.uid), { addedAt: Date.now() });
+        batch.delete(incomingReqRef);
+        batch.delete(doc(db, "users", targetUser.uid, "friendRequests", user.uid));
+        await batch.commit();
+        return { success: true, message: "You are now friends!" };
       }
 
-      // 5. Add to friends collection
-      await setDoc(friendRef, {
-        addedAt: Date.now()
-      });
+      const reqRef = doc(db, "users", targetUser.uid, "friendRequests", user.uid);
+      const reqSnap = await getDoc(reqRef);
+      if (reqSnap.exists()) return { success: false, error: "Request already sent." };
 
+      await setDoc(reqRef, {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        isPro: isPro,
+        timestamp: Date.now()
+      });
       return { success: true };
     } catch (e) {
-      console.error("Add Friend Error:", e);
-      // Check specifically for permission errors
-      if (e.code === 'permission-denied') {
-        return { success: false, error: "Database permission denied. Check Firestore Rules." };
-      }
-      return { success: false, error: "Error adding friend. See console for details." };
+      if (e.code === 'permission-denied') return { success: false, error: "Unable to send (User may have blocked you)." };
+      return { success: false, error: "Failed to send request." };
     }
-  };
+  }, [user, isPro]);
 
-  const handleRemoveFriend = async (friendId) => {
+  const handleCheckOutgoingRequest = useCallback(async (targetUserId) => {
+    if (!user) return false;
+    try {
+      const reqRef = doc(db, "users", targetUserId, "friendRequests", user.uid);
+      const snap = await getDoc(reqRef);
+      return snap.exists();
+    } catch (e) { return false; }
+  }, [user]);
+
+  const handleBlockUser = useCallback(async (targetUser) => {
     if (!user) return;
     try {
-      await deleteDoc(doc(db, "users", user.uid, "friends", friendId));
-    } catch (e) {
-      console.error("Error removing friend", e);
-    }
-  };
+      const batch = writeBatch(db);
+
+      const uid = targetUser.uid || targetUser;
+      const displayName = targetUser.displayName || "Unknown User";
+      const photoURL = targetUser.photoURL || null;
+      const email = targetUser.email || null;
+
+      const blockRef = doc(db, "users", user.uid, "blocked", uid);
+      batch.set(blockRef, { timestamp: Date.now(), displayName, photoURL, email });
+
+      batch.delete(doc(db, "users", user.uid, "friends", uid));
+      batch.delete(doc(db, "users", uid, "friends", user.uid));
+      batch.delete(doc(db, "users", user.uid, "friendRequests", uid));
+      batch.delete(doc(db, "users", uid, "friendRequests", user.uid));
+
+      await batch.commit();
+
+      setFriends(prev => prev.filter(f => f.uid !== uid));
+      setFriendRequests(prev => prev.filter(req => req.uid !== uid));
+    } catch (e) { console.error("Block failed:", e); }
+  }, [user]);
+
+  const handleUnblockUser = useCallback(async (blockedUserId) => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "users", user.uid, "blocked", blockedUserId));
+      batch.delete(doc(db, "users", user.uid, "friends", blockedUserId));
+      await batch.commit();
+      setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUserId));
+      setFriends(prev => prev.filter(f => f.uid !== blockedUserId));
+    } catch (e) { console.error("Unblock failed:", e); }
+  }, [user]);
+
+  const handleAcceptRequest = useCallback(async (requester) => {
+    if (!user) return;
+    const batch = writeBatch(db);
+    batch.set(doc(db, "users", user.uid, "friends", requester.uid), { addedAt: Date.now() });
+    batch.set(doc(db, "users", requester.uid, "friends", user.uid), { addedAt: Date.now() });
+    batch.delete(doc(db, "users", user.uid, "friendRequests", requester.uid));
+    await batch.commit();
+  }, [user]);
+
+  const handleDeclineRequest = useCallback(async (requesterId) => {
+    if (!user) return;
+    await deleteDoc(doc(db, "users", user.uid, "friendRequests", requesterId));
+  }, [user]);
+
+  const handleRemoveFriend = useCallback(async (friendId) => {
+    if (!user) return;
+    setFriends(prev => prev.filter(f => f.uid !== friendId));
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "users", user.uid, "friends", friendId));
+    batch.delete(doc(db, "users", friendId, "friends", user.uid));
+    await batch.commit();
+  }, [user]);
+
+  const handleTogglePin = useCallback(async (friendId, currentStatus) => {
+    if (!user) return;
+    const friendRef = doc(db, "users", user.uid, "friends", friendId);
+    await setDoc(friendRef, { isPinned: !currentStatus }, { merge: true });
+  }, [user]);
+
   const handleViewFriendStats = (friend) => {
     setViewingFriendStats(friend);
     setShowStats(true);
     setShowFriends(false);
   };
-  // --- NEW: Toggle Pin Function ---
-  const handleTogglePin = async (friendId, currentStatus) => {
-    if (!user) return;
-    const friendRef = doc(db, "users", user.uid, "friends", friendId);
-    await setDoc(friendRef, { isPinned: !currentStatus }, { merge: true });
-  };
 
-  // --- UPDATED: Robust Search (Name Casing + Email Prefix) ---
   const handleSearchUsers = useCallback(async (queryText) => {
     if (!queryText) return [];
     const term = queryText.trim();
+    if (!term) return [];
 
+    // AUTO-PREFIX @ LOGIC
     const termLower = term.toLowerCase();
-    const termUpper = term.toUpperCase();
-    const termCapitalized = term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
-
-    const usersRef = collection(db, "users");
-    const resultsMap = new Map();
-
-    const queries = [];
-
-    // 1. Email Search
-    queries.push(query(usersRef,
-      where("email", ">=", termLower),
-      where("email", "<=", termLower + '\uf8ff'),
-      limit(5)
-    ));
-
-    // 2. Name Search: As Typed
-    queries.push(query(usersRef,
-      where("displayName", ">=", term),
-      where("displayName", "<=", term + '\uf8ff'),
-      limit(5)
-    ));
-
-    // 3. Name Search: ALL CAPS
-    if (term !== termUpper) {
-      queries.push(query(usersRef,
-        where("displayName", ">=", termUpper),
-        where("displayName", "<=", termUpper + '\uf8ff'),
-        limit(5)
-      ));
+    let handleQuery = termLower;
+    if (!handleQuery.startsWith('@')) {
+      handleQuery = '@' + handleQuery;
     }
 
-    // 4. Name Search: Capitalized
-    if (term !== termCapitalized && termCapitalized !== termUpper) {
-      queries.push(query(usersRef,
-        where("displayName", ">=", termCapitalized),
-        where("displayName", "<=", termCapitalized + '\uf8ff'),
-        limit(5)
-      ));
-    }
+    const profilesRef = collection(db, "publicProfiles");
+
+    const senderHandle = stats.handle || user.handle || "@user";
+
+    // Query 1: By Handle
+    const q1 = query(profilesRef, where("handle_lowercase", ">=", handleQuery), where("handle_lowercase", "<=", handleQuery + '\uf8ff'), limit(5));
+    // Query 2: By Display Name
+    const q2 = query(profilesRef, where("displayName", ">=", term), where("displayName", "<=", term + '\uf8ff'), limit(5));
 
     try {
-      const snapshots = await Promise.all(queries.map(q => getDocs(q)));
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const resultsMap = new Map();
+      // Exclude blocked users logic here...
+      const blockedSet = new Set(blockedUsers.map(b => b.uid));
 
-      snapshots.forEach(snap => {
-        snap.forEach(doc => {
-          if (doc.id !== user.uid) {
-            resultsMap.set(doc.id, { uid: doc.id, ...doc.data() });
-          }
-        });
+      [...snap1.docs, ...snap2.docs].forEach(doc => {
+        const docId = doc.id;
+        if (docId !== user.uid && !blockedSet.has(docId)) {
+          const data = doc.data();
+          resultsMap.set(docId, {
+            uid: docId,
+            displayName: data.displayName,
+            photoURL: data.photoURL,
+            handle: data.handle, // Return the handle
+            isPro: data.isPro
+          });
+        }
       });
-
       return Array.from(resultsMap.values());
-
     } catch (e) {
-      console.error("Search error", e);
+      console.error("Search error:", e);
       return [];
     }
-  }, [user]); // <--- Dependency ensures function stays stable unless user changes
+  }, [user, blockedUsers]);
 
   // --- End Social Logic ---
 
@@ -4574,6 +5468,10 @@ function MainApp() {
           const userIsPro = data.subscription?.plan === 'pro';
           setIsPro(userIsPro);
           // ---------------------------
+
+          const prefs = data.preferences || {};
+          setUnlockedAmbiences(prefs.unlockedAmbiences || []);
+          setAmbienceSetupDone(prefs.ambienceSetupDone || false);
 
           // 2. LOAD NOTES
           let loadedNotes = data.notes || [];
@@ -4687,6 +5585,7 @@ function MainApp() {
         let newStats = { ...stats };
         let lastActiveDate = newStats.lastActiveDate ? (newStats.lastActiveDate.toDate ? newStats.lastActiveDate.toDate() : new Date(newStats.lastActiveDate)) : null;
 
+        // --- STREAK CALCULATION LOGIC ---
         if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
           if (lastActiveDate && isYesterday(today, lastActiveDate)) {
             newStats.currentStreak += 1;
@@ -4705,9 +5604,21 @@ function MainApp() {
           stats: newStats
         };
 
+        // 1. Save Private Data (Existing)
         await setDoc(userDocRef, payload, { merge: true });
 
-        // FIXED: Update the prevNotes ref
+        // 2. NEW: Sync Public Stats (Efficiently)
+        // We only update the 'stats' & 'isPro' field in publicProfiles
+        // This runs only when necessary (debounced), preventing database spam.
+        if (user) {
+          const publicRef = doc(db, "publicProfiles", user.uid);
+          await setDoc(publicRef, {
+            stats: newStats,
+            isPro: isPro
+          }, { merge: true });
+        }
+
+        // Update Refs
         prevNotes.current = notes;
         prevSettings.current = settings;
         prevSessionName.current = sessionName;
@@ -4793,44 +5704,68 @@ function MainApp() {
   };
 
   // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
-  const toggleAmbience = (track) => {
+  // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
+  // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
+  const toggleAmbience = (track, isPreview = false) => {
     const id = track.id;
 
-    // Check if already active
+    // Check if already active -> STOP IT
     if (ambienceState[id]?.isPlaying) {
-      // STOP IT
       const audio = ambienceRefs.current[id];
       if (audio) {
         audio.pause();
-        audio.currentTime = 0; // Reset position
+        audio.currentTime = 0;
+        // Remove 'ended' listener if it exists to prevent memory leaks/bugs
+        audio.onended = null;
       }
       setAmbienceState(prev => {
         const next = { ...prev };
-        delete next[id]; // Remove from active state UI
+        delete next[id];
         return next;
       });
     } else {
       // START IT
-      // 1. Create or get Audio object
       if (!ambienceRefs.current[id]) {
         ambienceRefs.current[id] = new Audio(track.src);
-        // CRITICAL: Infinite Loop enabled here
-        ambienceRefs.current[id].loop = true;
       }
       const audio = ambienceRefs.current[id];
 
-      // 2. Set Volume (Default 0.5)
+      // CRITICAL CHANGE: Loop behavior based on isPreview
+      audio.loop = !isPreview;
       audio.volume = 0.5;
 
-      // 3. Play
+      // If preview, auto-deselect when sound finishes
+      if (isPreview) {
+        audio.onended = () => {
+          setAmbienceState(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        };
+      } else {
+        audio.onended = null; // Clear listener for normal mode
+      }
+
       audio.play().catch(e => console.error("Ambience fail", e));
 
-      // 4. Update State
       setAmbienceState(prev => ({
         ...prev,
         [id]: { isPlaying: true, volume: 0.5 }
       }));
     }
+  };
+
+  const stopAllAmbience = () => {
+    Object.keys(ambienceRefs.current).forEach(key => {
+      const audio = ambienceRefs.current[key];
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.onended = null;
+      }
+    });
+    setAmbienceState({}); // Clear UI state
   };
 
   const changeAmbienceVolume = (id, newVol) => {
@@ -5405,8 +6340,97 @@ function MainApp() {
         {showLoginBtn && onboardingStep === 0 && (<div className="absolute bottom-20 md:bottom-32 animate-fade-in opacity-0" style={{ animationDelay: '1.5s', animationFillMode: 'forwards' }}><button onClick={handleLogin} className="group flex items-center gap-3 px-6 py-3 border border-white/20 rounded-full hover:bg-white/10 transition-all hover:border-white/50"><GoogleLogo /><span className="text-sm tracking-widest uppercase text-white/80 group-hover:text-white">Sign in with Google</span></button></div>)}
       </div>
 
+      {/* --- STEP 1: HANDLE ONBOARDING (FIXED ALIGNMENT & REDIRECT) --- */}
       <div className={`fixed inset-0 z-40 bg-black flex flex-col items-center justify-center transition-all duration-700 ${onboardingStep === 1 ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 blur-exit pointer-events-none'}`}>
-        <div className="w-full max-w-xl px-8 flex flex-col items-center gap-8"><h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight">{onboardingStep === 1 && <StaggeredText text="What are we working on?" />}</h2><div className="w-full animate-fade-in" style={{ animationDelay: '0.5s' }}><input ref={sessionInputRef} type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} onKeyDown={finishSessionInput} placeholder="Type here..." className="w-full bg-transparent border-b-2 border-white/20 py-4 text-center text-2xl md:text-3xl text-white focus:outline-none focus:border-white/60 transition-colors font-light" /><p className="text-white/40 text-sm mt-2 flex justify-center items-center gap-2">Press <span className="border border-white/20 px-2 py-0.5 rounded text-xs">Enter</span> to continue</p></div></div>
+        <div className="w-full max-w-4xl px-8 flex flex-col items-center">
+
+          <h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-12">
+            {onboardingStep === 1 && (
+              isMigrating
+                ? <StaggeredText text="We're moving to usernames. Claim yours." />
+                : <StaggeredText text="Claim your identity." />
+            )}
+          </h2>
+
+          <div className="relative w-full flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+
+            {/* CENTERED INPUT GROUP */}
+            <div className="relative flex items-center justify-center">
+
+              {/* THE @ SYMBOL */}
+              <span className="text-3xl md:text-5xl font-light text-white/30 select-none mr-0.5 transform -translate-y-[1px]">@</span>
+
+              {/* INPUT WRAPPER (Auto-Resizing) */}
+              <div className="relative min-w-[20px]">
+
+                {/* 1. GHOST SPAN (Invisible - Defines Width) */}
+                <span className="invisible text-3xl md:text-5xl font-light whitespace-pre block h-full min-w-[1ch] px-1">
+                  {onboardingHandle || "username"}
+                </span>
+
+                {/* 2. REAL INPUT (Absolute Overlay) */}
+                <input
+                  autoFocus
+                  type="text"
+                  value={onboardingHandle}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
+                    setOnboardingHandle(val);
+                    if (val !== onboardingHandle) setHandleStatus("checking");
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmHandleAndContinue()}
+                  // text-left ensures typing starts right next to the @
+                  className="absolute inset-0 w-full h-full bg-transparent border-none outline-none text-3xl md:text-5xl font-light text-white placeholder-white/10 text-left p-0 m-0 focus:ring-0 px-1"
+                  placeholder="username"
+                  spellCheck={false}
+                />
+              </div>
+
+              {/* STATUS INDICATOR (Absolute Right of the group) */}
+              <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 flex items-center">
+                {handleStatus === 'checking' && <Loader2 size={24} className="animate-spin text-white/30" />}
+                {handleStatus === 'available' && onboardingHandle.length > 0 && (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-green-500/20 p-1 rounded-full border border-green-500/50">
+                    <Check size={16} className="text-green-400" strokeWidth={3} />
+                  </motion.div>
+                )}
+                {handleStatus === 'taken' && (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-red-500/20 p-1 rounded-full border border-red-500/50">
+                    <X size={16} className="text-red-400" strokeWidth={3} />
+                  </motion.div>
+                )}
+              </div>
+            </div>
+
+            {/* SUGGESTIONS & CONFIRM BUTTON AREA */}
+            <div className="h-24 mt-8 flex flex-col items-center justify-start w-full">
+              <AnimatePresence mode="wait">
+
+                {/* CASE: TAKEN */}
+                {handleStatus === 'taken' && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center gap-3">
+                    <span className="text-red-400 text-sm font-medium">That handle is taken. Try one of these?</span>
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {handleSuggestions.map((s) => (
+                        <button key={s} onClick={() => { setOnboardingHandle(s); setHandleStatus("available"); }} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/30 text-white/70 hover:text-white text-sm transition-all">@{s}</button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* CASE: AVAILABLE (Show Continue) */}
+                {handleStatus === 'available' && onboardingHandle.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4">
+                    <button onClick={confirmHandleAndContinue} disabled={isSavingHandle} className="group flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors">
+                      <span>{isSavingHandle ? "Setting up..." : "Press Enter to continue"}</span>
+                      {!isSavingHandle && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* --- MAIN DASHBOARD (Responsive Redesign) --- */}
@@ -5556,11 +6580,7 @@ function MainApp() {
         {/* --- TIMER SECTION (Main) --- */}
 
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full">
-            <div className="mb-4 md:mb-6 group relative">
-              {isEditingName ? (<input id="session-name-input" ref={nameInputRef} type="text" value={sessionName} onChange={(e) => setSessionName(e.target.value)} onBlur={() => setIsEditingName(false)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }} className="bg-transparent border-b border-white/50 text-center text-white/80 text-xl md:text-xl focus:outline-none font-light tracking-wide min-w-[200px] w-auto" />) : (<div onClick={() => setIsEditingName(true)} className="relative flex items-center justify-center gap-2 cursor-pointer text-white/50 hover:text-white transition-colors py-1"><span className="text-xl md:text-xl font-light tracking-wide text-center">{sessionName || "Deep Work Session"}</span><Pencil size={14} className="opacity-0 group-hover:opacity-100 absolute -right-6 transition-opacity" /></div>)}
-            </div>
-
+          <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
             <div className="flex items-center justify-center mb-4 md:mb-8 h-10 w-full max-w-md">
               {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
                 const isCurrent = mode === m.id;
@@ -5598,7 +6618,13 @@ function MainApp() {
               />
             </div>
 
-            <GameCenter mode={mode} timeLeft={timeLeft} background={settings.background} />
+            <GameCenter
+              mode={mode}
+              timeLeft={timeLeft}
+              background={settings.background}
+              isPro={isPro}
+              onOpenPro={() => setProModalSource('arcade')} // Pass 'arcade' source
+            />
 
           </div>
         </main>
@@ -5635,6 +6661,7 @@ function MainApp() {
         user={user}
         stats={stats}
         onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
+
       />
       <FriendProfileModal
         isOpen={showStats} // Using showStats state to trigger this
@@ -5648,13 +6675,11 @@ function MainApp() {
 
       <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
       <MusicModal
-        // Global
+        // ... (keep existing props like volume, currentTrack, etc.) ...
         volume={volume}
         onVolumeChange={setVolume}
         isOpen={showMusic}
         onClose={() => setShowMusic(false)}
-
-        // Music
         currentTrack={currentTrack}
         isPlaying={isMusicPlaying}
         onPlay={handlePlayMusic}
@@ -5663,15 +6688,20 @@ function MainApp() {
         progress={musicProgress}
         duration={musicDuration}
         onSeek={handleSeekMusic}
-
-        // Ambience Mixer Props (NEW)
         ambienceState={ambienceState}
         onToggleAmbience={toggleAmbience}
         onAmbienceVolume={changeAmbienceVolume}
-
-        // Lofi
         isLofiPlaying={isLofiPlaying}
         onToggleLofi={toggleLofi}
+
+        // --- NEW PROPS ---
+        isPro={isPro}
+        unlockedAmbiences={unlockedAmbiences}
+        ambienceSetupDone={ambienceSetupDone}
+        onSaveAmbienceSelection={handleSaveAmbienceSelection}
+        onOpenPro={() => setProModalSource('ambience')}
+        onStopAllAmbience={stopAllAmbience}
+      // -----------------
       />
       {/* --------------------- */}
 
@@ -5704,17 +6734,27 @@ function MainApp() {
 
       <NotificationCenter />
 
-
       <SocialModal
         isOpen={showFriends}
-        onClose={() => setShowFriends(false)}
+        onClose={() => {
+          setShowFriends(false);
+          setSocialView('list');
+        }}
+        initialView={socialView}
         user={user}
         friends={friends}
-        onAddFriend={handleAddFriend}
+        friendRequests={friendRequests}
+        blockedUsers={blockedUsers}
+        onSendRequest={handleSendRequest}
+        onAcceptRequest={handleAcceptRequest}
+        onDeclineRequest={handleDeclineRequest}
+        onBlockUser={handleBlockUser}
+        onUnblockUser={handleUnblockUser}
+        checkOutgoingRequest={handleCheckOutgoingRequest}
         onViewStats={handleViewFriendStats}
-        onTogglePin={handleTogglePin}        // <--- NEW
+        onTogglePin={handleTogglePin}
         onSearchUsers={handleSearchUsers}
-        onRemoveFriend={handleRemoveFriend} // <--- NEW
+        onRemoveFriend={handleRemoveFriend}
       />
 
       <NoteSystemModals
@@ -5727,6 +6767,15 @@ function MainApp() {
         onDelete={handleDeleteNote}
         onReorder={handleReorderNotes}
         onSaveOrder={() => saveNotesOrder(notes)}
+        isPro={isPro}
+        onOpenPro={() => setProModalSource('notes')}
+      />
+
+      <GetProModal
+        isOpen={!!proModalSource} // Open if source is not null
+        onClose={() => setProModalSource(null)}
+        onUpgrade={handleUpgradeToPro}
+        source={proModalSource} // Pass the source string ('notes' or 'arcade')
       />
     </div >
   );
