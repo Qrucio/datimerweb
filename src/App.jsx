@@ -897,7 +897,16 @@ const ProCelebrationModal = ({ isPro, user }) => {
   );
 };
 
-const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDeleteRequest }) => {
+const AccountModal = ({
+  isOpen,
+  onClose,
+  user,
+  stats,
+  onSignOut,
+  isPro,
+  onDeleteRequest,
+  currentHandle // <--- Destructured new prop
+}) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -915,11 +924,12 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
   // Initialize Handle State
   useEffect(() => {
     if (user && isOpen) {
-      const current = user.handle || stats.handle || "";
+      // LOGIC FIX: Use the currentHandle prop passed from MainApp
+      const current = currentHandle || "";
       setNewHandle(current.replace(/^@/, ''));
       checkCooldown();
     }
-  }, [user, isOpen, stats]);
+  }, [user, isOpen, currentHandle]);
 
   // Load History
   useEffect(() => {
@@ -939,8 +949,8 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
     const timer = setTimeout(async () => {
       if (isEditingHandle && newHandle.length >= 3) {
         // Ignore if it matches current handle (case insensitive)
-        const currentHandle = user.handle || "";
-        const cleanCurrent = currentHandle.replace(/^@/, '');
+        const currentStr = currentHandle || "";
+        const cleanCurrent = currentStr.replace(/^@/, '');
 
         if (newHandle.toLowerCase() === cleanCurrent.toLowerCase()) {
           setHandleStatus("available");
@@ -976,7 +986,7 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [newHandle, isEditingHandle, user]);
+  }, [newHandle, isEditingHandle, user, currentHandle]);
 
   // --- COOLDOWN CHECKER ---
   const checkCooldown = async () => {
@@ -1112,7 +1122,8 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
                               e.preventDefault();
                               setIsEditingHandle(false);
                               setHandleError(null);
-                              setNewHandle(user.handle ? user.handle.replace(/^@/, '') : "");
+                              // Reset to current prop
+                              setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : "");
                             } else if (e.key === 'Enter') {
                               e.preventDefault();
                               handleSaveHandle();
@@ -1124,7 +1135,12 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
                         />
                       </div>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button onClick={() => { setIsEditingHandle(false); setHandleError(null); setHandleStatus('idle'); setNewHandle(user.handle ? user.handle.replace(/^@/, '') : ""); }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
+                        <button onClick={() => {
+                          setIsEditingHandle(false);
+                          setHandleError(null);
+                          setHandleStatus('idle');
+                          setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : "");
+                        }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
                         <button
                           onClick={handleSaveHandle}
                           disabled={isSaving || handleStatus !== 'available'}
@@ -1159,7 +1175,8 @@ const AccountModal = ({ isOpen, onClose, user, stats, onSignOut, isPro, onDelete
                   </div>
                 ) : (
                   <div className="relative group flex items-center justify-center">
-                    <p className="text-white text-base font-medium tracking-wide">{user?.handle || stats.handle || "@no_handle"}</p>
+                    {/* DISPLAY CURRENT HANDLE (Using the new prop) */}
+                    <p className="text-white text-base font-medium tracking-wide">{currentHandle || "@no_handle"}</p>
                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2">
                       <button onClick={() => setIsEditingHandle(true)} disabled={daysRemaining > 0} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full ${daysRemaining > 0 ? 'cursor-not-allowed text-white/5' : 'hover:bg-white/10 text-white/50 hover:text-white'}`}>
                         {daysRemaining > 0 ? <Lock size={12} /> : <Pencil size={12} />}
@@ -3218,9 +3235,25 @@ const LiquidButton = ({
             </motion.button>
           ) : (
             <motion.div key="content" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="flex items-center justify-between w-full px-1">
-              <button onClick={(e) => { e.stopPropagation(); setStatus('idle'); }} className="w-7 h-7 rounded-full bg-black/20 text-white/50 flex items-center justify-center hover:bg-black/40 hover:text-white transition-colors"> <X size={12} strokeWidth={3} /> </button>
+
+              {/* --- 1. CONFIRM (TICK) IS NOW FIRST (LEFT) --- */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onConfirm(); setStatus('idle'); }}
+                className={`w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-95 ${styles.confirmBtnClass}`}
+              >
+                <Check size={14} strokeWidth={3} />
+              </button>
+
+              {/* --- 2. LABEL (CENTER) --- */}
               <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${styles.labelColor}`}>{label}</span>
-              <button onClick={(e) => { e.stopPropagation(); onConfirm(); setStatus('idle'); }} className={`w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-95 ${styles.confirmBtnClass}`}> <Check size={14} strokeWidth={3} /> </button>
+
+              {/* --- 3. CANCEL (X) IS NOW LAST (RIGHT) --- */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
+                className="w-7 h-7 rounded-full bg-black/20 text-white/50 flex items-center justify-center hover:bg-black/40 hover:text-white transition-colors"
+              >
+                <X size={12} strokeWidth={3} />
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -4486,8 +4519,16 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
   );
 };
 
-function MainApp() {
+const DEFAULT_STATS = {
+  dailyFocusTime: 0,
+  dailyBreakTime: 0,
+  dailySessions: 0,
+  currentStreak: 0,
+  lastActiveDate: null
+};
 
+function MainApp() {
+  const [userHandle, setUserHandle] = useState("");
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
@@ -4513,7 +4554,7 @@ function MainApp() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [pomoCount, setPomoCount] = useState(0);
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
-
+  const [stats, setStats] = useState(DEFAULT_STATS);
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
@@ -4528,7 +4569,43 @@ function MainApp() {
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
   const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
 
-  // --- OPTIMIZED SYNC: Run ONCE on mount to migrate/ensure public profile exists ---
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      // Only run this check if we are in the onboarding step (Step 1)
+      if (onboardingStep === 1 && onboardingHandle.length >= 3) {
+
+        // Ignore if it matches current (unlikely in onboarding, but good safety)
+        if (user?.handle && onboardingHandle.toLowerCase() === user.handle.replace(/^@/, '').toLowerCase()) {
+          setHandleStatus("available");
+          return;
+        }
+
+        const fullHandle = `@${onboardingHandle}`;
+
+        // Query DB
+        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          setHandleStatus("available");
+        } else {
+          setHandleStatus("taken");
+          // Generate suggestions
+          const base = onboardingHandle.replace(/[^a-zA-Z0-9_]/g, '');
+          const s1 = `${base}_${Math.floor(Math.random() * 99)}`;
+          const s2 = `${base}${new Date().getFullYear()}`;
+          const s3 = `its_${base}`;
+          setHandleSuggestions([s1, s2, s3]);
+        }
+      } else if (onboardingStep === 1 && onboardingHandle.length > 0 && onboardingHandle.length < 3) {
+        setHandleStatus("idle"); // Too short
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [onboardingHandle, onboardingStep, user]);
+
+  // --- OPTIMIZED SYNC: Run ONCE on mount ---
   useEffect(() => {
     if (!user) return;
 
@@ -4542,18 +4619,19 @@ function MainApp() {
           getDoc(userRef)
         ]);
 
-        // CASE 1: BRAND NEW USER (No public profile, No private data)
+        // CASE 1: BRAND NEW USER
         if (!publicSnap.exists() && !userSnap.exists()) {
           console.log("Creating new user data...");
-          // Initialize PRIVATE data so stats can save immediately
+          // Initialize PRIVATE data 
+          // FIX 2: DEFAULT_STATS is now defined above, so this won't crash
           await setDoc(userRef, {
             email: user.email,
             createdAt: Date.now(),
             stats: DEFAULT_STATS,
             settings: DEFAULT_SETTINGS,
-            handle: null // Will be set in onboarding
+            handle: null
           });
-          // We don't create publicProfile yet; Onboarding (Step 1) does that.
+
           setIsMigrating(false);
           setOnboardingStep(1);
           setShowLoginBtn(false);
@@ -4564,27 +4642,26 @@ function MainApp() {
         if (userSnap.exists() && !publicSnap.exists()) {
           console.log("Migrating legacy user...");
           const data = userSnap.data();
-          const baseHandle = data.handle || await getUniqueHandle(user.displayName || "User");
+          const baseName = user.displayName || "User";
+          // Use the helper you defined earlier for uniqueness
+          const baseHandle = data.handle || await getUniqueHandle(baseName);
 
-          // Create Public Profile
           await setDoc(publicRef, {
             uid: user.uid,
-            displayName: user.displayName || "User",
+            displayName: baseName,
             photoURL: user.photoURL || null,
             handle: baseHandle,
             handle_lowercase: baseHandle.toLowerCase(),
             isPro: data.subscription?.plan === 'pro',
-            stats: data.stats || {},
+            stats: data.stats || DEFAULT_STATS, // Ensure fallback
           });
 
-          // Ensure private doc has the handle
           if (!data.handle) {
             await setDoc(userRef, { handle: baseHandle }, { merge: true });
           }
         }
 
-        // CASE 3: EXISTING USER (Everything is good)
-        // Just checking if we need to sync handle to private doc (Sanity check)
+        // CASE 3: EXISTING USER
         if (publicSnap.exists() && userSnap.exists()) {
           const pubData = publicSnap.data();
           const privData = userSnap.data();
@@ -4886,14 +4963,8 @@ function MainApp() {
   const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
   const prevNotes = useRef([]);
 
-  const DEFAULT_STATS = {
-    dailyFocusTime: 0,
-    dailyBreakTime: 0,
-    dailySessions: 0,
-    currentStreak: 0,
-    lastActiveDate: null
-  };
-  const [stats, setStats] = useState(DEFAULT_STATS);
+
+
 
   // --- FOCUS MODE STATE ---
   const [focusMode, setFocusMode] = useState(false);
@@ -5051,7 +5122,9 @@ function MainApp() {
         stats: {
           // Atomic increment: This adds to the server value safely
           dailyFocusTime: mode === 'focus' ? increment(amount) : increment(0),
-          dailyBreakTime: mode !== 'focus' ? increment(amount) : increment(0)
+          dailyBreakTime: mode !== 'focus' ? increment(amount) : increment(0),
+          // FIX: Always update the date when saving time so logic knows it's today
+          lastActiveDate: Timestamp.now()
         },
         lastUpdated: new Date()
       }, { merge: true });
@@ -5463,11 +5536,11 @@ function MainApp() {
       const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+          setUserHandle(data.handle || "");
 
           // --- 1. PRO STATUS CHECK ---
           const userIsPro = data.subscription?.plan === 'pro';
           setIsPro(userIsPro);
-          // ---------------------------
 
           const prefs = data.preferences || {};
           setUnlockedAmbiences(prefs.unlockedAmbiences || []);
@@ -5507,15 +5580,20 @@ function MainApp() {
             }
           }
 
-          // 4. STATS & DAILY RESET LOGIC
+          // 4. STATS & DAILY RESET LOGIC (FIXED)
           const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
           const today = new Date();
           let currentStreak = loadedStats.currentStreak;
-          let lastActiveDate = loadedStats.lastActiveDate ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate)) : null;
+
+          // Convert Firestore Timestamp to Date, or null
+          let lastActiveDate = loadedStats.lastActiveDate
+            ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate))
+            : null;
 
           let shouldResetDaily = false;
 
           if (lastActiveDate) {
+            // If date exists, check if it's a different day
             if (!isSameDay(lastActiveDate, today)) {
               shouldResetDaily = true;
               if (!isYesterday(today, lastActiveDate)) {
@@ -5523,11 +5601,14 @@ function MainApp() {
               }
             }
           } else {
-            shouldResetDaily = true;
-            currentStreak = 0;
+            // FIX: If date is MISSING, assume it's today (new user or legacy migration)
+            // Do NOT reset daily, otherwise we wipe the 10s you just earned!
+            shouldResetDaily = false;
+            lastActiveDate = today;
           }
 
           if (shouldResetDaily) {
+            // Archive logic...
             if (loadedStats.dailyFocusTime > 0) {
               const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
               const dateId = formatDateId(archiveDate);
@@ -5541,9 +5622,12 @@ function MainApp() {
 
           setStats(prevStats => {
             const newStats = { ...loadedStats, currentStreak };
+
+            // Protection: If NOT resetting, ensure we don't overwrite local progress with older server data
             if (!shouldResetDaily) {
               if (prevStats.dailyFocusTime > newStats.dailyFocusTime) newStats.dailyFocusTime = prevStats.dailyFocusTime;
               if (prevStats.dailyBreakTime > newStats.dailyBreakTime) newStats.dailyBreakTime = prevStats.dailyBreakTime;
+              if (prevStats.dailySessions > newStats.dailySessions) newStats.dailySessions = prevStats.dailySessions;
             }
             return newStats;
           });
@@ -5555,8 +5639,6 @@ function MainApp() {
 
           prevSettings.current = mergedSettings;
           prevSessionName.current = data.sessionName || "";
-
-          // Fixed: Update prevNotes ref
           prevNotes.current = loadedNotes;
         }
         setDataLoaded(true);
@@ -5564,7 +5646,6 @@ function MainApp() {
       return () => unsub();
     }
   }, [user]);
-
   useEffect(() => {
     if (!user || !dataLoaded) return;
 
@@ -6661,6 +6742,7 @@ function MainApp() {
         user={user}
         stats={stats}
         onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
+        currentHandle={userHandle}
 
       />
       <FriendProfileModal
