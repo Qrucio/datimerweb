@@ -4568,6 +4568,7 @@ function MainApp() {
   const [showStats, setShowStats] = useState(false);
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
   const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
+  const [isTallyHovered, setIsTallyHovered] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -5897,151 +5898,6 @@ function MainApp() {
   }
   useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
 
-
-  useEffect(() => {
-    // 1. Safety Clear: Ensure no rogue timers exist
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-    let lastTickTime = Date.now();
-
-    if (isActive) {
-      if (!endTimeRef.current) { endTimeRef.current = Date.now() + timeLeft * 1000; }
-      lastTickTime = Date.now();
-
-      // 2. Start new timer
-      timerIntervalRef.current = setInterval(() => {
-        const now = Date.now();
-        const diff = endTimeRef.current - now;
-        const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
-
-        setTimeLeft(prev => {
-          if (prev !== secondsRemaining) return secondsRemaining;
-          return prev;
-        });
-
-        // Sync heartbeat to server every minute
-        if (now - lastHeartbeatRef.current > 60000) {
-          lastHeartbeatRef.current = now;
-          syncTimerState({
-            isActive: true,
-            targetEndTime: endTimeRef.current,
-            mode: mode,
-            timeLeft: secondsRemaining,
-            sessionName: sessionName
-          });
-        }
-
-        // --- PRECISE TIME TRACKING ---
-        const delta = now - lastTickTime;
-        accumulatedTimeRef.current += delta;
-        const elapsedSeconds = Math.floor(accumulatedTimeRef.current / 1000);
-
-        if (elapsedSeconds > 0) {
-          accumulatedTimeRef.current -= (elapsedSeconds * 1000);
-          if (!devMode) {
-            unsavedSecondsRef.current += elapsedSeconds;
-          }
-          setStats(prevStats => {
-            const newStats = { ...prevStats };
-            if (mode === 'focus') {
-              newStats.dailyFocusTime += elapsedSeconds;
-            } else {
-              newStats.dailyBreakTime += elapsedSeconds;
-            }
-            return newStats;
-          });
-        }
-        lastTickTime = now;
-
-        // --- TIMER FINISHED LOGIC (SMOOTH TRANSITION FIX) ---
-        if (secondsRemaining <= 0) {
-          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-
-          // 1. Flush Stats & Play Sound
-          flushUnsavedTime();
-          playAlarm(mode);
-
-          // 2. Pre-calculate Next State (Avoids 00:00 flash)
-          let nextMode = mode;
-          let nextTimeLeft = 0;
-          let nextIsActive = false;
-          let nextPomoCount = pomoCount;
-
-          if (mode === 'focus') {
-            // Stats Update
-            if (!devMode) {
-              setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
-            }
-
-            // Strict Mode Exit
-            if (strictMode) {
-              document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
-            }
-
-            // Determine Break Type
-            nextPomoCount = pomoCount + 1;
-            setPomoCount(nextPomoCount);
-
-            if (nextPomoCount >= settings.pomosBeforeLongBreak) {
-              nextMode = 'longBreak';
-              nextTimeLeft = settings.longBreak * 60;
-              setPomoCount(0); // Reset cycle
-            } else {
-              nextMode = 'shortBreak';
-              nextTimeLeft = settings.shortBreak * 60;
-            }
-
-            if (settings.autoStartBreaks) nextIsActive = true;
-
-          } else {
-            // End of Break -> Back to Focus
-            nextMode = 'focus';
-
-            // Strict Mode Enter
-            if (strictMode) {
-              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
-            }
-
-            nextTimeLeft = settings.focus * 60;
-            if (settings.autoStartWork) nextIsActive = true;
-          }
-
-          // 3. Update Local State (Atomic batch update)
-          setMode(nextMode);
-          setTimeLeft(nextTimeLeft);
-          setIsActive(nextIsActive);
-
-          // 4. Handle Auto-Start Target
-          let nextTarget = null;
-          if (nextIsActive) {
-            nextTarget = Date.now() + (nextTimeLeft * 1000);
-            endTimeRef.current = nextTarget;
-          } else {
-            endTimeRef.current = null;
-          }
-
-          // 5. Sync FINAL State to Server (Don't sync 00:00!)
-          // This tells the server/other clients "I am now starting the next session" immediately.
-          syncTimerState({
-            isActive: nextIsActive,
-            targetEndTime: nextTarget,
-            mode: nextMode,
-            timeLeft: nextTimeLeft,
-            sessionName,
-            lastUpdated: Date.now()
-          });
-        }
-      }, 100);
-    } else {
-      endTimeRef.current = null;
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    }
-
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    };
-  }, [isActive, mode, settings, pomoCount, devMode, strictMode]);
-
   // --- TIMER INTERVAL & TRANSITION LOGIC ---
   useEffect(() => {
     // 1. Safety Clear: Ensure no rogue timers exist
@@ -6098,7 +5954,7 @@ function MainApp() {
         }
         lastTickTime = now;
 
-        // --- TIMER FINISHED LOGIC (SMOOTH TRANSITION FIX) ---
+        // --- TIMER FINISHED LOGIC ---
         if (secondsRemaining <= 0) {
           if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
@@ -6106,13 +5962,17 @@ function MainApp() {
           flushUnsavedTime();
           playAlarm(mode);
 
-          // 2. Pre-calculate Next State (Avoids 00:00 flash)
+          // 2. Pre-calculate Next State
           let nextMode = mode;
           let nextTimeLeft = 0;
           let nextIsActive = false;
+
+          // TALLY LOGIC FIX: Don't increment yet
           let nextPomoCount = pomoCount;
 
           if (mode === 'focus') {
+            // --- FOCUS ENDED ---
+
             // Stats Update
             if (!devMode) {
               setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
@@ -6123,23 +5983,45 @@ function MainApp() {
               document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
             }
 
-            // Determine Break Type
-            nextPomoCount = pomoCount + 1;
-            setPomoCount(nextPomoCount);
-
-            if (nextPomoCount >= settings.pomosBeforeLongBreak) {
+            // CHECK: Is this the last focus before Long Break?
+            // Note: We check (pomoCount + 1) because current session is about to end
+            // But we DO NOT increment the visual count yet.
+            if (pomoCount + 1 >= settings.pomosBeforeLongBreak) {
               nextMode = 'longBreak';
               nextTimeLeft = settings.longBreak * 60;
-              setPomoCount(0); // Reset cycle
+              // Do not reset pomoCount yet; let it stay "full" during Long Break
             } else {
               nextMode = 'shortBreak';
               nextTimeLeft = settings.shortBreak * 60;
+              // Do not increment pomoCount yet; wait for short break to finish
             }
 
             if (settings.autoStartBreaks) nextIsActive = true;
 
-          } else {
-            // End of Break -> Back to Focus
+          } else if (mode === 'shortBreak') {
+            // --- SHORT BREAK ENDED ---
+
+            // NOW we complete the session tally
+            nextPomoCount = pomoCount + 1;
+            setPomoCount(nextPomoCount);
+
+            nextMode = 'focus';
+
+            // Strict Mode Enter
+            if (strictMode) {
+              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
+            }
+
+            nextTimeLeft = settings.focus * 60;
+            if (settings.autoStartWork) nextIsActive = true;
+
+          } else if (mode === 'longBreak') {
+            // --- LONG BREAK ENDED ---
+
+            // Reset Cycle Tally
+            nextPomoCount = 0;
+            setPomoCount(0);
+
             nextMode = 'focus';
 
             // Strict Mode Enter
@@ -6152,7 +6034,6 @@ function MainApp() {
           }
 
           // 3. Update Local State (Atomic batch update)
-          // CRITICAL: Set state directly to the NEXT duration, skipping 0.
           setMode(nextMode);
           setTimeLeft(nextTimeLeft);
           setIsActive(nextIsActive);
@@ -6166,8 +6047,7 @@ function MainApp() {
             endTimeRef.current = null;
           }
 
-          // 5. Sync FINAL State to Server (Don't sync 00:00!)
-          // This tells the server/other clients "I am now starting the next session" immediately.
+          // 5. Sync FINAL State
           syncTimerState({
             isActive: nextIsActive,
             targetEndTime: nextTarget,
@@ -6662,23 +6542,80 @@ function MainApp() {
 
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
-            <div className="flex items-center justify-center mb-4 md:mb-8 h-10 w-full max-w-md">
+            {/* --- MODE SWITCHER (Updated Margins: mb-2) --- */}
+            <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
               {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
                 const isCurrent = mode === m.id;
                 const totalSeconds = settings[m.id] * 60;
                 const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
                 let containerClass = `relative h-full rounded-full transition-all ${isActive ? 'duration-1000 ease-in-out' : 'duration-300 ease-out'} overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
-                if (isActive) { if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent"; } else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent"; } } else { containerClass += "flex-1 mx-1 md:mx-1.5 cursor-pointer "; if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white"; } else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white"; } }
+
+                if (isActive) {
+                  if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent"; }
+                  else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent"; }
+                } else {
+                  containerClass += "flex-1 mx-1 md:mx-1.5 cursor-pointer ";
+                  if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white"; }
+                  else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white"; }
+                }
+
                 return (
                   <button key={m.id} onClick={() => !isActive && handleModeChange(m.id)} className={containerClass} disabled={isActive}>
                     <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
-                    <span className={`relative z-10 transition-opacity duration-300 ${isActive ? 'opacity-0' : 'opacity-100 delay-200'}`}>{m.label}</span>
+                    <span className="relative z-10 mix-blend-difference text-white font-medium">{m.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="font-clock text-[20vw] md:text-[10rem] lg:text-[12rem] leading-none tracking-normal select-none tabular-nums text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">{formatTime(timeLeft)}</div>
+            {/* --- CYCLE TALLY INDICATOR (Updated Margins: mb-2) --- */}
+            <div
+              className="flex items-center justify-center gap-3 mb-2 h-8 cursor-default"
+              onMouseEnter={() => setIsTallyHovered(true)}
+              onMouseLeave={() => setIsTallyHovered(false)}
+            >
+              {Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
+                const isCompleted = i < pomoCount;
+                const isCurrent = i === pomoCount;
+
+                // Only the CURRENT session expands, and only when the section is hovered
+                const shouldExpand = isCurrent && isTallyHovered;
+
+                return (
+                  <div
+                    key={i}
+                    className={`
+                      relative rounded-full flex items-center justify-center
+                      transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]
+                      ${shouldExpand
+                        ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]'
+                        : (isCompleted || isCurrent)
+                          ? 'w-2 h-2 bg-white'
+                          : 'w-1.5 h-1.5 bg-white/20'
+                      }
+                    `}
+                  >
+                    {isCurrent && (
+                      <span
+                        className={`
+                          absolute inset-0 flex items-center justify-center
+                          text-xs font-bold font-mono text-black whitespace-nowrap leading-none
+                          transition-all duration-300
+                          ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}
+                        `}
+                      >
+                        {i + 1} / {settings.pomosBeforeLongBreak}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* --- TIMER --- */}
+            <div className="font-clock text-[20vw] md:text-[10rem] lg:text-[12rem] leading-none tracking-normal select-none tabular-nums text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+              {formatTime(timeLeft)}
+            </div>
 
             {/* --- CONTROLS --- */}
             <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
