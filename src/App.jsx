@@ -6341,18 +6341,28 @@ function MainApp() {
   useEffect(() => { if (isEditingName && nameInputRef.current) nameInputRef.current.focus(); }, [isEditingName]);
 
   useEffect(() => {
+    // 1. Define your icons here
+    const modeIcons = {
+      focus: '🎯',      // Focus
+      shortBreak: '🧘', // Short Break
+      longBreak: '🧘'   // Long Break
+    };
+
     if (isActive) {
-      document.title = `${formatTime(timeLeft)} | MindGrind`;
+      // 2. Get the icon based on current mode
+      const icon = modeIcons[mode] || '';
+
+      // 3. Update title: "⚡ 24:59 | MindGrind"
+      document.title = `${icon} ${formatTime(timeLeft)} |MindGrind`;
     } else {
-      // Reset title when paused or stopped
+      // Optional: You could show "⏸️ Paused" or just the app name
       document.title = "MindGrind";
     }
 
-    // Cleanup function to ensure title resets when component unmounts
     return () => {
       document.title = "MindGrind";
     };
-  }, [timeLeft, isActive]);
+  }, [timeLeft, isActive, mode]);
 
   const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
   const isSessionInProgress = timeLeft !== settings.focus * 60;
