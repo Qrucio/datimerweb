@@ -3044,7 +3044,7 @@ const LiquidStrictBtn = ({
                         </p>
                         <a
                           // 3. ADD YOUR GUIDE LINK HERE
-                          href="https://your-guide-link.com"
+                          href="https://www.notion.so/qrucio/Guide-to-install-Altimer-Companion-on-Chrome-2bdaf72de1fb8091a214d52c9d8a35aa?source=copy_link"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-[12px] text-white/60 hover:text-white underline decoration-white/20 underline-offset-2 transition-colors flex items-center gap-1"
