@@ -5292,14 +5292,27 @@ function MainApp() {
   // --- NEW: Sync Timer State Helper ---
   const syncTimerState = async (newState) => {
     if (!user) return;
+
     const payload = {
       timerState: {
         ...newState,
         lastUpdated: Date.now()
       }
     };
+
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
-    await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+
+    try {
+      // 1. Save to Private Doc (Your data)
+      await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+
+      // 2. Save to Public Profile (For friends to see)
+      await setDoc(doc(db, "publicProfiles", user.uid), {
+        timerState: payload.timerState
+      }, { merge: true });
+    } catch (e) {
+      console.error("Sync failed", e);
+    }
   };
 
   useEffect(() => {
@@ -5451,8 +5464,8 @@ function MainApp() {
     if (!user || friendUids.length === 0) { setFriends([]); return; }
     const unsubscribers = [];
     const currentFriendsData = {};
+
     friendUids.forEach(friendId => {
-      // ... inside the friends useEffect ...
       const unsub = onSnapshot(doc(db, "publicProfiles", friendId), (doc) => {
         if (doc.exists()) {
           const data = doc.data();
@@ -5463,54 +5476,51 @@ function MainApp() {
           let mode = 'focus';
           let timeLeft = 0;
 
-          // --- GHOST TIMER FIX ---
           if (data.timerState) {
             const now = Date.now();
-            const lastHeartbeat = data.timerState.lastUpdated || 0;
-            const timeSinceHeartbeat = now - lastHeartbeat;
 
-            // 1. TIMEOUT THRESHOLD (e.g., 2 minutes)
-            // If we haven't heard from their browser in 2 mins, they are Offline.
-            // (Your heartbeat interval is 60s, so 2 mins is a safe buffer)
-            if (timeSinceHeartbeat < 120000) {
-              isOnline = true;
-              mode = data.timerState.mode;
+            // --- NEW LOGIC: Trust the math, not just the update time ---
+            if (data.timerState.isActive) {
+              // If the timer is technically still running based on Target Time
+              if (data.timerState.targetEndTime > now) {
+                isOnline = true; // They are online because their timer is running
+                isActive = true;
+                mode = data.timerState.mode;
 
-              if (data.timerState.isActive) {
-                // Calculate remaining time
-                const remaining = Math.max(0, Math.ceil((data.timerState.targetEndTime - now) / 1000));
-
-                // 2. OVERRUN CHECK
-                // If the timer hit 0 while they were gone, mark as 'Done' or 'Idle' instead of negative/active
-                if (remaining > 0) {
-                  isActive = true;
-                  timeLeft = remaining;
-                  statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
-                } else {
-                  // Timer finished but they haven't reset it yet
-                  isActive = false;
-                  statusText = "Idle";
-                }
+                // Calculate time remaining LOCALLY
+                timeLeft = Math.ceil((data.timerState.targetEndTime - now) / 1000);
+                statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
               } else {
-                statusText = "Paused";
+                // Timer expired and they haven't come back to reset it yet
+                // We mark them as online but Idle for a grace period
+                isOnline = true;
+                isActive = false;
+                statusText = "Idle";
               }
             } else {
-              // Browser hasn't updated DB in > 2 mins -> Ghost/Offline
-              statusText = "Offline";
-              isOnline = false;
-              isActive = false;
+              // --- PAUSED STATE LOGIC ---
+              // If paused, we fall back to checking how long ago they paused
+              const lastUpdated = data.timerState.lastUpdated || 0;
+              // Give them a generous 10-minute buffer if paused
+              if (now - lastUpdated < 600000) {
+                isOnline = true;
+                isActive = false;
+                statusText = "Paused";
+              } else {
+                isOnline = false;
+                statusText = "Offline";
+              }
             }
           }
 
           currentFriendsData[friendId] = {
-            // ... existing properties ...
             uid: friendId,
             displayName: data.displayName || "Unknown",
             photoURL: data.photoURL,
             handle: data.handle,
-            isOnline,     // Uses the new strict check
-            isActive,     // Uses the new strict check
-            statusText,   // Uses the new strict check
+            isOnline,
+            isActive,
+            statusText,
             mode,
             timeLeft,
             isPinned: friendConfig[friendId]?.isPinned || false,
@@ -5522,9 +5532,16 @@ function MainApp() {
       });
       unsubscribers.push(unsub);
     });
+
+    // Local tick to update countdowns smoothly without DB reads
     const interval = setInterval(() => {
-      setFriends(prev => prev.map(f => (f.isActive && f.timeLeft > 0 ? { ...f, timeLeft: f.timeLeft - 1, statusText: `${f.mode === 'focus' ? 'Focusing' : 'Break'} • ${Math.floor((f.timeLeft - 1) / 60)}m` } : f)));
+      setFriends(prev => prev.map(f => (f.isActive && f.timeLeft > 0 ? {
+        ...f,
+        timeLeft: f.timeLeft - 1,
+        statusText: `${f.mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor((f.timeLeft - 1) / 60)}m`
+      } : f)));
     }, 1000);
+
     return () => { unsubscribers.forEach(u => u()); clearInterval(interval); };
   }, [user, friendUids, friendConfig]);
 
@@ -6113,8 +6130,8 @@ function MainApp() {
           return prev;
         });
 
-        // Sync heartbeat to server every minute
-        if (now - lastHeartbeatRef.current > 60000) {
+        // Sync heartbeat to server every 5 minutes
+        if (now - lastHeartbeatRef.current > 300000) {
           lastHeartbeatRef.current = now;
           syncTimerState({
             isActive: true,
@@ -6354,12 +6371,12 @@ function MainApp() {
 
   const isTimerRunning = isActive || (timeLeft < settings[mode] * 60 && timeLeft > 0);
 
-  const handleSettingsSave = (newSettings) => {
-    // 1. Calculate the difference for the CURRENT mode (e.g., did we change Focus from 25 -> 30?)
+  const handleSettingsSave = async (newSettings) => {
+    // 1. Calculate the difference for the CURRENT mode
     localStorage.setItem('zen_cache_settings', JSON.stringify(newSettings));
     const oldDuration = settings[mode];
     const newDuration = newSettings[mode];
-    const deltaMinutes = newDuration - oldDuration; // e.g., +5 or -5 or 0
+    const deltaMinutes = newDuration - oldDuration;
 
     // 2. Update local state
     setSettings(newSettings);
@@ -6367,26 +6384,21 @@ function MainApp() {
 
     if (isActive) {
       // --- A. TIMER IS RUNNING ---
-      // We do NOT stop the timer. We dynamicallly adjust it.
-
       let newTargetEndTime = endTimeRef.current;
       let newTimeLeft = timeLeft;
 
       if (deltaMinutes !== 0) {
-        // Convert minutes to ms and adjust the Target End Time
         const msToAdd = deltaMinutes * 60 * 1000;
         newTargetEndTime = endTimeRef.current + msToAdd;
         endTimeRef.current = newTargetEndTime;
-
-        // Adjust visual countdown immediately
         newTimeLeft = timeLeft + (deltaMinutes * 60);
         setTimeLeft(newTimeLeft);
       }
 
-      // Sync the ADJUSTED timer to Firestore (so mobile/other tabs see the jump)
+      // Sync ADJUSTED timer to BOTH Private and Public
       if (user) {
         const payload = {
-          settings: newSettings, // Save new settings
+          settings: newSettings,
           timerState: {
             isActive: true,
             targetEndTime: newTargetEndTime,
@@ -6396,19 +6408,21 @@ function MainApp() {
             lastUpdated: Date.now()
           }
         };
-        // Update Ref to prevent loop
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
-        setDoc(doc(db, "users", user.uid), payload, { merge: true });
+
+        // Write Private
+        await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+        // Write Public
+        await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
       }
 
     } else {
       // --- B. TIMER IS PAUSED/STOPPED ---
-      // Reset the display to the new duration
       const newDurationSeconds = newSettings[mode] * 60;
       setTimeLeft(newDurationSeconds);
       endTimeRef.current = null;
 
-      // Sync the RESET timer to Firestore
+      // Sync RESET timer to BOTH Private and Public
       if (user) {
         const payload = {
           settings: newSettings,
@@ -6422,7 +6436,11 @@ function MainApp() {
           }
         };
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
-        setDoc(doc(db, "users", user.uid), payload, { merge: true });
+
+        // Write Private
+        await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+        // Write Public
+        await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
       }
     }
   };
