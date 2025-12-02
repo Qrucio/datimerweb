@@ -176,6 +176,11 @@ const BACKGROUND_OPTIONS = [
   { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
   { id: 'noensunset', src: 'https://cdn.pixabay.com/video/2020/04/13/35889-407193331_large.mp4' },
   { id: 'lightinthefall', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
+  { id: 'mountains', src: 'https://pixabay.com/images/download/bachalpsee-7572681_1920.jpg' },
+  { id: 'watercolornature', src: 'https://pixabay.com/images/download/watercolor-texture-9981686_1920.jpg' },
+  { id: 'auroralights', src: 'https://pixabay.com/images/download/space-9938837_1920.jpg' },
+  { id: 'hongkongcitylightnight', src: 'https://pixabay.com/images/download/hong-kong-1990268_1920.jpg' },
+
 ];
 
 const cleanText = (text) => {
