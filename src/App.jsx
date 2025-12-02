@@ -45,6 +45,19 @@ const getUniqueHandle = async (baseName) => {
   return handle;
 };
 
+const AppLoader = () => (
+  <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4">
+      <SpinningLogo src="/logo/white.png" className="w-16 h-16 object-contain opacity-50" />
+      <div className="flex gap-1">
+        <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+        <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+        <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+      </div>
+    </div>
+  </div>
+);
+
 // Custom Snake Icon (Pixel style to match the game vibe)
 const SnakeIcon = ({ size = 24, className = "" }) => (
   <svg
@@ -4630,9 +4643,15 @@ const DEFAULT_STATS = {
 
 function MainApp() {
   const [userHandle, setUserHandle] = useState("");
+  const [isAppReady, setIsAppReady] = useState(false);
   const [user, setUser] = useState(null);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [greetingText, setGreetingText] = useState(() => { const cachedName = localStorage.getItem('pomodoro_user_name'); return cachedName ? `Welcome back, ${cachedName}` : "Hello, stranger"; });
+  const [onboardingStep, setOnboardingStep] = useState(() => {
+    const hasHandle = localStorage.getItem('zen_user_handle'); // <--- CHECK THIS
+    return hasHandle ? 3 : (localStorage.getItem('pomodoro_user_name') ? 3 : 0);
+  });
+
+  const [greetingText, setGreetingText] = useState("Hello, stranger");
+
   const [isMigrating, setIsMigrating] = useState(false);
   const [onboardingHandle, setOnboardingHandle] = useState("");
   const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
@@ -4647,15 +4666,41 @@ function MainApp() {
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
-  const [sessionName, setSessionName] = useState('');
+  // --- CACHE-FIRST STATE INITIALIZATION ---
+  const [sessionName, setSessionName] = useState(() => {
+    return localStorage.getItem('zen_cache_session_name') || '';
+  });
   const [isEditingName, setIsEditingName] = useState(false);
-  const [notes, setNotes] = useState([]);
+
+  // Load Notes from Cache
+  const [notes, setNotes] = useState(() => {
+    try {
+      const cached = localStorage.getItem('zen_cache_notes');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) { return []; }
+  });
+
   const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Load Settings from Cache
+  const [settings, setSettings] = useState(() => {
+    try {
+      const cached = localStorage.getItem('zen_cache_settings');
+      return cached ? JSON.parse(cached) : DEFAULT_SETTINGS;
+    } catch (e) { return DEFAULT_SETTINGS; }
+  });
+
   const [pomoCount, setPomoCount] = useState(0);
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
-  const [stats, setStats] = useState(DEFAULT_STATS);
+
+  // Load Stats from Cache
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = localStorage.getItem('zen_cache_stats');
+      return cached ? JSON.parse(cached) : DEFAULT_STATS;
+    } catch (e) { return DEFAULT_STATS; }
+  });
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
@@ -4808,6 +4853,7 @@ function MainApp() {
     }
 
     setNotes(updatedNotes);
+    localStorage.setItem('zen_cache_notes', JSON.stringify(updatedNotes));
 
     // Sync to Firestore
     if (user) {
@@ -5007,6 +5053,8 @@ function MainApp() {
 
     setIsSavingHandle(true);
     const fullHandle = `@${onboardingHandle}`;
+
+    localStorage.setItem('zen_user_handle', fullHandle);
 
     try {
       const batch = writeBatch(db);
@@ -5262,63 +5310,81 @@ function MainApp() {
       setIsAuthChecking(false);
 
       if (currentUser) {
+        // 1. Cache Name
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
 
-        // --- MIGRATION LOGIC STARTS HERE ---
+        // 2. CHECK: Do we already have a handle cached?
+        const cachedHandle = localStorage.getItem('zen_user_handle');
+
+        // If cached, ensure we remain on Dashboard (Step 3) visually
+        if (cachedHandle) {
+          setOnboardingStep(3);
+          setShowLoginBtn(false);
+        }
+
         try {
+          // 3. Verify with Database (Silent Background Check)
           const publicRef = doc(db, "publicProfiles", currentUser.uid);
           const publicSnap = await getDoc(publicRef);
-          const userRef = doc(db, "users", currentUser.uid);
-          const userSnap = await getDoc(userRef);
 
-          // Check if handle exists
-          const hasHandle = publicSnap.exists() && publicSnap.data().handle;
+          const dbHandle = publicSnap.exists() ? publicSnap.data().handle : null;
 
-          if (hasHandle) {
-            // User is good. Ensure private doc matches.
-            if (!userSnap.exists() || !userSnap.data().handle) {
-              await setDoc(userRef, { handle: publicSnap.data().handle }, { merge: true });
-            }
+          if (dbHandle) {
+            // CONFIRMED: User has handle. Update cache.
+            localStorage.setItem('zen_user_handle', dbHandle);
 
-            // Go to Dashboard
-            if (storedName) {
-              setShowLoginBtn(false);
-              setTimeout(() => setOnboardingStep(3), 1000);
-            } else {
-              setOnboardingStep(3);
-            }
+            // Ensure private doc matches (Self-healing)
+            const userRef = doc(db, "users", currentUser.uid);
+            await setDoc(userRef, { handle: dbHandle }, { merge: true });
 
-          } else {
-            // --- NO HANDLE FOUND ---
-            // If they have private data but no handle, they are a LEGACY user migrating.
-            if (userSnap.exists()) {
-              setIsMigrating(true);
-            } else {
-              setIsMigrating(false); // New user
-            }
-
-            // Pre-fill suggestion
-            const suggested = currentUser.displayName
-              ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
-              : "user";
-
-            setOnboardingHandle(suggested);
-
-            // Send to Step 1
-            setOnboardingStep(1);
+            // Force Dashboard
+            setOnboardingStep(3);
             setShowLoginBtn(false);
+          } else {
+            // REFUTED: DB says no handle. 
+            // Only redirect to Setup (Step 1) if we are NOT migrating an old account
+            // and we genuinely don't have a handle.
+
+            const userRef = doc(db, "users", currentUser.uid);
+            const userSnap = await getDoc(userRef);
+
+            // Handle Legacy Migration or New User
+            if (userSnap.exists() && userSnap.data().handle) {
+              // Edge case: Private handle exists, Public doesn't. Fix it silently.
+              setOnboardingStep(3); // Stay on dash
+              // (Your migration logic would go here if needed)
+            } else {
+              // Genuine New User -> Go to Setup
+              setIsMigrating(userSnap.exists());
+
+              // Generate Suggestion
+              const suggested = currentUser.displayName
+                ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
+                : "user";
+              setOnboardingHandle(suggested);
+
+              setOnboardingStep(1); // Show @ Screen
+              setShowLoginBtn(false);
+            }
           }
         } catch (e) {
-          console.error("Auth profile check failed:", e);
+          console.error("Auth check failed:", e);
         }
-        // -----------------------------------
 
       } else {
-        if (storedName) { setGreetingText("Hello, stranger"); setShowLoginBtn(true); localStorage.removeItem('pomodoro_user_name'); } else { setGreetingText("Hello, stranger"); setShowLoginBtn(true); }
+        // GUEST: Clear caches to ensure correct flow next time
+        localStorage.removeItem('zen_user_handle');
+        // Note: We keep 'pomodoro_user_name' if you want "Hello Stranger" to persist, 
+        // but typically guests start fresh.
+
+        setGreetingText("Hello, stranger");
+        setShowLoginBtn(true);
+        if (onboardingStep !== 3) setOnboardingStep(0);
         setDataLoaded(false);
       }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -5638,9 +5704,9 @@ function MainApp() {
       const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setUserHandle(data.handle || "");
 
-          // --- 1. PRO STATUS CHECK ---
+          // --- BASIC USER INFO ---
+          setUserHandle(data.handle || "");
           const userIsPro = data.subscription?.plan === 'pro';
           setIsPro(userIsPro);
 
@@ -5648,17 +5714,36 @@ function MainApp() {
           setUnlockedAmbiences(prefs.unlockedAmbiences || []);
           setAmbienceSetupDone(prefs.ambienceSetupDone || false);
 
-          // 2. LOAD NOTES
-          let loadedNotes = data.notes || [];
-          setNotes(loadedNotes);
+          // --- 1. SMART NOTES SYNC ---
+          // Guard Clause: Only update if server actually sends notes
+          if (data.notes) {
+            setNotes(data.notes);
+            localStorage.setItem('zen_cache_notes', JSON.stringify(data.notes)); // Cache
+          }
 
-          // 3. SYNC TIMER LOGIC
+          // --- 2. SMART SETTINGS SYNC ---
+          // Guard Clause: Only update if server actually sends settings
+          if (data.settings) {
+            const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
+            setSettings(mergedSettings);
+            localStorage.setItem('zen_cache_settings', JSON.stringify(mergedSettings)); // Cache
+
+            // Update ref to prevent infinite save loop
+            prevSettings.current = mergedSettings;
+          }
+
+          // --- 3. SMART TIMER SYNC ---
           if (data.timerState) {
             const remote = data.timerState;
+            // Only update if remote is newer than our last known update
             if (remote.lastUpdated > lastRemoteUpdate.current) {
               lastRemoteUpdate.current = remote.lastUpdated;
               setMode(remote.mode);
-              setSessionName(remote.sessionName);
+
+              // Load & Cache Session Name
+              const remoteName = remote.sessionName || data.sessionName || "";
+              setSessionName(remoteName);
+              localStorage.setItem('zen_cache_session_name', remoteName); // Cache
 
               if (remote.isActive) {
                 const now = Date.now();
@@ -5682,41 +5767,40 @@ function MainApp() {
             }
           }
 
-          // 4. STATS & DAILY RESET LOGIC (FIXED)
+          // --- 4. STATS & DAILY RESET LOGIC ---
           const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
           const today = new Date();
           let currentStreak = loadedStats.currentStreak;
 
-          // Convert Firestore Timestamp to Date, or null
           let lastActiveDate = loadedStats.lastActiveDate
             ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate))
             : null;
 
           let shouldResetDaily = false;
 
+          // Check if we need to reset for a new day
           if (lastActiveDate) {
-            // If date exists, check if it's a different day
             if (!isSameDay(lastActiveDate, today)) {
               shouldResetDaily = true;
               if (!isYesterday(today, lastActiveDate)) {
-                currentStreak = 0;
+                currentStreak = 0; // Reset streak if missed a day
               }
             }
           } else {
-            // FIX: If date is MISSING, assume it's today (new user or legacy migration)
-            // Do NOT reset daily, otherwise we wipe the 10s you just earned!
+            // No date found (new user), assume today
             shouldResetDaily = false;
             lastActiveDate = today;
           }
 
           if (shouldResetDaily) {
-            // Archive logic...
+            // Archive yesterday's stats to history subcollection
             if (loadedStats.dailyFocusTime > 0) {
               const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
               const dateId = formatDateId(archiveDate);
               const historyRef = doc(db, "users", user.uid, "history", dateId);
               setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
             }
+            // Reset daily counters
             loadedStats.dailyFocusTime = 0;
             loadedStats.dailyBreakTime = 0;
             loadedStats.dailySessions = 0;
@@ -5725,24 +5809,21 @@ function MainApp() {
           setStats(prevStats => {
             const newStats = { ...loadedStats, currentStreak };
 
-            // Protection: If NOT resetting, ensure we don't overwrite local progress with older server data
+            // Protection: If NOT resetting, preserve local progress if it's ahead of server
             if (!shouldResetDaily) {
               if (prevStats.dailyFocusTime > newStats.dailyFocusTime) newStats.dailyFocusTime = prevStats.dailyFocusTime;
               if (prevStats.dailyBreakTime > newStats.dailyBreakTime) newStats.dailyBreakTime = prevStats.dailyBreakTime;
               if (prevStats.dailySessions > newStats.dailySessions) newStats.dailySessions = prevStats.dailySessions;
             }
+
+            // CRITICAL: Cache the calculated stats immediately
+            localStorage.setItem('zen_cache_stats', JSON.stringify(newStats));
+
             return newStats;
           });
-
-          // 5. LOAD SETTINGS
-          const mergedSettings = { ...DEFAULT_SETTINGS, ...(data.settings || {}) };
-          setSettings(mergedSettings);
-          if (data.sessionName && !sessionName) setSessionName(data.sessionName);
-
-          prevSettings.current = mergedSettings;
-          prevSessionName.current = data.sessionName || "";
-          prevNotes.current = loadedNotes;
         }
+
+        // Mark app as fully loaded
         setDataLoaded(true);
       });
       return () => unsub();
@@ -5981,15 +6062,23 @@ function MainApp() {
 
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
   const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
+
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // Clear all user-specific cache
       localStorage.removeItem('pomodoro_user_name');
+      localStorage.removeItem('zen_cache_settings');
+      localStorage.removeItem('zen_cache_notes');
+      localStorage.removeItem('zen_cache_session_name');
+      localStorage.removeItem('zen_cache_stats');
+
       window.location.reload();
     } catch (error) {
       console.error("Error signing out: ", error);
     }
   };
+
   const finishSessionInput = (e) => {
     if (e.key === 'Enter') {
       // Skip the "Let's go specific" step entirely
@@ -6264,6 +6353,7 @@ function MainApp() {
 
   const handleSettingsSave = (newSettings) => {
     // 1. Calculate the difference for the CURRENT mode (e.g., did we change Focus from 25 -> 30?)
+    localStorage.setItem('zen_cache_settings', JSON.stringify(newSettings));
     const oldDuration = settings[mode];
     const newDuration = newSettings[mode];
     const deltaMinutes = newDuration - oldDuration; // e.g., +5 or -5 or 0
@@ -6413,97 +6503,99 @@ function MainApp() {
       </div>
 
       {/* --- STEP 1: HANDLE ONBOARDING (FIXED ALIGNMENT & REDIRECT) --- */}
-      <div className={`fixed inset-0 z-40 bg-black flex flex-col items-center justify-center transition-all duration-700 ${onboardingStep === 1 ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 blur-exit pointer-events-none'}`}>
-        <div className="w-full max-w-4xl px-8 flex flex-col items-center">
+      {onboardingStep === 1 && (
+        <div className={`fixed inset-0 z-40 bg-black flex flex-col items-center justify-center transition-all duration-700 ${onboardingStep === 1 ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 blur-exit pointer-events-none'}`}>
+          <div className="w-full max-w-4xl px-8 flex flex-col items-center">
 
-          <h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-12">
-            {onboardingStep === 1 && (
-              isMigrating
-                ? <StaggeredText text="We're moving to usernames. Claim yours." />
-                : <StaggeredText text="Claim your identity." />
-            )}
-          </h2>
+            <h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-12">
+              {onboardingStep === 1 && (
+                isMigrating
+                  ? <StaggeredText text="We're moving to usernames. Claim yours." />
+                  : <StaggeredText text="Claim your identity." />
+              )}
+            </h2>
 
-          <div className="relative w-full flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <div className="relative w-full flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
 
-            {/* CENTERED INPUT GROUP */}
-            <div className="relative flex items-center justify-center">
+              {/* CENTERED INPUT GROUP */}
+              <div className="relative flex items-center justify-center">
 
-              {/* THE @ SYMBOL */}
-              <span className="text-3xl md:text-5xl font-light text-white/30 select-none mr-0.5 transform -translate-y-[1px]">@</span>
+                {/* THE @ SYMBOL */}
+                <span className="text-3xl md:text-5xl font-light text-white/30 select-none mr-0.5 transform -translate-y-[1px]">@</span>
 
-              {/* INPUT WRAPPER (Auto-Resizing) */}
-              <div className="relative min-w-[20px]">
+                {/* INPUT WRAPPER (Auto-Resizing) */}
+                <div className="relative min-w-[20px]">
 
-                {/* 1. GHOST SPAN (Invisible - Defines Width) */}
-                <span className="invisible text-3xl md:text-5xl font-light whitespace-pre block h-full min-w-[1ch] px-1">
-                  {onboardingHandle || "username"}
-                </span>
+                  {/* 1. GHOST SPAN (Invisible - Defines Width) */}
+                  <span className="invisible text-3xl md:text-5xl font-light whitespace-pre block h-full min-w-[1ch] px-1">
+                    {onboardingHandle || "username"}
+                  </span>
 
-                {/* 2. REAL INPUT (Absolute Overlay) */}
-                <input
-                  autoFocus
-                  type="text"
-                  value={onboardingHandle}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-                    setOnboardingHandle(val);
-                    if (val !== onboardingHandle) setHandleStatus("checking");
-                  }}
-                  onKeyDown={(e) => e.key === 'Enter' && confirmHandleAndContinue()}
-                  // text-left ensures typing starts right next to the @
-                  className="absolute inset-0 w-full h-full bg-transparent border-none outline-none text-3xl md:text-5xl font-light text-white placeholder-white/10 text-left p-0 m-0 focus:ring-0 px-1"
-                  placeholder="username"
-                  spellCheck={false}
-                />
+                  {/* 2. REAL INPUT (Absolute Overlay) */}
+                  <input
+                    autoFocus
+                    type="text"
+                    value={onboardingHandle}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
+                      setOnboardingHandle(val);
+                      if (val !== onboardingHandle) setHandleStatus("checking");
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && confirmHandleAndContinue()}
+                    // text-left ensures typing starts right next to the @
+                    className="absolute inset-0 w-full h-full bg-transparent border-none outline-none text-3xl md:text-5xl font-light text-white placeholder-white/10 text-left p-0 m-0 focus:ring-0 px-1"
+                    placeholder="username"
+                    spellCheck={false}
+                  />
+                </div>
+
+                {/* STATUS INDICATOR (Absolute Right of the group) */}
+                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 flex items-center">
+                  {handleStatus === 'checking' && <Loader2 size={24} className="animate-spin text-white/30" />}
+                  {handleStatus === 'available' && onboardingHandle.length > 0 && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-green-500/20 p-1 rounded-full border border-green-500/50">
+                      <Check size={16} className="text-green-400" strokeWidth={3} />
+                    </motion.div>
+                  )}
+                  {handleStatus === 'taken' && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-red-500/20 p-1 rounded-full border border-red-500/50">
+                      <X size={16} className="text-red-400" strokeWidth={3} />
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
-              {/* STATUS INDICATOR (Absolute Right of the group) */}
-              <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 flex items-center">
-                {handleStatus === 'checking' && <Loader2 size={24} className="animate-spin text-white/30" />}
-                {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-green-500/20 p-1 rounded-full border border-green-500/50">
-                    <Check size={16} className="text-green-400" strokeWidth={3} />
-                  </motion.div>
-                )}
-                {handleStatus === 'taken' && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-red-500/20 p-1 rounded-full border border-red-500/50">
-                    <X size={16} className="text-red-400" strokeWidth={3} />
-                  </motion.div>
-                )}
+              {/* SUGGESTIONS & CONFIRM BUTTON AREA */}
+              <div className="h-24 mt-8 flex flex-col items-center justify-start w-full">
+                <AnimatePresence mode="wait">
+
+                  {/* CASE: TAKEN */}
+                  {handleStatus === 'taken' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center gap-3">
+                      <span className="text-red-400 text-sm font-medium">That handle is taken. Try one of these?</span>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {handleSuggestions.map((s) => (
+                          <button key={s} onClick={() => { setOnboardingHandle(s); setHandleStatus("available"); }} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/30 text-white/70 hover:text-white text-sm transition-all">@{s}</button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* CASE: AVAILABLE (Show Continue) */}
+                  {handleStatus === 'available' && onboardingHandle.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4">
+                      <button onClick={confirmHandleAndContinue} disabled={isSavingHandle} className="group flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors">
+                        <span>{isSavingHandle ? "Setting up..." : "Press Enter to continue"}</span>
+                        {!isSavingHandle && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
-
-            {/* SUGGESTIONS & CONFIRM BUTTON AREA */}
-            <div className="h-24 mt-8 flex flex-col items-center justify-start w-full">
-              <AnimatePresence mode="wait">
-
-                {/* CASE: TAKEN */}
-                {handleStatus === 'taken' && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center gap-3">
-                    <span className="text-red-400 text-sm font-medium">That handle is taken. Try one of these?</span>
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {handleSuggestions.map((s) => (
-                        <button key={s} onClick={() => { setOnboardingHandle(s); setHandleStatus("available"); }} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/30 text-white/70 hover:text-white text-sm transition-all">@{s}</button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* CASE: AVAILABLE (Show Continue) */}
-                {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4">
-                    <button onClick={confirmHandleAndContinue} disabled={isSavingHandle} className="group flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors">
-                      <span>{isSavingHandle ? "Setting up..." : "Press Enter to continue"}</span>
-                      {!isSavingHandle && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* --- MAIN DASHBOARD (Responsive Redesign) --- */}
       <div className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
