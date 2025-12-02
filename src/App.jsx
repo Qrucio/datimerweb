@@ -858,80 +858,6 @@ const handleSaveAmbienceSelection = async (selectedIds) => {
   }
 };
 
-// 1. Accept 'user' prop
-const ProCelebrationModal = ({ isPro, user }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (isPro) {
-      const hasSeenCelebration = localStorage.getItem('zen_pro_celebration_seen');
-      if (!hasSeenCelebration) {
-        const timer = setTimeout(() => setIsOpen(true), 1500);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [isPro]);
-
-  const handleDismiss = () => {
-    setIsOpen(false);
-    localStorage.setItem('zen_pro_celebration_seen', 'true');
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md"
-          onClick={handleDismiss}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: -20 }}
-            transition={{ type: "spring", duration: 0.8, bounce: 0.4 }}
-            className="relative w-full max-w-sm p-8 bg-[#0a0a0a] border border-yellow-500/30 rounded-3xl text-center overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-yellow-500/10 blur-[50px] pointer-events-none" />
-
-            {/* --- UPDATED ICON: USER PROFILE PIC --- */}
-            <div className="relative z-10 w-24 h-24 mx-auto mb-6 rounded-full border-4 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.4)] overflow-hidden">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-yellow-500 flex items-center justify-center text-black font-bold text-3xl">
-                  {user?.displayName ? user.displayName.charAt(0) : 'P'}
-                </div>
-              )}
-            </div>
-            {/* --------------------------------------- */}
-
-            <h2 className="relative z-10 text-3xl font-serif-display text-white mb-2">
-              Welcome to <span className="text-yellow-400">Pro</span>
-            </h2>
-
-            {/* --- UPDATED TEXT --- */}
-            <p className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-2">
-              Since the owner is your friend, you do get some prowess.
-            </p>
-
-            {/* --- UPDATED BUTTON TEXT --- */}
-            <button
-              onClick={handleDismiss}
-              className="relative z-10 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-yellow-500/20"
-            >
-              Thanks Divyansh
-            </button>
-
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 const AccountModal = ({
   isOpen,
@@ -2009,33 +1935,6 @@ const KeyboardHelpModal = ({ isOpen, onClose }) => {
 
 
 
-// --- NOTIFICATION SYSTEM ---
-const UPDATES = [
-  {
-    id: 'zen_update_strict_v1', // New Strict Mode notification
-    title: "Strict Mode",
-    description: "Lock in your focus. Blocks tab switching and fullscreen exits.",
-    icon: Unlock,
-    color: "text-red-400",
-    bg: "bg-red-500/10"
-  },
-  {
-    id: 'stickynotes', // New Strict Mode notification
-    title: "Sticky Notes",
-    description: "Sticky notes are here to replace task list. Add, tag, format, rearrange them all you like!",
-    icon: StickyNoteIcon,
-    color: "text-yellow-400",
-    bg: "bg-yellow-500/10"
-  },
-  {
-    id: 'lofigirlupdate', // Keeps history consistent
-    title: "Lofi Girl is here!",
-    description: "Study with Lofi Girl by turning on Music > Lofi Girl",
-    icon: Music,
-    color: "text-red-400",
-    bg: "bg-red-500/10"
-  },
-];
 
 const NotificationCenter = () => {
   const [activeUpdates, setActiveUpdates] = useState([]);
@@ -6976,6 +6875,7 @@ function MainApp() {
         stats={stats}
         onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
         currentHandle={userHandle}
+        isPro={isPro}
 
       />
       <FriendProfileModal
@@ -7031,18 +6931,6 @@ function MainApp() {
         onClose={() => setShowStrictDisableConfirm(false)}
         onConfirm={handleStrictDisable}
       />
-      {/* ----------------------------------- */}
-
-      {
-        onboardingStep === 3 && (
-          <ProCelebrationModal
-            isPro={isPro}
-            user={user} // <--- Pass user here so the modal can show the pic
-          />
-        )
-      }
-
-      <NotificationCenter />
 
       <SocialModal
         isOpen={showFriends}
