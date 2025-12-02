@@ -3027,7 +3027,7 @@ const LiquidStrictBtn = ({
                   <>
                     <a
                       // 1. ADD YOUR LINKS HERE LATER
-                      href={browserType === 'firefox' ? "https://addons.mozilla.org/firefox/downloads/file/4633322/75c5d8fd38364a238e1c-1.2.xpi" : "https://www.dropbox.com/scl/fi/b5u9fafoe12m3u70fpvf0/altimer-companion.zip?rlkey=z0hdmt5cevaocnag81x6ghxfb&st=dknw4zgv&dl=1"}
+                      href={browserType === 'firefox' ? "#" : "#"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 w-full py-3 bg-white text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg"
