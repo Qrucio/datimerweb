@@ -428,7 +428,7 @@ const RevealLogo = ({ src, className, disableReveal = false }) => {
       {/* The Logo Image (The "A") */}
       <motion.img
         src={src}
-        alt="Altimer Logo"
+        alt="altimer Logo"
         className={`${className} relative z-10 object-contain`}
         variants={{
           rest: { x: 0 },
@@ -6433,15 +6433,15 @@ function MainApp() {
       // 2. Get the icon based on current mode
       const icon = modeIcons[mode] || '';
 
-      // 3. Update title: "⚡ 24:59 | Altimer"
-      document.title = `${icon} ${formatTime(timeLeft)} | Altimer`;
+      // 3. Update title: "⚡ 24:59 | altimer"
+      document.title = `${icon} ${formatTime(timeLeft)} | altimer`;
     } else {
       // Optional: You could show "⏸️ Paused" or just the app name
-      document.title = "Altimer";
+      document.title = "altimer";
     }
 
     return () => {
-      document.title = "Altimer";
+      document.title = "altimer";
     };
   }, [timeLeft, isActive, mode]);
 
