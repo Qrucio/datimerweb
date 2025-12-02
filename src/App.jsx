@@ -1,11 +1,48 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './words';
+
+const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
+const FIREFOX_ID = "altimer@qruciatus.com";
+
+const getExtensionId = () => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.indexOf("firefox") > -1) return FIREFOX_ID;
+  return CHROME_ID;
+};
+
+const syncWithExtension = (isActive, isStrict, mode) => {
+  const targetId = getExtensionId(); // Get the correct ID for the browser
+
+  if (window.chrome && window.chrome.runtime) {
+    window.chrome.runtime.sendMessage(
+      targetId,
+      {
+        type: 'SYNC_TIMER',
+        isActive: isActive,
+        isStrict: isStrict,
+        mode: mode
+      },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.log("Extension connection failed");
+        }
+      }
+    );
+  }
+};
+
+const getBrowserType = () => {
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (userAgent.indexOf("firefox") > -1) return "firefox";
+  if (userAgent.indexOf("safari") > -1 && userAgent.indexOf("chrome") === -1) return "webkit";
+  return "chromium"; // Default to Chromium (Chrome, Brave, Edge, Opera)
+};
 
 // --- HANDLE GENERATOR HELPERS ---
 const generateCandidateHandle = (name) => {
@@ -48,7 +85,7 @@ const getUniqueHandle = async (baseName) => {
 const AppLoader = () => (
   <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
     <div className="flex flex-col items-center gap-4">
-      <SpinningLogo src="/logo/white.png" className="w-16 h-16 object-contain opacity-50" />
+      <RevealLogo src="/logo/altimerwhite.png" className="w-16 h-16 opacity-50" disableReveal={true} />
       <div className="flex gap-1">
         <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
         <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
@@ -251,8 +288,9 @@ const formatDetailedDuration = (seconds) => {
 
 const GlobalStyles = () => (
   <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@700&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@700&family=Rajdhani:wght@700&display=swap');
     @import url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Rajdhani:wght@700&display=swap');
     
     body { 
       background-color: #000000; 
@@ -281,6 +319,7 @@ const GlobalStyles = () => (
     
     .font-serif-display { font-family: 'Playfair Display', serif; }
     .font-clock { font-family: 'Montserrat', sans-serif; font-weight: 700; }
+    .font-logo { font-family: 'Rajdhani', sans-serif; font-weight: 700; }
     
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
@@ -377,23 +416,51 @@ const GlobalStyles = () => (
   `}</style>
 );
 
-const SpinningLogo = ({ src, className }) => {
-  const [isSpinning, setIsSpinning] = useState(false);
-
-  const handleMouseEnter = () => {
-    if (!isSpinning) {
-      setIsSpinning(true);
-    }
-  };
-
+// Replaces SpinningLogo
+const RevealLogo = ({ src, className, disableReveal = false }) => {
   return (
-    <img
-      src={src}
-      alt="Zen Logo"
-      className={`${className} ${isSpinning ? 'logo-spin-active' : ''}`}
-      onMouseEnter={handleMouseEnter}
-      onAnimationEnd={() => setIsSpinning(false)}
-    />
+    <motion.div
+      className={`group relative flex items-center justify-center ${disableReveal ? '' : 'cursor-pointer'}`}
+      initial="rest"
+      whileHover={disableReveal ? "rest" : "hover"}
+      animate="rest"
+    >
+      {/* The Logo Image (The "A") */}
+      <motion.img
+        src={src}
+        alt="Altimer Logo"
+        className={`${className} relative z-10 object-contain`}
+        variants={{
+          rest: { x: 0 },
+          // Shift left slightly to make space for the text
+          hover: { x: -8 }
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      />
+
+      {/* The Reveal Text ("ltimer") */}
+      {!disableReveal && (
+        <div className="overflow-hidden flex items-center absolute left-[85%] top-0 bottom-0 pl-1">
+          <motion.span
+            className="font-logo text-white leading-none tracking-wide whitespace-nowrap"
+            style={{
+              fontSize: '150%', // Matches logo scale
+              lineHeight: '1',
+              marginTop: '0.1em'
+            }}
+            variants={{
+              // Start hidden behind the logo, shifted left, transparent
+              rest: { x: -20, opacity: 0, width: 0 },
+              // Slide out to natural position
+              hover: { x: 0, opacity: 1, width: "auto" }
+            }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          >
+            timer
+          </motion.span>
+        </div>
+      )}
+    </motion.div>
   );
 };
 
@@ -2972,17 +3039,25 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     </div>
   );
 };
+
 const LiquidStrictBtn = ({
   isStrict,
   onEnable,
   onDisable,
-  isLocked, // This prop now controls the "Locked" state
-  onMouseEnter
+  isLocked,
+  onMouseEnter,
+  isExtensionConnected,
+  mode
 }) => {
   const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
-
   const isMenuOpen = status === 'confirming';
+  const browserType = useRef(getBrowserType()).current;
+
+  // UI States
+  const isMissing = !isExtensionConnected;
+  const isBreak = mode !== 'focus';
+  const showAllowed = isStrict && isBreak;
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -2990,117 +3065,153 @@ const LiquidStrictBtn = ({
         setStatus('idle');
       }
     };
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    if (isMenuOpen) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
+  // --- Dynamic Styles ---
+  let btnBg = "";
+  let btnText = "text-white/70 group-hover:text-white";
+  let iconColor = "";
+
+  if (isMissing) {
+    // Red Warning Style (Clickable now)
+    btnBg = "bg-red-500/10 border border-red-500/20 animate-pulse cursor-pointer hover:bg-red-500/20";
+    btnText = "text-red-400 font-bold";
+    iconColor = "text-red-400";
+  } else if (showAllowed) {
+    btnBg = "bg-green-500/10 border border-green-500/20";
+    btnText = "text-green-400";
+    iconColor = "text-green-400";
+  } else if (isStrict) {
+    btnText = "text-white";
+  }
+
+  // --- EXPANSION LOGIC ---
+  const shouldExpand = isMenuOpen || (isStrict && !isMissing);
+
   return (
     <div ref={containerRef} className="relative flex items-center">
-
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
             exit={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            // --- 1. INCREASED WIDTH (w-64 -> w-80) ---
             className="absolute bottom-full left-1/2 mb-4 w-80 bg-[#111]/95 backdrop-blur-xl border border-white/20 p-5 rounded-2xl shadow-2xl flex flex-col gap-3 z-[60] origin-bottom"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
+            {/* --- MODAL HEADER --- */}
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/5 ${isStrict ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
-                {isStrict ? <Unlock size={18} /> : <Lock size={18} />}
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/5 ${isMissing ? 'bg-red-500/10 text-red-400' : (isStrict ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400')}`}>
+                {isMissing ? <Lock size={18} /> : (isStrict ? <Unlock size={18} /> : <Lock size={18} />)}
               </div>
               <div className="flex flex-col">
                 <span className="text-base font-bold text-white">
-                  {isStrict ? "Disable Strict Mode?" : "Enable Strict Mode?"}
+                  {isMissing ? "Strict Mode" : (isStrict ? "Disable Strict Mode?" : "Enable Strict Mode?")}
                 </span>
-                {!isStrict && <span className="text-[10px] uppercase tracking-wider text-green-400 font-bold">Recommended for flow</span>}
               </div>
             </div>
 
-            {/* Info Text - INCREASED SIZE & ADDED WARNING */}
-            <div className="space-y-3">
-              <p className="text-sm text-white/70 leading-relaxed">
-                {isStrict
-                  ? "Disabling this will exit full-screen mode immediately. Your session timer will continue running."
-                  : "Forces full-screen. If you exit full-screen or switch tabs, the timer will pause."
-                }
-              </p>
+            {/* --- MODAL CONTENT --- */}
+            {isMissing ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm text-white/70 leading-relaxed">
+                  Strict Mode requires our free companion extension to block websites.
+                </p>
 
-              {!isStrict && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex gap-2 items-start">
-                  <div className="mt-0.5"><AlertTriangle size={14} className="text-red-400" /></div>
-                  <p className="text-xs text-red-200/90 leading-tight">
-                    <strong>Warning:</strong> Once started, you cannot turn this off until the timer finishes or you take a break.
-                  </p>
+                {browserType === 'webkit' ? (
+                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
+                    <p className="text-xs text-white/50">Safari/WebKit is not currently supported.</p>
+                  </div>
+                ) : (
+                  <>
+                    <a
+                      // 1. ADD YOUR LINKS HERE LATER
+                      href={browserType === 'firefox' ? "https://addons.mozilla.org/firefox/downloads/file/4633322/75c5d8fd38364a238e1c-1.2.xpi" : "https://www.dropbox.com/scl/fi/b5u9fafoe12m3u70fpvf0/altimer-companion.zip?rlkey=z0hdmt5cevaocnag81x6ghxfb&st=dknw4zgv&dl=1"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full py-3 bg-white text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg"
+                    >
+                      <Download size={14} />
+                      {browserType === 'firefox' ? "Add to Firefox" : "Download Extension"}
+                    </a>
+
+                    {/* 2. CHROME SPECIFIC NOTE & GUIDE */}
+                    {browserType !== 'firefox' && (
+                      <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10 text-left">
+                        <p className="text-[12px] text-yellow-500/80 leading-relaxed mb-1">
+                          <span className="font-bold">Note:</span> As a small indie dev, I couldn't afford the fees to upload my extension to the Chrome Web Store. Please follow this guide to install the extension instead:
+                        </p>
+                        <a
+                          // 3. ADD YOUR GUIDE LINK HERE
+                          href="https://your-guide-link.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[12px] text-white/60 hover:text-white underline decoration-white/20 underline-offset-2 transition-colors flex items-center gap-1"
+                        >
+                          Installation guide <ArrowRight size={10} />
+                        </a>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <button onClick={() => setStatus('idle')} className="w-full py-2 text-xs text-white/30 hover:text-white transition-colors">Close</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-white/70 leading-relaxed">
+                  {isStrict
+                    ? "This will permanently unblock sites for this session."
+                    : "This will block distractions during Focus, but allow them during Breaks."}
+                </p>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => setStatus('idle')} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors uppercase tracking-wide">Cancel</button>
+                  <button onClick={(e) => { e.stopPropagation(); isStrict ? onDisable() : onEnable(); setStatus('idle'); }} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-black transition-colors shadow-lg uppercase tracking-wide bg-white hover:bg-gray-200">
+                    {isStrict ? "Turn Off" : "Enable"}
+                  </button>
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setStatus('idle')}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors uppercase tracking-wide"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  isStrict ? onDisable() : onEnable();
-                  setStatus('idle');
-                }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold text-black transition-colors shadow-lg uppercase tracking-wide ${isStrict ? 'bg-white hover:bg-gray-200' : 'bg-white hover:bg-gray-200'}`}
-              >
-                {isStrict ? "Turn Off" : "Enable"}
-              </button>
-            </div>
-
-            {/* Tiny Arrow */}
             <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/95 border-r border-b border-white/20 rotate-45 backdrop-blur-xl"></div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* DOCK BUTTON */}
       <motion.button
         layout
         onMouseEnter={onMouseEnter}
         onClick={(e) => {
           e.stopPropagation();
-          // --- 2. UPDATED LOCK CHECK ---
-          if (isLocked) return;
+          // Always allow clicking if missing, otherwise respect locked/break state
+          if (!isMissing && isLocked && !isBreak) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
-        className={`relative p-2 rounded-full transition-colors group flex items-center 
-          ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} 
-          ${(isStrict || isMenuOpen) ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}
-          ${isMenuOpen ? 'bg-white/10' : ''} 
-        `}
+        className={`relative p-2 rounded-full transition-all group flex items-center ${btnBg} ${btnText} ${isMenuOpen ? 'bg-white/10' : ''}`}
       >
-        {/* Visual Lock Icon if Locked, otherwise normal Lock/Unlock */}
-        {isLocked
-          ? <Lock size={20} className="text-white/50" />
-          : (isStrict ? <Lock size={20} /> : <Unlock size={20} />)
+        {isMissing
+          ? <Lock size={20} className={iconColor} />
+          : (showAllowed
+            ? <Unlock size={20} className={iconColor} />
+            : (isStrict ? <Lock size={20} /> : <Unlock size={20} />)
+          )
         }
 
         <motion.span
           layout
           className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
-            ${(isStrict || isMenuOpen)
-              ? 'max-w-[100px] opacity-100 ml-2'
-              : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'
+            ${shouldExpand
+              ? 'max-w-[150px] opacity-100 ml-2'
+              : 'max-w-0 opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2'
             }
           `}
         >
-          {/* Update Text based on state */}
-          {isStrict ? (isLocked ? 'Locked' : 'Strict On') : 'Strict Mode'}
+          {isMissing
+            ? "Connect Extension"
+            : (showAllowed ? "Websites Allowed" : (isStrict ? (isLocked ? 'Locked' : 'Strict On') : 'Strict Mode'))
+          }
         </motion.span>
       </motion.button>
     </div>
@@ -4669,6 +4780,24 @@ function MainApp() {
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
+  const [isExtensionConnected, setIsExtensionConnected] = useState(false);
+
+  useEffect(() => {
+    if (window.chrome && window.chrome.runtime) {
+      window.chrome.runtime.sendMessage(
+        EXTENSION_ID,
+        { type: 'PING' },
+        (response) => {
+          if (!chrome.runtime.lastError && response && response.installed) {
+            setIsExtensionConnected(true);
+          } else {
+            setIsExtensionConnected(false);
+          }
+        }
+      );
+    }
+  }, []);
+
   // --- CACHE-FIRST STATE INITIALIZATION ---
   const [sessionName, setSessionName] = useState(() => {
     return localStorage.getItem('zen_cache_session_name') || '';
@@ -4946,91 +5075,31 @@ function MainApp() {
   const [showStrictWarning, setShowStrictWarning] = useState(false);
   const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false); // <--- NEW STATE
   const wasMusicPlayingRef = useRef(false);
+  // --- STRICT MODE LOGIC (UPDATED: EXTENSION BASED) ---
   const strictModeRef = useRef(strictMode);
-  const modeRef = useRef(mode);
 
-  // Keep Refs in sync
+  // Keep Ref in sync & Sync with Extension
   useEffect(() => {
     strictModeRef.current = strictMode;
+    // Sync whenever Strict Mode OR The Timer Mode changes
+    syncWithExtension(isActive, strictMode, mode);
     localStorage.setItem('zen_strict_mode', strictMode);
-  }, [strictMode]);
-
-  useEffect(() => { modeRef.current = mode; }, [mode]);
-
-  // The Strict Mode "Trap" Listeners
-  useEffect(() => {
-    const triggerWarning = () => {
-      setIsActive(false);
-
-      // 1. STOP MUSIC
-      if (musicAudioRef.current && !musicAudioRef.current.paused) {
-        wasMusicPlayingRef.current = true;
-        musicAudioRef.current.pause();
-        setIsMusicPlaying(false);
-      }
-
-      // 2. STOP ALL AMBIENCE (Loop through mixer refs)
-      Object.values(ambienceRefs.current).forEach(audio => {
-        if (audio) audio.pause();
-      });
-      setAmbienceState({}); // Clear UI state
-
-      // 3. STOP LOFI
-      setIsLofiPlaying(false);
-
-      setShowStrictWarning(true);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden && strictModeRef.current && modeRef.current === 'focus') triggerWarning();
-    };
-
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement && strictModeRef.current && modeRef.current === 'focus') triggerWarning();
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    if (strictMode && mode === 'focus' && onboardingStep === 3 && !document.fullscreenElement) triggerWarning();
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-    };
-  }, []);
+  }, [strictMode, isActive, mode]); // <--- Added 'mode' dependency
 
   const enableStrictMode = () => {
+    if (!isExtensionConnected) return; // Guard: Don't enable if extension missing
     setStrictMode(true);
     setShowStrictConfirm(false);
-    if (mode === 'focus') {
-      document.documentElement.requestFullscreen().catch(e => console.log(e));
-    }
-  };
-
-  const handleStrictResume = () => {
-    document.documentElement.requestFullscreen().catch(e => console.log(e));
-    setIsActive(true);
-
-    // RESUME MUSIC (If it was playing before)
-    if (wasMusicPlayingRef.current && musicAudioRef.current) {
-      musicAudioRef.current.play().catch(e => console.log("Resume music failed", e));
-    }
-
-    setShowStrictWarning(false);
+    // Note: We NO LONGER request fullscreen here. The extension handles blocking.
   };
 
   const handleStrictDisable = () => {
     setStrictMode(false);
-    setShowStrictWarning(false);
     setShowStrictDisableConfirm(false);
-
-    // INSTANTLY EXIT FULLSCREEN
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(e => console.log("Exit fullscreen failed", e));
-    }
+    // Note: We NO LONGER exit fullscreen here.
   };
 
+  // (We deleted handleStrictResume and the "Trap" useEffect because we don't need them anymore)
   const unsavedSecondsRef = useRef(0);
   const timerIntervalRef = useRef(null);
 
@@ -6302,6 +6371,8 @@ function MainApp() {
     const newIsActive = !isActive;
     setIsActive(newIsActive);
 
+    syncWithExtension(newIsActive, strictMode, mode);
+
     if (newIsActive) {
       lastHeartbeatRef.current = Date.now();
     }
@@ -6463,15 +6534,15 @@ function MainApp() {
       // 2. Get the icon based on current mode
       const icon = modeIcons[mode] || '';
 
-      // 3. Update title: "⚡ 24:59 | MindGrind"
-      document.title = `${icon} ${formatTime(timeLeft)} |MindGrind`;
+      // 3. Update title: "⚡ 24:59 | Altimer"
+      document.title = `${icon} ${formatTime(timeLeft)} | Altimer`;
     } else {
       // Optional: You could show "⏸️ Paused" or just the app name
-      document.title = "MindGrind";
+      document.title = "Altimer";
     }
 
     return () => {
-      document.title = "MindGrind";
+      document.title = "Altimer";
     };
   }, [timeLeft, isActive, mode]);
 
@@ -6624,7 +6695,7 @@ function MainApp() {
         {/* --- MOBILE HEADER: Logo & Settings (Changed) --- */}
         <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
           <div className="flex items-center gap-2">
-            <SpinningLogo src="/logo/white.png" className="w-14 h-14 object-contain" />
+            <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
           </div>
           <div className="flex items-center gap-3">
             {/* --- ADD THIS BUTTON --- */}
@@ -6749,8 +6820,9 @@ function MainApp() {
               onEnable={enableStrictMode}
               onDisable={handleStrictDisable}
               onMouseEnter={() => setHoveredDockIndex(2)}
-              // --- PASS THE NEW LOCK VARIABLE ---
               isLocked={isStrictLocked}
+              isExtensionConnected={isExtensionConnected}
+              mode={mode}
             />
 
           </motion.div>
@@ -6758,7 +6830,7 @@ function MainApp() {
 
         {/* --- DESKTOP LOGO (Changed) --- */}
         <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? (focusMode ? 'opacity-0 hover:opacity-100 transition-opacity duration-700' : 'opacity-100') : 'opacity-0 pointer-events-none'}`}>
-          <SpinningLogo src="/logo/white.png" className="w-28 h-28 object-contain cursor-pointer" />
+          <RevealLogo src="/logo/altimerwhite.png" className="w-14 h-14" />
         </div>
 
 
@@ -6953,11 +7025,6 @@ function MainApp() {
         isOpen={showStrictConfirm}
         onClose={() => setShowStrictConfirm(false)}
         onConfirm={enableStrictMode}
-      />
-      <StrictWarningModal
-        isOpen={showStrictWarning}
-        onResume={handleStrictResume}
-        onDisable={handleStrictDisable}
       />
       <StrictDisableModal
         isOpen={showStrictDisableConfirm}
