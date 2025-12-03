@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './words';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
-const FIREFOX_ID = "altimer@qruciatus.com";
+const FIREFOX_ID = "altimercompanion@qruciatus.com";
 
 const getExtensionId = () => {
   const userAgent = navigator.userAgent.toLowerCase();
@@ -17,24 +17,17 @@ const getExtensionId = () => {
 };
 
 const syncWithExtension = (isActive, isStrict, mode) => {
-  const targetId = getExtensionId(); // Get the correct ID for the browser
-
-  if (window.chrome && window.chrome.runtime) {
-    window.chrome.runtime.sendMessage(
-      targetId,
-      {
-        type: 'SYNC_TIMER',
-        isActive: isActive,
-        isStrict: isStrict,
-        mode: mode
-      },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.log("Extension connection failed");
-        }
-      }
-    );
-  }
+  // We send a message to the window. 
+  // The content.js (injected by extension) will catch this and relay it.
+  window.postMessage({
+    type: "ALTIMER_SYNC_REQUEST",
+    payload: {
+      type: 'SYNC_TIMER',
+      isActive: isActive,
+      isStrict: isStrict,
+      mode: mode
+    }
+  }, "*");
 };
 
 const getBrowserType = () => {
@@ -3027,7 +3020,7 @@ const LiquidStrictBtn = ({
                   <>
                     <a
                       // 1. ADD YOUR LINKS HERE LATER
-                      href={browserType === 'firefox' ? "#" : "#"}
+                      href={browserType === 'firefox' ? "https://addons.mozilla.org/firefox/downloads/file/4633776/079d159c8a564ccb9d72-1.0.0.xpi" : "https://www.dropbox.com/scl/fi/mvitnd6gv7zvxmwxxwe7w/altimer-companion-chromium.zip?rlkey=utl46iuck2qwof84d52pw6tvk&st=cvl1ifog&dl=1"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 w-full py-3 bg-white text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg"
@@ -4681,20 +4674,32 @@ function MainApp() {
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
+  // Check if extension is installed (Universal Method)
   useEffect(() => {
-    if (window.chrome && window.chrome.runtime) {
-      window.chrome.runtime.sendMessage(
-        EXTENSION_ID,
-        { type: 'PING' },
-        (response) => {
-          if (!chrome.runtime.lastError && response && response.installed) {
-            setIsExtensionConnected(true);
-          } else {
-            setIsExtensionConnected(false);
-          }
-        }
-      );
-    }
+    const checkExtension = () => {
+      // Check both html and body tags to be safe
+      const onHtml = document.documentElement.getAttribute('data-altimer-extension-installed') === 'true';
+      const onBody = document.body && document.body.getAttribute('data-altimer-extension-installed') === 'true';
+
+      if (onHtml || onBody) {
+        setIsExtensionConnected(true);
+        return true;
+      }
+      return false;
+    };
+
+    // 1. Check immediately
+    if (checkExtension()) return;
+
+    // 2. Poll for a few seconds (in case extension loads slightly slower)
+    const interval = setInterval(() => {
+      if (checkExtension()) {
+        clearInterval(interval);
+      }
+    }, 500);
+
+    setTimeout(() => clearInterval(interval), 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // --- CACHE-FIRST STATE INITIALIZATION ---
