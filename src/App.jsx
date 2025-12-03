@@ -6,6 +6,7 @@ import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, wh
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './words';
+import { Storage } from './utils/storage';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -2613,8 +2614,9 @@ const parseInlineStyles = (text) => {
 };
 
 // Now accepts onToggle to handle checkbox clicks
+// Updated RichTextRenderer: Added 'font-normal' to force regular weight
 const RichTextRenderer = ({ text, className = "", onToggle }) => (
-  <div className={`font-sans text-black/90 ${className}`}>
+  <div className={`font-sans font-normal text-black/90 ${className}`}>
     {parseRichText(text, onToggle)}
   </div>
 );
@@ -3826,7 +3828,14 @@ const NoteSystemModals = ({
               <button onClick={() => insertMarkdown('task')} className="p-1.5 hover:bg-black/10 rounded text-black/70" title="Task List"><CheckSquare size={14} /></button>
             </div>
 
-            <textarea ref={bodyInputRef} value={editorText} onChange={handleBodyChange} onKeyDown={handleBodyKeyDown} placeholder="Write / for commands..." className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-base md:text-lg font-medium leading-relaxed font-sans custom-scrollbar p-0 font-mono" />
+            <textarea
+              ref={bodyInputRef}
+              value={editorText}
+              onChange={handleBodyChange}
+              onKeyDown={handleBodyKeyDown}
+              placeholder="Write / for commands..."
+              className="relative z-10 w-full flex-1 bg-transparent resize-none border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-base md:text-lg font-normal leading-relaxed font-sans custom-scrollbar p-0 font-mono"
+            />
 
             <div className="relative z-20 flex justify-between items-center pt-4 mt-2 border-t border-black/10">
               <div className="flex gap-2">{NOTE_COLORS.map(color => (<button key={color} onClick={() => setEditorColor(color)} className={`w-6 h-6 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`} style={{ backgroundColor: color }} />))}</div>
@@ -4708,35 +4717,23 @@ function MainApp() {
   });
   const [isEditingName, setIsEditingName] = useState(false);
 
-  // Load Notes from Cache
-  const [notes, setNotes] = useState(() => {
-    try {
-      const cached = localStorage.getItem('zen_cache_notes');
-      return cached ? JSON.parse(cached) : [];
-    } catch (e) { return []; }
-  });
+  const [notes, setNotes] = useState(Storage.getNotes());
 
   const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
 
-  // Load Settings from Cache
-  const [settings, setSettings] = useState(() => {
-    try {
-      const cached = localStorage.getItem('zen_cache_settings');
-      return cached ? JSON.parse(cached) : DEFAULT_SETTINGS;
-    } catch (e) { return DEFAULT_SETTINGS; }
-  });
+  const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
 
   const [pomoCount, setPomoCount] = useState(0);
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
 
   // Load Stats from Cache
   const [stats, setStats] = useState(() => {
-    try {
-      const cached = localStorage.getItem('zen_cache_stats');
-      return cached ? JSON.parse(cached) : DEFAULT_STATS;
-    } catch (e) { return DEFAULT_STATS; }
+    // Attempt to load today's stats from LS, otherwise default
+    const local = localStorage.getItem('zen_stats_current');
+    return local ? JSON.parse(local) : DEFAULT_STATS;
   });
+
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
@@ -4745,7 +4742,7 @@ function MainApp() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
-  const [isPro, setIsPro] = useState(false);
+  const [isPro, setIsPro] = useState(() => Storage.getProStatus());
   const [proModalSource, setProModalSource] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
@@ -4875,25 +4872,27 @@ function MainApp() {
   };
 
   const handleSaveNote = async (note) => {
-    // 1. Check if note exists
+    // 1. OPTIMISTIC UPDATE (Instant)
+    // Logic to update the notes array in state...
     const exists = notes.some(n => n.id === note.id);
-
-    let updatedNotes;
-
-    if (exists) {
-      // UPDATE IN PLACE (Preserves Order)
-      updatedNotes = notes.map(n => (n.id === note.id ? note : n));
-    } else {
-      // NEW NOTE (Add to top)
-      updatedNotes = [note, ...notes];
-    }
+    const updatedNotes = exists
+      ? notes.map(n => (n.id === note.id ? note : n))
+      : [note, ...notes];
 
     setNotes(updatedNotes);
-    localStorage.setItem('zen_cache_notes', JSON.stringify(updatedNotes));
 
-    // Sync to Firestore
+    // 2. SAVE TO LOCAL STORAGE (Safety)
+    Storage.saveNotesLocally(updatedNotes);
+
+    // 3. SYNC TO FIREBASE (Background)
     if (user) {
-      await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+      try {
+        // Direct write. No debounce needed because the user explicitly clicked "Done".
+        await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+      } catch (e) {
+        console.error("Note sync failed:", e);
+        // Optional: Add a "Retry" indicator to UI
+      }
     }
   };
 
@@ -5006,6 +5005,7 @@ function MainApp() {
   // (We deleted handleStrictResume and the "Trap" useEffect because we don't need them anymore)
   const unsavedSecondsRef = useRef(0);
   const timerIntervalRef = useRef(null);
+  const lastTickRef = useRef(Date.now());
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -5237,26 +5237,42 @@ function MainApp() {
 
   const flushUnsavedTime = async () => {
     const amount = unsavedSecondsRef.current;
+
+    // Guard: If nothing to save, stop.
     if (amount === 0 || !user) return;
 
-    // Reset immediately to prevent double-counting
+    // Reset IMMEDIATELY so we don't double-count if called twice fast
     unsavedSecondsRef.current = 0;
 
     const userRef = doc(db, "users", user.uid);
     try {
       await setDoc(userRef, {
         stats: {
-          // Atomic increment: This adds to the server value safely
+          // We ONLY increment the total. We don't overwrite "dailyFocusTime" 
+          // because that might conflict with our daily sync logic.
+          // We are just adding "seconds worked" to the pile.
+          totalFocusTime: mode === 'focus' ? increment(amount) : increment(0),
+
+          // Update the legacy fields just in case you use them elsewhere,
+          // but rely on LocalStorage for the UI display.
           dailyFocusTime: mode === 'focus' ? increment(amount) : increment(0),
           dailyBreakTime: mode !== 'focus' ? increment(amount) : increment(0),
-          // FIX: Always update the date when saving time so logic knows it's today
+
           lastActiveDate: Timestamp.now()
         },
         lastUpdated: new Date()
       }, { merge: true });
+
+      // Also update public profile so friends see it
+      const publicRef = doc(db, "publicProfiles", user.uid);
+      setDoc(publicRef, {
+        "stats.dailyFocusTime": mode === 'focus' ? increment(amount) : increment(0),
+        "stats.dailyBreakTime": mode !== 'focus' ? increment(amount) : increment(0)
+      }, { merge: true });
+
     } catch (e) {
       console.error("Failed to sync time:", e);
-      // If fail, put the time back in the buffer
+      // If it fails, put the time back in the bucket to try again later
       unsavedSecondsRef.current += amount;
     }
   };
@@ -5302,6 +5318,7 @@ function MainApp() {
         // 1. Cache Name
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
+
 
         // 2. CHECK: Do we already have a handle cached?
         const cachedHandle = localStorage.getItem('zen_user_handle');
@@ -5372,6 +5389,8 @@ function MainApp() {
         if (onboardingStep !== 3) setOnboardingStep(0);
         setDataLoaded(false);
       }
+
+      Storage.syncPendingData(db, currentUser);
     });
 
     return () => unsubscribe();
@@ -5701,42 +5720,57 @@ function MainApp() {
           // --- BASIC USER INFO ---
           setUserHandle(data.handle || "");
           const userIsPro = data.subscription?.plan === 'pro';
+
+          // 1. Update State
           setIsPro(userIsPro);
+
+          // 2. Renew the Offline Lease (Updates timestamp to Now)
+          Storage.saveProStatus(userIsPro);
 
           const prefs = data.preferences || {};
           setUnlockedAmbiences(prefs.unlockedAmbiences || []);
           setAmbienceSetupDone(prefs.ambienceSetupDone || false);
 
           // --- 1. SMART NOTES SYNC ---
-          // Guard Clause: Only update if server actually sends notes
           if (data.notes) {
             setNotes(data.notes);
-            localStorage.setItem('zen_cache_notes', JSON.stringify(data.notes)); // Cache
+            localStorage.setItem('zen_cache_notes', JSON.stringify(data.notes));
           }
 
           // --- 2. SMART SETTINGS SYNC ---
-          // Guard Clause: Only update if server actually sends settings
           if (data.settings) {
-            const mergedSettings = { ...DEFAULT_SETTINGS, ...data.settings };
-            setSettings(mergedSettings);
-            localStorage.setItem('zen_cache_settings', JSON.stringify(mergedSettings)); // Cache
+            const remoteSettings = data.settings;
+            const localSettings = Storage.getSettings(DEFAULT_SETTINGS);
 
-            // Update ref to prevent infinite save loop
-            prevSettings.current = mergedSettings;
+            // LOGIC: Only accept Cloud Settings if they are NEWER than Local.
+            // If timestamps are missing (legacy data), we assume Cloud is newer just to be safe,
+            // unless we just wrote to local storage.
+            const remoteTime = remoteSettings.updatedAt || 0;
+            const localTime = localSettings.updatedAt || 0;
+
+            if (remoteTime > localTime) {
+              // Cloud is newer. Update everything.
+              const merged = { ...DEFAULT_SETTINGS, ...remoteSettings };
+              setSettings(merged);
+              Storage.saveSettingsLocally(merged);
+              prevSettings.current = merged;
+            }
+            // ELSE: Local is newer (e.g. changed while offline). 
+            // Ignore the stale cloud data. The 'auto-save' effect will eventually 
+            // push our local version to the cloud when internet returns.
           }
 
           // --- 3. SMART TIMER SYNC ---
           if (data.timerState) {
             const remote = data.timerState;
-            // Only update if remote is newer than our last known update
+            // Prevent echo: Only update if server is newer than our last write
             if (remote.lastUpdated > lastRemoteUpdate.current) {
               lastRemoteUpdate.current = remote.lastUpdated;
               setMode(remote.mode);
 
-              // Load & Cache Session Name
               const remoteName = remote.sessionName || data.sessionName || "";
               setSessionName(remoteName);
-              localStorage.setItem('zen_cache_session_name', remoteName); // Cache
+              localStorage.setItem('zen_cache_session_name', remoteName);
 
               if (remote.isActive) {
                 const now = Date.now();
@@ -5760,63 +5794,45 @@ function MainApp() {
             }
           }
 
-          // --- 4. STATS & DAILY RESET LOGIC ---
-          const loadedStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
-          const today = new Date();
-          let currentStreak = loadedStats.currentStreak;
+          // --- 4. STATS LOGIC (OFFLINE-FIRST FIX) ---
+          const serverStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
 
-          let lastActiveDate = loadedStats.lastActiveDate
-            ? (loadedStats.lastActiveDate.toDate ? loadedStats.lastActiveDate.toDate() : new Date(loadedStats.lastActiveDate))
+          // A. Fetch Local Ledger ("The Truth" for today)
+          const localStats = JSON.parse(localStorage.getItem('zen_stats_current') || '{}');
+          const todayId = formatDateId(new Date());
+
+          let finalStats = { ...serverStats };
+
+          // B. Override Server Daily Counters if Local Data exists for TODAY
+          // This prevents the server from resetting your live progress
+          if (localStats.date === todayId) {
+            finalStats.dailyFocusTime = localStats.dailyFocusTime || 0;
+            finalStats.dailyBreakTime = localStats.dailyBreakTime || 0;
+            finalStats.dailySessions = localStats.dailySessions || 0;
+          }
+
+          // C. Handle Date Rollover (Visual Only)
+          const today = new Date();
+          let lastActiveDate = finalStats.lastActiveDate
+            ? (finalStats.lastActiveDate.toDate ? finalStats.lastActiveDate.toDate() : new Date(finalStats.lastActiveDate))
             : null;
 
-          let shouldResetDaily = false;
-
-          // Check if we need to reset for a new day
-          if (lastActiveDate) {
-            if (!isSameDay(lastActiveDate, today)) {
-              shouldResetDaily = true;
-              if (!isYesterday(today, lastActiveDate)) {
-                currentStreak = 0; // Reset streak if missed a day
-              }
+          // If the server data is from "Yesterday" (or older)...
+          if (lastActiveDate && !isSameDay(lastActiveDate, today)) {
+            // ...AND we don't have new local data for "Today"...
+            if (localStats.date !== todayId) {
+              // ...THEN we visually reset the counters to 0.
+              finalStats.dailyFocusTime = 0;
+              finalStats.dailyBreakTime = 0;
+              finalStats.dailySessions = 0;
+              // Note: We do NOT reset streak here. We wait for the first "Save" of the day to validate streak.
             }
-          } else {
-            // No date found (new user), assume today
-            shouldResetDaily = false;
-            lastActiveDate = today;
           }
 
-          if (shouldResetDaily) {
-            // Archive yesterday's stats to history subcollection
-            if (loadedStats.dailyFocusTime > 0) {
-              const archiveDate = lastActiveDate || new Date(Date.now() - 86400000);
-              const dateId = formatDateId(archiveDate);
-              const historyRef = doc(db, "users", user.uid, "history", dateId);
-              setDoc(historyRef, { ...loadedStats, date: archiveDate }, { merge: true });
-            }
-            // Reset daily counters
-            loadedStats.dailyFocusTime = 0;
-            loadedStats.dailyBreakTime = 0;
-            loadedStats.dailySessions = 0;
-          }
-
-          setStats(prevStats => {
-            const newStats = { ...loadedStats, currentStreak };
-
-            // Protection: If NOT resetting, preserve local progress if it's ahead of server
-            if (!shouldResetDaily) {
-              if (prevStats.dailyFocusTime > newStats.dailyFocusTime) newStats.dailyFocusTime = prevStats.dailyFocusTime;
-              if (prevStats.dailyBreakTime > newStats.dailyBreakTime) newStats.dailyBreakTime = prevStats.dailyBreakTime;
-              if (prevStats.dailySessions > newStats.dailySessions) newStats.dailySessions = prevStats.dailySessions;
-            }
-
-            // CRITICAL: Cache the calculated stats immediately
-            localStorage.setItem('zen_cache_stats', JSON.stringify(newStats));
-
-            return newStats;
-          });
+          setStats(finalStats);
+          localStorage.setItem('zen_cache_stats', JSON.stringify(finalStats));
         }
 
-        // Mark app as fully loaded
         setDataLoaded(true);
       });
       return () => unsub();
@@ -5961,9 +5977,9 @@ function MainApp() {
   };
 
   // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
-  // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
-  // --- HANDLER: AMBIENCE MIXER (Multi-Track + Looping) ---
-  const toggleAmbience = (track, isPreview = false) => {
+
+  // 1. Wrap toggleAmbience in useCallback
+  const toggleAmbience = useCallback((track, isPreview = false) => {
     const id = track.id;
 
     // Check if already active -> STOP IT
@@ -5972,7 +5988,6 @@ function MainApp() {
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
-        // Remove 'ended' listener if it exists to prevent memory leaks/bugs
         audio.onended = null;
       }
       setAmbienceState(prev => {
@@ -5987,11 +6002,9 @@ function MainApp() {
       }
       const audio = ambienceRefs.current[id];
 
-      // CRITICAL CHANGE: Loop behavior based on isPreview
       audio.loop = !isPreview;
       audio.volume = 0.5;
 
-      // If preview, auto-deselect when sound finishes
       if (isPreview) {
         audio.onended = () => {
           setAmbienceState(prev => {
@@ -6001,7 +6014,7 @@ function MainApp() {
           });
         };
       } else {
-        audio.onended = null; // Clear listener for normal mode
+        audio.onended = null;
       }
 
       audio.play().catch(e => console.error("Ambience fail", e));
@@ -6011,9 +6024,10 @@ function MainApp() {
         [id]: { isPlaying: true, volume: 0.5 }
       }));
     }
-  };
+  }, [ambienceState]); // Added dependency
 
-  const stopAllAmbience = () => {
+  // 2. THIS IS THE CRITICAL FIX: Wrap stopAllAmbience in useCallback
+  const stopAllAmbience = useCallback(() => {
     Object.keys(ambienceRefs.current).forEach(key => {
       const audio = ambienceRefs.current[key];
       if (audio) {
@@ -6022,20 +6036,19 @@ function MainApp() {
         audio.onended = null;
       }
     });
-    setAmbienceState({}); // Clear UI state
-  };
+    setAmbienceState({});
+  }, []);
 
-  const changeAmbienceVolume = (id, newVol) => {
-    // 1. Update Audio Element
+  // 3. Wrap changeAmbienceVolume in useCallback
+  const changeAmbienceVolume = useCallback((id, newVol) => {
     const audio = ambienceRefs.current[id];
     if (audio) audio.volume = newVol;
 
-    // 2. Update UI State
     setAmbienceState(prev => ({
       ...prev,
       [id]: { ...prev[id], volume: newVol }
     }));
-  };
+  }, []);
 
   // --- HANDLER: TOGGLE LOFI ---
   const toggleLofi = () => {
@@ -6081,20 +6094,30 @@ function MainApp() {
   }
   useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
 
-  // --- TIMER INTERVAL & TRANSITION LOGIC ---
+  // --- TIMER INTERVAL & TRANSITION LOGIC (Ghost-Proof) ---
   useEffect(() => {
-    // 1. Safety Clear: Ensure no rogue timers exist
+    // 1. Safety Clear: Stop any existing timer immediately
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-    let lastTickTime = Date.now();
-
     if (isActive) {
-      if (!endTimeRef.current) { endTimeRef.current = Date.now() + timeLeft * 1000; }
-      lastTickTime = Date.now();
+      // Initialize the "Wall Clock" (Ref) so all timers share the same baseline
+      lastTickRef.current = Date.now();
 
-      // 2. Start new timer
+      if (!endTimeRef.current) {
+        endTimeRef.current = Date.now() + timeLeft * 1000;
+      }
+
+      // 2. Start the Timer Loop
       timerIntervalRef.current = setInterval(() => {
         const now = Date.now();
+
+        // --- THE FIX: SHARED CLOCK CHECK ---
+        // We calculate delta against the SHARED Ref, not a local variable.
+        // If a "Ghost Timer" runs, it will see this Ref was just updated by the Real Timer
+        // and 'delta' will be tiny (e.g., 5ms), so it will skip the block below.
+        const delta = now - lastTickRef.current;
+
+        // --- A. UI COUNTDOWN (Visual Only) ---
         const diff = endTimeRef.current - now;
         const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
 
@@ -6103,7 +6126,7 @@ function MainApp() {
           return prev;
         });
 
-        // Sync heartbeat to server every 5 minutes
+        // --- B. HEARTBEAT (Server Sync) ---
         if (now - lastHeartbeatRef.current > 300000) {
           lastHeartbeatRef.current = now;
           syncTimerState({
@@ -6115,122 +6138,84 @@ function MainApp() {
           });
         }
 
-        // --- PRECISE TIME TRACKING ---
-        const delta = now - lastTickTime;
-        accumulatedTimeRef.current += delta;
-        const elapsedSeconds = Math.floor(accumulatedTimeRef.current / 1000);
+        // --- C. STATS LEDGER (The Gatekeeper) ---
+        // Only proceed if the Wall Clock says 1 full second has passed
+        if (delta >= 1000) {
+          const secondsPassed = Math.floor(delta / 1000);
 
-        if (elapsedSeconds > 0) {
-          accumulatedTimeRef.current -= (elapsedSeconds * 1000);
-          if (!devMode) {
-            unsavedSecondsRef.current += elapsedSeconds;
-          }
-          setStats(prevStats => {
-            const newStats = { ...prevStats };
-            if (mode === 'focus') {
-              newStats.dailyFocusTime += elapsedSeconds;
-            } else {
-              newStats.dailyBreakTime += elapsedSeconds;
-            }
-            return newStats;
-          });
+          // 1. UPDATE THE WALL CLOCK
+          // We add exactly 1000ms chunks to keep rhythm perfect
+          lastTickRef.current += (secondsPassed * 1000);
+
+          // 2. Update Local Storage (The Ledger)
+          const updatedStats = Storage.updateLocalStats(secondsPassed, mode);
+
+          // 3. Add to Server Buffer
+          unsavedSecondsRef.current += secondsPassed;
+
+          // 4. Update React State
+          setStats(prev => ({
+            ...prev,
+            dailyFocusTime: updatedStats.dailyFocusTime,
+            dailyBreakTime: updatedStats.dailyBreakTime
+          }));
         }
-        lastTickTime = now;
 
-        // --- TIMER FINISHED LOGIC ---
+        // --- D. SESSION END LOGIC ---
         if (secondsRemaining <= 0) {
           if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
-          // 1. Flush Stats & Play Sound
+          // One final check to save the session count safely
+          if (mode === 'focus') {
+            const updatedStats = Storage.incrementSessionCount();
+            setStats(updatedStats);
+          }
+
           flushUnsavedTime();
           playAlarm(mode);
 
-          // 2. Pre-calculate Next State
+          // Mode Switching Logic...
           let nextMode = mode;
           let nextTimeLeft = 0;
           let nextIsActive = false;
 
-          // TALLY LOGIC FIX: Don't increment yet
-          let nextPomoCount = pomoCount;
-
           if (mode === 'focus') {
-            // --- FOCUS ENDED ---
-
-            // Stats Update
             if (!devMode) {
               setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
             }
+            if (strictMode) document.exitFullscreen().catch(() => { });
 
-            // Strict Mode Exit
-            if (strictMode) {
-              document.exitFullscreen().catch(e => console.log("Auto-exit fullscreen failed", e));
-            }
-
-            // CHECK: Is this the last focus before Long Break?
-            // Note: We check (pomoCount + 1) because current session is about to end
-            // But we DO NOT increment the visual count yet.
             if (pomoCount + 1 >= settings.pomosBeforeLongBreak) {
               nextMode = 'longBreak';
               nextTimeLeft = settings.longBreak * 60;
-              // Do not reset pomoCount yet; let it stay "full" during Long Break
             } else {
               nextMode = 'shortBreak';
               nextTimeLeft = settings.shortBreak * 60;
-              // Do not increment pomoCount yet; wait for short break to finish
             }
-
             if (settings.autoStartBreaks) nextIsActive = true;
 
           } else if (mode === 'shortBreak') {
-            // --- SHORT BREAK ENDED ---
-
-            // NOW we complete the session tally
-            nextPomoCount = pomoCount + 1;
-            setPomoCount(nextPomoCount);
-
+            setPomoCount(prev => prev + 1);
             nextMode = 'focus';
-
-            // Strict Mode Enter
-            if (strictMode) {
-              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
-            }
-
+            if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
             nextTimeLeft = settings.focus * 60;
             if (settings.autoStartWork) nextIsActive = true;
 
           } else if (mode === 'longBreak') {
-            // --- LONG BREAK ENDED ---
-
-            // Reset Cycle Tally
-            nextPomoCount = 0;
             setPomoCount(0);
-
             nextMode = 'focus';
-
-            // Strict Mode Enter
-            if (strictMode) {
-              document.documentElement.requestFullscreen().catch(e => console.log("Enter fullscreen failed", e));
-            }
-
+            if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
             nextTimeLeft = settings.focus * 60;
             if (settings.autoStartWork) nextIsActive = true;
           }
 
-          // 3. Update Local State (Atomic batch update)
           setMode(nextMode);
           setTimeLeft(nextTimeLeft);
           setIsActive(nextIsActive);
 
-          // 4. Handle Auto-Start Target
-          let nextTarget = null;
-          if (nextIsActive) {
-            nextTarget = Date.now() + (nextTimeLeft * 1000);
-            endTimeRef.current = nextTarget;
-          } else {
-            endTimeRef.current = null;
-          }
+          let nextTarget = nextIsActive ? Date.now() + (nextTimeLeft * 1000) : null;
+          endTimeRef.current = nextTarget;
 
-          // 5. Sync FINAL State
           syncTimerState({
             isActive: nextIsActive,
             targetEndTime: nextTarget,
@@ -6240,10 +6225,9 @@ function MainApp() {
             lastUpdated: Date.now()
           });
         }
-      }, 100);
+      }, 100); // 100ms resolution is fine for checking updates
     } else {
       endTimeRef.current = null;
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
 
     return () => {
@@ -6253,16 +6237,6 @@ function MainApp() {
 
   useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
   useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
-
-  useEffect(() => {
-    let syncInterval;
-    if (isActive) {
-      syncInterval = setInterval(() => {
-        flushUnsavedTime();
-      }, 60000); // Run every 10 seconds
-    }
-    return () => clearInterval(syncInterval);
-  }, [isActive, mode, user]);
 
   const isInitialMount = useRef(true);
   const prevDurationRef = useRef(settings[mode] * 60);
@@ -6301,30 +6275,31 @@ function MainApp() {
 
 
   const handleConfirmReset = () => {
-    // FIX: Only save pending time if the timer is CURRENTLY running.
-    // If it's paused, we assume we already saved when you clicked pause.
-    // We discard any "ghost" seconds to prevent the stats from jumping unexpectedly.
-    if (isActive) {
-      flushUnsavedTime();
-    } else {
-      unsavedSecondsRef.current = 0; // Discard buffer if paused
-    }
+    // 1. Clear Local Buffers
+    // We discard any partial seconds accumulated since the last tick
+    // so they don't get added to stats later.
+    unsavedSecondsRef.current = 0;
+    accumulatedTimeRef.current = 0;
 
-    accumulatedTimeRef.current = 0; // Clear partial milliseconds on full reset
-
+    // 2. Reset Timer State
     setIsActive(false);
     setMode('focus');
     setTimeLeft(settings['focus'] * 60);
     setPomoCount(0);
     endTimeRef.current = null;
 
+    // 3. Sync "Reset" state to DB (so friends see you are Idle)
     syncTimerState({
       isActive: false,
       targetEndTime: null,
       mode: 'focus',
       timeLeft: settings['focus'] * 60,
-      sessionName
+      sessionName,
+      lastUpdated: Date.now()
     });
+
+    // 4. Close the modal
+    setShowResetConfirm(false);
   };
 
   const handleModeChange = (newMode) => {
@@ -6347,15 +6322,24 @@ function MainApp() {
   const isTimerRunning = isActive || (timeLeft < settings[mode] * 60 && timeLeft > 0);
 
   const handleSettingsSave = async (newSettings) => {
-    // 1. Calculate the difference for the CURRENT mode
-    localStorage.setItem('zen_cache_settings', JSON.stringify(newSettings));
+    // 1. ADD TIMESTAMP (The "Version Control")
+    // This marks these settings as the latest version
+    const settingsWithTimestamp = {
+      ...newSettings,
+      updatedAt: Date.now()
+    };
+
+    // 2. Save to Local Storage IMMEDIATELY (The Authority)
+    Storage.saveSettingsLocally(settingsWithTimestamp);
+
+    // 3. Update React State
+    setSettings(settingsWithTimestamp);
+    setShowSettings(false);
+
+    // 4. Calculate Timer Adjustments (Logic unchanged)
     const oldDuration = settings[mode];
     const newDuration = newSettings[mode];
     const deltaMinutes = newDuration - oldDuration;
-
-    // 2. Update local state
-    setSettings(newSettings);
-    setShowSettings(false);
 
     if (isActive) {
       // --- A. TIMER IS RUNNING ---
@@ -6370,10 +6354,9 @@ function MainApp() {
         setTimeLeft(newTimeLeft);
       }
 
-      // Sync ADJUSTED timer to BOTH Private and Public
       if (user) {
         const payload = {
-          settings: newSettings,
+          settings: settingsWithTimestamp, // <--- Send stamped settings
           timerState: {
             isActive: true,
             targetEndTime: newTargetEndTime,
@@ -6385,22 +6368,19 @@ function MainApp() {
         };
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
-        // Write Private
         await setDoc(doc(db, "users", user.uid), payload, { merge: true });
-        // Write Public
         await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
       }
 
     } else {
-      // --- B. TIMER IS PAUSED/STOPPED ---
+      // --- B. TIMER IS PAUSED ---
       const newDurationSeconds = newSettings[mode] * 60;
       setTimeLeft(newDurationSeconds);
       endTimeRef.current = null;
 
-      // Sync RESET timer to BOTH Private and Public
       if (user) {
         const payload = {
-          settings: newSettings,
+          settings: settingsWithTimestamp, // <--- Send stamped settings
           timerState: {
             isActive: false,
             targetEndTime: null,
@@ -6412,15 +6392,32 @@ function MainApp() {
         };
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
-        // Write Private
         await setDoc(doc(db, "users", user.uid), payload, { merge: true });
-        // Write Public
         await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
       }
     }
   };
 
-  const handleBackgroundChange = (bgSrc) => { setSettings(prev => ({ ...prev, background: bgSrc })); };
+  const handleBackgroundChange = (bgSrc) => {
+    // 1. Prepare New Settings with Timestamp
+    // We must stamp this so the app knows this is the "Latest Version"
+    const newSettings = {
+      ...settings,
+      background: bgSrc,
+      updatedAt: Date.now()
+    };
+
+    // 2. Save to Local Storage IMMEDIATELY
+    // This ensures that if they reload 1 second later, the background persists.
+    Storage.saveSettingsLocally(newSettings);
+
+    // 3. Update React State (Visuals)
+    setSettings(newSettings);
+
+    // 4. (Optional) Force a Cloud Sync if you want it to happen instantly
+    // The existing 'useEffect' will catch this state change and sync to Firebase 
+    // automatically in ~1 second, so we don't strictly need to force it here.
+  };
   const handleAddCustomBackground = (newBg) => { setCustomBackgrounds(prev => [...prev, newBg]); };
   const handleDeleteCustomBackground = (bgId) => { const bgToDelete = customBackgrounds.find(b => b.id === bgId); if (bgToDelete && settings.background === bgToDelete.src) { setSettings(prev => ({ ...prev, background: '' })); } setCustomBackgrounds(prev => prev.filter(bg => bg.id !== bgId)); };
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
