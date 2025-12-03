@@ -202,13 +202,13 @@ const BACKGROUND_OPTIONS = [
   { id: 'greenforest', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
   { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_medium.mp4' },
   { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { id: 'noensunset', src: 'https://cdn.pixabay.com/video/2020/04/13/35889-407193331_large.mp4' },
+  { id: 'noensunset', src: 'https://cdn.pixabay.com/video/2021/02/14/65182-513048357_small.mp4' },
   { id: 'lightinthefall', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
   { id: 'mountains', src: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920' },
   { id: 'watercolornature', src: 'https://images.unsplash.com/photo-1694369999734-e2aaded39109?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=birmingham-museums-trust--7BpqU1rD2E-unsplash.jpg&w=1920' },
   { id: 'auroralights', src: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=lightscape-LtnPejWDSAY-unsplash.jpg&w=1920' },
-  { id: 'hongkongcitylightnight', src: 'https://cdn.pixabay.com/images/download/hong-kong-1990268_1920.jpg' },
-  { id: 'pinkclouds', src: 'https://motionbgs.com/dl/hd/1435' },
+  { id: 'tokyonightlight', src: 'https://images.unsplash.com/photo-1626946548234-a65fd193db41?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=qiwei-hou-6PA1vVnnKtg-unsplash.jpg&w=1920' },
+  { id: 'bluegradient', src: 'https://cdn.pixabay.com/video/2022/03/06/109908-685705862_small.mp4' },
 ];
 
 const cleanText = (text) => {
