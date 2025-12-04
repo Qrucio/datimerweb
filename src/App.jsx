@@ -5652,8 +5652,8 @@ function MainApp() {
   };
 
   // --- UPDATED AUTH EFFECT (Fixes Race Condition & Adds Guest Support) ---
+  // --- UPDATED AUTH EFFECT (Guest Skip Logic) ---
   useEffect(() => {
-    // 1. Handle Custom Token (if provided by server context)
     const initAuth = async () => {
       if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         await signInWithCustomToken(auth, __initial_auth_token);
@@ -5661,67 +5661,89 @@ function MainApp() {
     };
     initAuth();
 
-    // 2. Listen for Auth State Changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setIsAuthChecking(false);
 
       if (currentUser) {
-        // --- EXISTING USER LOGIC (Google or Guest) ---
+        // --- 1. GUEST USER LOGIC ---
+        if (currentUser.isAnonymous) {
+          console.log("Guest session active.");
+
+          // Generate a temporary local handle for UI consistency
+          // We do NOT save this to the database.
+          const shortId = currentUser.uid.substring(0, 5);
+          const guestHandle = `@guest_${shortId}`;
+          localStorage.setItem('zen_user_handle', guestHandle);
+          localStorage.setItem('pomodoro_user_name', "Guest");
+
+          // SKIP ONBOARDING: Go straight to Dashboard
+          setOnboardingStep(3);
+          setShowLoginBtn(false);
+
+          // Still sync pending offline data if they had any
+          Storage.syncPendingData(db, currentUser);
+          setDataLoaded(true);
+          return;
+        }
+
+        // --- 2. REGISTERED USER LOGIC (Google) ---
+        // Only check cache/DB if they are a real user
+
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
 
+        // Check Local Cache first to prevent flicker
         const cachedHandle = localStorage.getItem('zen_user_handle');
-        if (cachedHandle) {
+        // IMPORTANT: Ensure we don't accidentally use a left-over guest handle for a real user
+        const isValidCache = cachedHandle && !cachedHandle.startsWith('@guest_');
+
+        if (isValidCache) {
           setOnboardingStep(3);
           setShowLoginBtn(false);
         }
 
         try {
-          // Sync with DB to verify handle
+          // Sync with DB to verify/claim handle
           const publicRef = doc(db, "publicProfiles", currentUser.uid);
           const publicSnap = await getDoc(publicRef);
           const dbHandle = publicSnap.exists() ? publicSnap.data().handle : null;
 
           if (dbHandle) {
+            // User HAS a handle -> Go to Dashboard
             localStorage.setItem('zen_user_handle', dbHandle);
             const userRef = doc(db, "users", currentUser.uid);
             await setDoc(userRef, { handle: dbHandle }, { merge: true });
+
             setOnboardingStep(3);
             setShowLoginBtn(false);
           } else {
-            // New user or migration logic
-            const userRef = doc(db, "users", currentUser.uid);
-            const userSnap = await getDoc(userRef);
-            if (userSnap.exists() && userSnap.data().handle) {
-              setOnboardingStep(3);
-            } else {
-              setIsMigrating(userSnap.exists());
-              const suggested = currentUser.displayName
-                ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
-                : "user";
-              setOnboardingHandle(suggested);
-              setOnboardingStep(1);
-              setShowLoginBtn(false);
-            }
+            // User HAS NO handle (New Account or Converted Guest) -> Go to Step 1
+            // This is where they finally get to pick their unique name
+            setIsMigrating(false); // It's a new setup
+
+            // Suggest a handle based on their Google Name
+            const suggested = currentUser.displayName
+              ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
+              : "user";
+
+            setOnboardingHandle(suggested);
+
+            // FORCE STEP 1
+            setOnboardingStep(1);
+            setShowLoginBtn(false);
           }
         } catch (e) {
           console.error("Auth check failed:", e);
         }
 
-        // Sync pending data (offline changes)
         Storage.syncPendingData(db, currentUser);
 
       } else {
-        // --- NO USER FOUND ---
-        // STOP: We do NOT auto-create an account here anymore.
-        // STOP: We do NOT wipe localStorage here (safe for offline users).
-
+        // --- 3. NO USER (Logged Out) ---
         setGreetingText("Hello, stranger");
         setShowLoginBtn(true);
 
-        // Only force back to start if we aren't already logged in locally.
-        // This protects offline users from being kicked out of the dashboard.
         if (onboardingStep !== 3) {
           setOnboardingStep(0);
         }
