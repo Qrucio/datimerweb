@@ -4681,6 +4681,7 @@ function MainApp() {
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
+  const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
   // Check if extension is installed (Universal Method)
@@ -4748,6 +4749,54 @@ function MainApp() {
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
   const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
   const [isTallyHovered, setIsTallyHovered] = useState(false);
+
+  // --- USER ACTIVITY TRACKER (For Cinematic Mode) ---
+  const [isUserActive, setIsUserActive] = useState(true);
+  const activityTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleActivity = () => {
+      // 1. Wake up the UI immediately
+      setIsUserActive(true);
+
+      // 2. Clear any existing sleep timer
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+
+      // 3. Set a new sleep timer (3 seconds)
+      // Only if we are actually in Focus Mode (otherwise UI stays always on)
+      if (focusMode) {
+        activityTimeoutRef.current = setTimeout(() => {
+          setIsUserActive(false);
+        }, 3000);
+      }
+    };
+
+    if (focusMode) {
+      // If Focus Mode is ON, listen for movement to wake up/sleep
+      window.addEventListener('mousemove', handleActivity);
+      window.addEventListener('click', handleActivity);
+      window.addEventListener('keydown', handleActivity);
+
+      // Start the countdown immediately upon entering focus mode
+      handleActivity();
+    } else {
+      // If Focus Mode is OFF, UI is always active
+      setIsUserActive(true);
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+    };
+  }, [focusMode]);
+
+  // Helper variable for cleaner JSX
+  // If Focus Mode is OFF, or User IS Active -> Show UI (Opacity 100)
+  // Otherwise -> Hide UI (Opacity 0)
+  const uiOpacityClass = (!focusMode || isUserActive) ? 'opacity-100' : 'opacity-0';
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -5093,7 +5142,7 @@ function MainApp() {
 
 
   // --- FOCUS MODE STATE ---
-  const [focusMode, setFocusMode] = useState(false);
+
 
   useEffect(() => {
     const sounds = { 'focus': '/sounds/timer-end.mp3', 'shortBreak': '/sounds/timer-end.mp3', 'longBreak': '/sounds/timer-end.mp3' };
@@ -5731,10 +5780,40 @@ function MainApp() {
           setUnlockedAmbiences(prefs.unlockedAmbiences || []);
           setAmbienceSetupDone(prefs.ambienceSetupDone || false);
 
-          // --- 1. SMART NOTES SYNC ---
+          // --- 1. SMART NOTES SYNC (MERGE STRATEGY) ---
           if (data.notes) {
-            setNotes(data.notes);
-            localStorage.setItem('zen_cache_notes', JSON.stringify(data.notes));
+            const serverNotes = data.notes || [];
+            const localNotes = Storage.getNotes(); // Reads current cache
+
+            // Create a Map to merge by ID (Union)
+            const mergedMap = new Map();
+
+            // 1. Put Server notes in first
+            serverNotes.forEach(note => mergedMap.set(note.id, note));
+
+            // 2. Overlay Local notes (If they are newer or new)
+            localNotes.forEach(localNote => {
+              const serverNote = mergedMap.get(localNote.id);
+
+              // If note doesn't exist on server (New), OR Local is newer version
+              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
+                mergedMap.set(localNote.id, localNote);
+              }
+            });
+
+            const finalNotes = Array.from(mergedMap.values());
+
+            // 3. Only update if something actually changed from what we have
+            // This prevents infinite loops
+            if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
+              setNotes(finalNotes);
+              Storage.saveNotesLocally(finalNotes);
+
+              // OPTIONAL: If we found local notes were newer/missing from server, 
+              // we should technically trigger a save up to server here, 
+              // but your 'auto-save' useEffect will likely catch this change 
+              // and do it automatically in a few seconds.
+            }
           }
 
           // --- 2. SMART SETTINGS SYNC ---
@@ -6594,7 +6673,7 @@ function MainApp() {
       <div className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
 
         {/* --- MOBILE HEADER: Logo & Settings (Changed) --- */}
-        <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+        <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-2">
             <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
           </div>
@@ -6617,7 +6696,7 @@ function MainApp() {
         </div>
 
         {/* --- DESKTOP HEADER: Settings & Stats (Quote Removed) --- */}
-        <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+        <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-4">
 
             {/* 1. SETTINGS ICON (Now on the Left) */}
@@ -6634,7 +6713,7 @@ function MainApp() {
         </div>
 
         {/* --- DESKTOP FOOTER LEFT: DOCK & FRIENDS --- */}
-        <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${focusMode ? 'opacity-0 hover:opacity-100' : 'opacity-100'}`}>
+        <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
 
           {/* Live Friend Indicators (Above the Dock) */}
           {dashboardFriends.length > 0 && (
@@ -6730,7 +6809,7 @@ function MainApp() {
         </div>
 
         {/* --- DESKTOP LOGO (Changed) --- */}
-        <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? (focusMode ? 'opacity-0 hover:opacity-100 transition-opacity duration-700' : 'opacity-100') : 'opacity-0 pointer-events-none'}`}>
+        <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? uiOpacityClass : 'opacity-0 pointer-events-none'}`}>
           <RevealLogo src="/logo/altimerwhite.png" className="w-14 h-14" />
         </div>
 
@@ -6845,20 +6924,13 @@ function MainApp() {
         </main>
 
         {/* --- STICKY NOTE WIDGET CONTAINER --- */}
+        {/* Find the div wrapping StickyNoteWidget */}
         <div className={`
     w-full flex justify-center z-20 transition-all duration-700 ease-in-out 
-    
-    /* DESKTOP POSITIONING */
     md:absolute md:top-8 md:left-12 md:w-auto md:justify-start
-    
-    /* DESKTOP VISIBILITY FIX: Only apply the fade-out/hover logic on desktop (md:) */
     md:transition-opacity md:duration-700 md:ease-in-out 
     ${onboardingStep === 3
-            ? (focusMode
-              // IF FOCUS MODE IS ON: Hide completely, then reveal on hover
-              ? 'md:opacity-0 md:hover:opacity-100 opacity-100'
-              // IF FOCUS MODE IS OFF: Stay visible
-              : 'opacity-100')
+            ? uiOpacityClass // <--- SIMPLIFIED: Just use the global tracker
             : 'opacity-0 pointer-events-none'
           }
 `}>

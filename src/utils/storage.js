@@ -3,8 +3,8 @@ import { doc, writeBatch, collection, Timestamp, getDoc, setDoc } from "firebase
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
     HISTORY: 'zen_stats_history',   // Data waiting to be uploaded
-    NOTES: 'zen_notes_cache',       // Notes content
-    SETTINGS: 'zen_settings_cache', // User preferences
+    NOTES: 'zen_cache_notes',       // Notes content
+    SETTINGS: 'zen_cache_settings', // User preferences
     TIMER: 'zen_timer_state',       // Current timer status (for crash recovery)
     PRO_CLAIM: 'zen_pro_claim'      // Offline Pro License
 };
