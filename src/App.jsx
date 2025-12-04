@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -5651,73 +5651,57 @@ function MainApp() {
     }
   };
 
+  // --- UPDATED AUTH EFFECT (Fixes Race Condition & Adds Guest Support) ---
   useEffect(() => {
-    const initAuth = async () => { if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) { await signInWithCustomToken(auth, __initial_auth_token); } else { await signInAnonymously(auth); } };
+    // 1. Handle Custom Token (if provided by server context)
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      }
+    };
     initAuth();
 
-    const storedName = localStorage.getItem('pomodoro_user_name');
-
+    // 2. Listen for Auth State Changes
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setIsAuthChecking(false);
 
       if (currentUser) {
-        // 1. Cache Name
+        // --- EXISTING USER LOGIC (Google or Guest) ---
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
         localStorage.setItem('pomodoro_user_name', firstName);
 
-
-        // 2. CHECK: Do we already have a handle cached?
         const cachedHandle = localStorage.getItem('zen_user_handle');
-
-        // If cached, ensure we remain on Dashboard (Step 3) visually
         if (cachedHandle) {
           setOnboardingStep(3);
           setShowLoginBtn(false);
         }
 
         try {
-          // 3. Verify with Database (Silent Background Check)
+          // Sync with DB to verify handle
           const publicRef = doc(db, "publicProfiles", currentUser.uid);
           const publicSnap = await getDoc(publicRef);
-
           const dbHandle = publicSnap.exists() ? publicSnap.data().handle : null;
 
           if (dbHandle) {
-            // CONFIRMED: User has handle. Update cache.
             localStorage.setItem('zen_user_handle', dbHandle);
-
-            // Ensure private doc matches (Self-healing)
             const userRef = doc(db, "users", currentUser.uid);
             await setDoc(userRef, { handle: dbHandle }, { merge: true });
-
-            // Force Dashboard
             setOnboardingStep(3);
             setShowLoginBtn(false);
           } else {
-            // REFUTED: DB says no handle. 
-            // Only redirect to Setup (Step 1) if we are NOT migrating an old account
-            // and we genuinely don't have a handle.
-
+            // New user or migration logic
             const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
-
-            // Handle Legacy Migration or New User
             if (userSnap.exists() && userSnap.data().handle) {
-              // Edge case: Private handle exists, Public doesn't. Fix it silently.
-              setOnboardingStep(3); // Stay on dash
-              // (Your migration logic would go here if needed)
+              setOnboardingStep(3);
             } else {
-              // Genuine New User -> Go to Setup
               setIsMigrating(userSnap.exists());
-
-              // Generate Suggestion
               const suggested = currentUser.displayName
                 ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
                 : "user";
               setOnboardingHandle(suggested);
-
-              setOnboardingStep(1); // Show @ Screen
+              setOnboardingStep(1);
               setShowLoginBtn(false);
             }
           }
@@ -5725,19 +5709,25 @@ function MainApp() {
           console.error("Auth check failed:", e);
         }
 
+        // Sync pending data (offline changes)
+        Storage.syncPendingData(db, currentUser);
+
       } else {
-        // GUEST: Clear caches to ensure correct flow next time
-        localStorage.removeItem('zen_user_handle');
-        // Note: We keep 'pomodoro_user_name' if you want "Hello Stranger" to persist, 
-        // but typically guests start fresh.
+        // --- NO USER FOUND ---
+        // STOP: We do NOT auto-create an account here anymore.
+        // STOP: We do NOT wipe localStorage here (safe for offline users).
 
         setGreetingText("Hello, stranger");
         setShowLoginBtn(true);
-        if (onboardingStep !== 3) setOnboardingStep(0);
+
+        // Only force back to start if we aren't already logged in locally.
+        // This protects offline users from being kicked out of the dashboard.
+        if (onboardingStep !== 3) {
+          setOnboardingStep(0);
+        }
+
         setDataLoaded(false);
       }
-
-      Storage.syncPendingData(db, currentUser);
     });
 
     return () => unsubscribe();
@@ -6446,16 +6436,32 @@ function MainApp() {
   const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
   const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
 
+  const handleGuestLogin = async () => {
+    try {
+      // This creates a real UID so your database logic works,
+      // but requires no credentials from the user.
+      await signInAnonymously(auth);
+    } catch (e) {
+      console.error("Guest login failed", e);
+    }
+  };
+
+  // --- UPDATED: Explicit Clean Up ---
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      // Clear all user-specific cache
+
+      // Privacy Wipe: Clear session data so the next user starts fresh
       localStorage.removeItem('pomodoro_user_name');
+      localStorage.removeItem('zen_user_handle');
+
+      // Clear content caches
       localStorage.removeItem('zen_cache_settings');
       localStorage.removeItem('zen_cache_notes');
       localStorage.removeItem('zen_cache_session_name');
       localStorage.removeItem('zen_cache_stats');
 
+      // Hard reload to reset application state
       window.location.reload();
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -6933,7 +6939,27 @@ function MainApp() {
 
       <div className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-all duration-1000 ${onboardingStep === 0 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
         <h1 className="relative z-10 font-serif-display italic text-4xl md:text-6xl text-white tracking-tight min-h-[80px] flex items-center"><span>{(!isDeletingName && !isTypingName && (greetingText === "Hello, stranger" || greetingText.startsWith("Welcome back"))) ? <StaggeredText text={greetingText} /> : greetingText}</span>{(isDeletingName || isTypingName) && <span className="inline-block w-[2px] h-8 md:h-12 bg-white ml-1 cursor-blink"></span>}</h1>
-        {showLoginBtn && onboardingStep === 0 && (<div className="absolute bottom-20 md:bottom-32 animate-fade-in opacity-0" style={{ animationDelay: '1.5s', animationFillMode: 'forwards' }}><button onClick={handleLogin} className="group flex items-center gap-3 px-6 py-3 border border-white/20 rounded-full hover:bg-white/10 transition-all hover:border-white/50"><GoogleLogo /><span className="text-sm tracking-widest uppercase text-white/80 group-hover:text-white">Sign in with Google</span></button></div>)}
+
+        {showLoginBtn && onboardingStep === 0 && (
+          // Added 'flex flex-col gap-4' to container for spacing
+          <div className="absolute bottom-20 md:bottom-32 animate-fade-in opacity-0 flex flex-col items-center gap-4" style={{ animationDelay: '1.5s', animationFillMode: 'forwards' }}>
+
+            {/* 1. GOOGLE BUTTON */}
+            <button onClick={handleLogin} className="group flex items-center gap-3 px-6 py-3 border border-white/20 rounded-full hover:bg-white/10 transition-all hover:border-white/50">
+              <GoogleLogo />
+              <span className="text-sm tracking-widest uppercase text-white/80 group-hover:text-white">Sign in with Google</span>
+            </button>
+
+            {/* 2. NEW GUEST BUTTON */}
+            <button
+              onClick={handleGuestLogin}
+              className="text-xs text-white/30 hover:text-white uppercase tracking-widest transition-colors font-medium px-4 py-2"
+            >
+              Continue as Guest
+            </button>
+
+          </div>
+        )}
       </div>
 
       {/* --- STEP 1: HANDLE ONBOARDING (FIXED ALIGNMENT & REDIRECT) --- */}
