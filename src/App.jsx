@@ -781,14 +781,16 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="relative w-full max-w-sm p-8 bg-[#111] border border-yellow-500/30 rounded-3xl text-center overflow-hidden"
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="relative w-full max-w-sm p-8 bg-[#111] border border-yellow-500/30 rounded-3xl text-center overflow-hidden will-change-transform"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-yellow-500/10 blur-[50px] pointer-events-none" />
@@ -1038,161 +1040,95 @@ const AccountModal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+        >
           <motion.div
             layout
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }} // Reduced motion
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh]"
+            transition={{ duration: 0.25, ease: "easeOut" }} // Smoother/Lighter
+            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh] will-change-transform"
             onClick={e => e.stopPropagation()}
           >
+            {/* ... (Keep the content inside exactly the same) ... */}
             {/* LEFT COLUMN */}
             <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
+              {/* ... Content ... */}
+              {/* Just ensure you copy the inner content from your existing file */}
               <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
-
-              {/* Avatar */}
               <div className="w-24 h-24 md:w-32 md:h-32 mb-2 relative z-10">
                 <Avatar userData={user} isPro={isPro} size="full" />
               </div>
-
+              {/* ... rest of AccountModal content ... */}
               <h2 className="text-2xl font-bold text-white leading-tight">{user?.displayName || "Guest User"}</h2>
 
-              {/* --- HANDLE SECTION --- */}
+              {/* ... (Copy the rest of your AccountModal render logic here) ... */}
               <div className="mb-6 w-full flex flex-col items-center min-h-[24px] justify-center relative z-20">
+                {/* ... Handle logic ... */}
                 {isEditingHandle ? (
+                  // ... input code ...
                   <div className="flex flex-col items-center gap-2 animate-fade-in-up w-full">
-
-                    {/* Input Container */}
+                    {/* ... */}
+                    {/* Shortened for brevity - keep your existing JSX here */}
                     <div className={`flex items-center justify-between rounded-xl pl-4 pr-2 py-1 transition-all duration-300 relative w-full max-w-[220px] border ${getInputContainerStyle()}`}>
+                      {/* ... inputs ... */}
                       <div className="flex items-center flex-1 min-w-0">
                         <span className="text-white/40 select-none mr-0.5 text-sm">@</span>
-                        <input
-                          type="text"
-                          value={newHandle}
-                          onChange={onHandleChange}
-                          placeholder="username"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              e.preventDefault();
-                              setIsEditingHandle(false);
-                              setHandleError(null);
-                              // Reset to current prop
-                              setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : "");
-                            } else if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSaveHandle();
-                            }
-                          }}
-                          className="bg-transparent border-none outline-none text-sm font-medium text-white placeholder-white/20 w-full py-1"
-                          autoFocus
-                          maxLength={15}
-                        />
+                        <input type="text" value={newHandle} onChange={onHandleChange} placeholder="username" onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setIsEditingHandle(false); setHandleError(null); setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : ""); } else if (e.key === 'Enter') { e.preventDefault(); handleSaveHandle(); } }} className="bg-transparent border-none outline-none text-sm font-medium text-white placeholder-white/20 w-full py-1" autoFocus maxLength={15} />
                       </div>
+                      {/* ... buttons ... */}
                       <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button onClick={() => {
-                          setIsEditingHandle(false);
-                          setHandleError(null);
-                          setHandleStatus('idle');
-                          setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : "");
-                        }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
-                        <button
-                          onClick={handleSaveHandle}
-                          disabled={isSaving || handleStatus !== 'available'}
-                          className={`p-1 rounded-full transition-colors ${(isSaving || handleStatus !== 'available') ? 'text-white/20 cursor-not-allowed' : 'text-white hover:bg-white/20'}`}
-                        >
-                          {isSaving || handleStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                        </button>
+                        <button onClick={() => { setIsEditingHandle(false); setHandleError(null); setHandleStatus('idle'); setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : ""); }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
+                        <button onClick={handleSaveHandle} disabled={isSaving || handleStatus !== 'available'} className={`p-1 rounded-full transition-colors ${(isSaving || handleStatus !== 'available') ? 'text-white/20 cursor-not-allowed' : 'text-white hover:bg-white/20'}`}>{isSaving || handleStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}</button>
                       </div>
                     </div>
-
-                    {/* Suggestions Area */}
+                    {/* ... suggestions ... */}
                     <div className="min-h-[16px] w-full flex flex-col items-center">
                       {handleStatus === 'taken' && (
                         <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-2">
                           <span className="text-[10px] text-red-400 font-medium">Handle taken. Suggestions:</span>
                           <div className="flex flex-wrap justify-center gap-2">
-                            {handleSuggestions.map(s => (
-                              <button
-                                key={s}
-                                onClick={() => { setNewHandle(s); setHandleStatus("available"); }}
-                                className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/70 hover:text-white transition-colors border border-white/5"
-                              >
-                                {s}
-                              </button>
-                            ))}
+                            {handleSuggestions.map(s => (<button key={s} onClick={() => { setNewHandle(s); setHandleStatus("available"); }} className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/70 hover:text-white transition-colors border border-white/5">{s}</button>))}
                           </div>
                         </motion.div>
                       )}
-
                       {handleError && <span className="text-[10px] text-red-400 font-medium whitespace-nowrap">{handleError}</span>}
                     </div>
                   </div>
                 ) : (
                   <div className="relative group flex items-center justify-center">
-                    {/* DISPLAY CURRENT HANDLE (Using the new prop) */}
                     <p className="text-white text-base font-medium tracking-wide">{currentHandle || "@no_handle"}</p>
                     <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2">
-                      <button onClick={() => setIsEditingHandle(true)} disabled={daysRemaining > 0} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full ${daysRemaining > 0 ? 'cursor-not-allowed text-white/5' : 'hover:bg-white/10 text-white/50 hover:text-white'}`}>
-                        {daysRemaining > 0 ? <Lock size={12} /> : <Pencil size={12} />}
-                      </button>
+                      <button onClick={() => setIsEditingHandle(true)} disabled={daysRemaining > 0} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full ${daysRemaining > 0 ? 'cursor-not-allowed text-white/5' : 'hover:bg-white/10 text-white/50 hover:text-white'}`}>{daysRemaining > 0 ? <Lock size={12} /> : <Pencil size={12} />}</button>
                       {daysRemaining > 0 && (<div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#111] border border-white/10 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"><p className="text-[10px] text-white/50 whitespace-nowrap">Change in {daysRemaining} days</p></div>)}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Pro Badge */}
-              {isPro && (
-                <div className="mb-6 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles size={10} /> PRO MEMBER
-                </div>
-              )}
-
-              {/* --- BOTTOM ACTIONS --- */}
-              <div className="w-full space-y-3 mt-auto">
-                <button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group">
-                  <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out
-                </button>
-
-                <div className="pt-2">
-                  <button
-                    onClick={onDeleteRequest}
-                    className="text-[10px] text-red-900 hover:text-red-600 underline decoration-red-900/30 hover:decoration-red-600 transition-colors font-mono uppercase tracking-widest cursor-pointer opacity-60 hover:opacity-100"
-                  >
-                    Delete Account
-                  </button>
-                </div>
-              </div>
-
+              {isPro && (<div className="mb-6 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><Sparkles size={10} /> PRO MEMBER</div>)}
+              <div className="w-full space-y-3 mt-auto"><button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group"><LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out</button><div className="pt-2"><button onClick={onDeleteRequest} className="text-[10px] text-red-900 hover:text-red-600 underline decoration-red-900/30 hover:decoration-red-600 transition-colors font-mono uppercase tracking-widest cursor-pointer opacity-60 hover:opacity-100">Delete Account</button></div></div>
             </motion.div>
 
-            {/* RIGHT COLUMN (Stats) */}
+            {/* RIGHT COLUMN */}
             <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
               <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
-                <div className="flex gap-6">
-                  <button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
-                  <button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
-                </div>
+                <div className="flex gap-6"><button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button><button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button></div>
                 <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
               </div>
-
               <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
-                {activeTab === 'history' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8">
-                    <CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} />
-                  </motion.div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  <StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} />
-                  <StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} />
-                  <StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />
-                  {activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}
-                </div>
+                {activeTab === 'history' && (<motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8"><CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></motion.div>)}
+                <div className="grid grid-cols-2 gap-4"><StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} /><StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />{activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}</div>
               </motion.div>
             </div>
+
           </motion.div>
         </motion.div>
       )}
@@ -1744,8 +1680,23 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={handleCloseAction}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-4 md:p-8 rounded-2xl md:rounded-3xl w-[95vw] md:w-full md:max-w-3xl shadow-2xl overflow-y-auto max-h-[90vh] md:max-h-[85vh] no-scrollbar mx-2 md:mx-0" onClick={e => e.stopPropagation()}>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }} // Fast fade for backdrop
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={handleCloseAction}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 10 }} // Reduced motion distance
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            // PERFORMANCE FIX: Use standard easing instead of spring
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="bg-[#111] border border-white/10 p-4 md:p-8 rounded-2xl md:rounded-3xl w-[95vw] md:w-full md:max-w-3xl shadow-2xl overflow-y-auto max-h-[90vh] md:max-h-[85vh] no-scrollbar mx-2 md:mx-0 will-change-transform" // Added will-change-transform
+            onClick={e => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-6 md:mb-8"><h3 className="text-xl md:text-2xl font-medium text-white tracking-tight">Settings</h3><button onClick={handleCloseAction} className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 text-white/50 hover:text-white active:text-white/70 rounded-full hover:bg-white/10 transition-colors"><X size={24} /></button></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
@@ -2174,8 +2125,9 @@ const MusicModal = ({
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative"
+            // OPTIMIZED: Slower slide but simple easeOut
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Background Gradients */}
@@ -4742,7 +4694,6 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeGame, setActiveGame] = useState(null);
 
-  // 1. HIDE IN FOCUS MODE (Standard Behavior)
   if (mode === 'focus') return null;
 
   const handleGameClick = (gameId) => {
@@ -4759,50 +4710,53 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
 
   return (
     <>
-      {/* TRIGGER PILL */}
+      {/* TRIGGER PILL - No longer unmounts when open, no layoutId */}
       <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
-        <AnimatePresence mode="wait">
-          {!isOpen && (
-            <motion.div
-              key="game-pill"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="relative"
-            >
-              <motion.button
-                layoutId="game-container"
-                onClick={() => setIsOpen(true)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
-                <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <motion.div
+          key="game-pill"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="relative"
+        >
+          <motion.button
+            // layoutId="game-container" <--- REMOVED to stop portal effect
+            onClick={() => setIsOpen(true)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
+            <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
+          </motion.button>
+        </motion.div>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL - Standard Fade In/Out */}
       {createPortal(
         <AnimatePresence>
           {isOpen && (
             <motion.div
               id="arcade-modal"
               key="arcade-modal"
-              layoutId="game-container"
-              className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black/40"
-              initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-              animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
-              exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
-              transition={{ duration: 0.3 }}
+              // layoutId="game-container" <--- REMOVED
+              className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-black/60 backdrop-blur-md" // Standard backdrop
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={() => !activeGame && setIsOpen(false)}
             >
               {activeGame === 'snake' ? (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }} // Optimized transition
+                  className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
                 </motion.div>
               ) : activeGame === 'typing' ? (
@@ -4813,9 +4767,11 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }} // Optimized transition
                   className="w-full max-w-5xl flex flex-col items-center max-h-full overflow-y-auto custom-scrollbar"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* ... (Existing Menu Content - No changes needed inside) ... */}
                   <div className="w-full flex justify-between items-center mb-12 px-4 shrink-0">
                     <div className="flex flex-col">
                       <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
@@ -4827,41 +4783,25 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full px-4 pb-10">
-
-                    {/* Snake Card (FREE) */}
+                    {/* ... (Keep your existing Cards code here) ... */}
                     <motion.button onClick={() => handleGameClick('snake')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-green-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,197,94,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                       <div className="w-16 h-16 bg-green-900/20 border border-green-500/20 rounded-2xl flex items-center justify-center text-green-400 mb-6 group-hover:scale-110 group-hover:bg-green-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,197,94,0.1)] group-hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"><SnakeIcon size={32} /></div>
                       <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-green-400 transition-colors">Snake</h3><p className="text-white/40 text-sm leading-relaxed">The classic retro challenge.</p></div>
                     </motion.button>
 
-                    {/* Typeshit Card (PRO LOCKED) */}
                     <motion.button onClick={() => handleGameClick('typing')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-[#0a0a0a] border border-white/10 hover:border-cyan-500/50 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.15)_0%,transparent_70%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-                      {!isPro && (
-                        <div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md">
-                          <Lock size={14} className="text-white/70" />
-                        </div>
-                      )}
-
+                      {!isPro && (<div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md"><Lock size={14} className="text-white/70" /></div>)}
                       <div className="w-16 h-16 bg-cyan-900/20 border border-cyan-500/20 rounded-2xl flex items-center justify-center text-cyan-400 mb-6 group-hover:scale-110 group-hover:bg-cyan-500 group-hover:text-black transition-all duration-300 shadow-[0_0_30px_rgba(34,211,238,0.1)] group-hover:shadow-[0_0_30px_rgba(34,211,238,0.4)]"><Keyboard size={32} /></div>
                       <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white mb-2 group-hover:text-cyan-400 transition-colors">Typeshit</h3><p className="text-white/40 text-sm leading-relaxed">Find flow through words.</p></div>
                     </motion.button>
 
-                    {/* Placeholder (PRO LOCKED) */}
                     <motion.button onClick={() => handleGameClick('coming-soon')} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }} className="aspect-[4/3] bg-white/5 border border-dashed border-white/10 hover:border-white/30 rounded-[32px] p-8 flex flex-col justify-between group relative overflow-hidden transition-colors">
-
-                      {!isPro && (
-                        <div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md">
-                          <Lock size={14} className="text-white/70" />
-                        </div>
-                      )}
-
+                      {!isPro && (<div className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 border border-white/10 flex items-center justify-center backdrop-blur-md"><Lock size={14} className="text-white/70" /></div>)}
                       <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-white/20 mb-6 group-hover:scale-110 group-hover:bg-white/10 group-hover:text-white transition-all duration-300"><Sparkles size={32} /></div>
                       <div className="text-left relative z-10"><h3 className="text-2xl font-bold text-white/50 mb-2 group-hover:text-white transition-colors">Multiplayer</h3><p className="text-white/20 text-sm leading-relaxed">Coming Soon.</p></div>
                     </motion.button>
-
                   </div>
                 </motion.div>
               )}
@@ -5051,6 +4991,37 @@ function MainApp() {
     } catch (e) { }
   }, []);
   const [elonRejectId, setElonRejectId] = useState(null);
+
+  const [editingModeId, setEditingModeId] = useState(null);
+  const [editInputValue, setEditInputValue] = useState("");
+
+  const [isEditingSessions, setIsEditingSessions] = useState(false);
+  const [sessionEditValue, setSessionEditValue] = useState("");
+
+  const commitSessionEdit = () => {
+    const val = parseInt(sessionEditValue, 10);
+    // Limit between 1 and 12 sessions for UI sanity
+    if (!isNaN(val) && val > 0 && val <= 16 && val !== settings.pomosBeforeLongBreak) {
+      const newSettings = { ...settings, pomosBeforeLongBreak: val };
+      handleSettingsSave(newSettings);
+    }
+    setIsEditingSessions(false);
+  };
+
+  const commitInlineEdit = () => {
+    if (!editingModeId) return;
+
+    const val = parseInt(editInputValue, 10);
+
+    // Validation: Must be number, > 0, and different from current
+    if (!isNaN(val) && val > 0 && val !== settings[editingModeId]) {
+      const newSettings = { ...settings, [editingModeId]: val };
+      // Reuse your existing robust save handler
+      handleSettingsSave(newSettings);
+    }
+
+    setEditingModeId(null);
+  };
 
   const handleSelectPersonality = (id) => {
     const previousId = activePersonality;
@@ -7209,10 +7180,12 @@ function MainApp() {
 
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
-            {/* --- MODE SWITCHER (Updated with Elon Logic) --- */}
+
+            {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
             <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
               {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
                 const isCurrent = mode === m.id;
+                const isEditing = editingModeId === m.id; // Check if this pill is being edited
 
                 // ELON LOGIC: Restrict breaks
                 const isElonRestricted = activePersonality === 'elon' && m.id !== 'focus';
@@ -7232,12 +7205,10 @@ function MainApp() {
                   containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
 
                   if (isCurrent) {
-                    containerClass += "bg-white text-black font-medium border border-white cursor-default ";
+                    containerClass += "bg-white text-black font-medium border border-white cursor-default group "; // Added 'group' for hover effects
                   } else if (isElonRestricted) {
-                    // LOCKED STATE
                     containerClass += "bg-transparent text-white/20 border border-transparent cursor-not-allowed grayscale ";
                   } else {
-                    // Normal Inactive State
                     containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-pointer ";
                   }
                 }
@@ -7245,30 +7216,43 @@ function MainApp() {
                 return (
                   <motion.button
                     key={m.id}
-                    onClick={() => {
+                    layout
+                    onClick={(e) => {
+                      e.stopPropagation();
+
                       // 1. ELON REJECTION LOGIC
                       if (isElonRestricted) {
                         setElonRejectId(m.id);
-                        setTimeout(() => setElonRejectId(null), 600); // Reset after anim
+                        setTimeout(() => setElonRejectId(null), 600);
                         return;
                       }
-                      // 2. Normal Switch
-                      if (!isActive) handleModeChange(m.id);
+
+                      // 2. INLINE EDIT LOGIC (Only if timer stopped)
+                      if (!isActive) {
+                        if (isCurrent) {
+                          // Already active? Enter Edit Mode
+                          setEditInputValue(settings[m.id].toString());
+                          setEditingModeId(m.id);
+                        } else {
+                          // Not active? Switch Mode
+                          handleModeChange(m.id);
+                        }
+                      }
                     }}
                     className={containerClass}
-                    disabled={isActive && !isRejecting} // Allow click event for rejection anim even if technically disabled elsewhere
+                    disabled={isActive && !isRejecting}
 
                     // REJECTION ANIMATION
                     animate={isRejecting ? {
-                      x: [0, -5, 5, -5, 5, 0], // Shake
+                      x: [0, -5, 5, -5, 5, 0],
                       boxShadow: [
                         "0px 0px 0px 0px rgba(168, 85, 247, 0)",
-                        "0px 0px 20px 2px rgba(168, 85, 247, 0.6)", // Purple Glow
+                        "0px 0px 20px 2px rgba(168, 85, 247, 0.6)",
                         "0px 0px 0px 0px rgba(168, 85, 247, 0)"
                       ],
                       borderColor: [
                         "rgba(255,255,255,0)",
-                        "rgba(168, 85, 247, 0.8)", // Purple Border
+                        "rgba(168, 85, 247, 0.8)",
                         "rgba(255,255,255,0)"
                       ]
                     } : {}}
@@ -7277,58 +7261,117 @@ function MainApp() {
                     {/* Progress Bar Background */}
                     <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
 
-                    {/* Label */}
-                    <span className={`relative z-10 font-medium flex items-center gap-2 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
-                      {isElonRestricted && <Lock size={10} className={isRejecting ? "text-purple-400" : "text-white/20"} />}
-                      {m.label}
-                    </span>
+                    {/* CONTENT: Either Input or Label */}
+                    {isEditing ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative z-20 flex items-center justify-center w-full h-full"
+                      >
+                        <input
+                          autoFocus
+                          type="number"
+                          min="1"
+                          max="120"
+                          // FIXED: Hides spinners on Chrome/Safari/Firefox
+                          className="bg-transparent border-none outline-none text-center font-bold text-black w-12 p-0 m-0 focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          value={editInputValue}
+                          onChange={(e) => setEditInputValue(e.target.value)}
+                          onBlur={commitInlineEdit}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              commitInlineEdit();
+                            }
+                            if (e.key === 'Escape') {
+                              e.preventDefault();
+                              setEditingModeId(null);
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="text-xs font-medium text-black/50 ml-0.5">m</span>
+                      </motion.div>
+                    ) : (
+                      // LABEL CONTAINER
+                      <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
+
+                        {/* 1. LOCK ICON */}
+                        {isElonRestricted && <Lock size={10} className={isRejecting ? "text-purple-400" : "text-white/20"} />}
+
+                        {/* 2. THE LABEL */}
+                        <span className="whitespace-nowrap">{m.label}</span>
+
+                        {/* 3. EDIT ICON (Sliding Reveal) */}
+                        {!isActive && isCurrent && (
+                          <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
+                            <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
+                          </div>
+                        )}
+                      </span>
+                    )}
                   </motion.button>
                 );
               })}
             </div>
 
-            {/* --- CYCLE TALLY INDICATOR (Updated Margins: mb-2) --- */}
+            {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
+            {/* --- CYCLE TALLY INDICATOR (Updated) --- */}
             <div
-              className="flex items-center justify-center gap-3 mb-2 h-8 cursor-default"
+              className="flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
               onMouseEnter={() => setIsTallyHovered(true)}
               onMouseLeave={() => setIsTallyHovered(false)}
+              onDoubleClick={() => {
+                if (!isActive) {
+                  setSessionEditValue(settings.pomosBeforeLongBreak.toString());
+                  setIsEditingSessions(true);
+                }
+              }}
+              title={!isActive ? "Double-click to edit sessions" : ""}
             >
-              {Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
-                const isCompleted = i < pomoCount;
-                const isCurrent = i === pomoCount;
-
-                // Only the CURRENT session expands, and only when the section is hovered
-                const shouldExpand = isCurrent && isTallyHovered;
-
-                return (
-                  <div
-                    key={i}
-                    className={`
-                      relative rounded-full flex items-center justify-center
-                      transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]
-                      ${shouldExpand
-                        ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]'
-                        : (isCompleted || isCurrent)
-                          ? 'w-2 h-2 bg-white'
-                          : 'w-1.5 h-1.5 bg-white/20'
+              {isEditingSessions ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
+                >
+                  <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Intervals:</span>
+                  <input
+                    autoFocus
+                    type="number"
+                    min="1"
+                    max="16"
+                    // FIXED: Hides spinners here too
+                    className="bg-transparent border-none outline-none text-center font-bold text-white w-8 p-0 m-0 focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    value={sessionEditValue}
+                    onChange={(e) => setSessionEditValue(e.target.value)}
+                    onBlur={commitSessionEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        commitSessionEdit();
                       }
-                    `}
-                  >
-                    {isCurrent && (
-                      <span
-                        className={`
-                          absolute inset-0 flex items-center justify-center
-                          text-xs font-bold font-mono text-black whitespace-nowrap leading-none
-                          transition-all duration-300
-                          ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}
-                        `}
-                      >
-                        {i + 1} / {settings.pomosBeforeLongBreak}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setIsEditingSessions(false);
+                      }
+                    }}
+                  />
+                </motion.div>
+              ) : (
+                // ... (Existing Tally Dots Rendering Logic remains unchanged) ...
+                Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
+                  // ... copy your existing map content for dots here ...
+                  const isCompleted = i < pomoCount;
+                  const isCurrent = i === pomoCount;
+                  const shouldExpand = isCurrent && isTallyHovered;
+                  return (
+                    <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
+                      {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* --- TIMER --- */}
