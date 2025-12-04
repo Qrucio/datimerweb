@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2 } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
@@ -3267,6 +3267,282 @@ const SegmentedToggle = ({ label, checked, onChange, id }) => (
   </div>
 );
 
+const PersonalityCard = ({ p, activeId, onClick }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const isActive = activeId === p.id;
+  const isElon = p.id === 'elon';
+
+  // Dynamic Styles
+  const borderColor = isActive
+    ? (isElon ? 'border-purple-500' : 'border-white')
+    : (isHovered ? 'border-white/40' : 'border-white/10');
+
+  const containerBg = p.isEmpty
+    ? 'bg-white/5 border-dashed border-white/10' // Empty/Locked Look
+    : (isActive ? 'bg-[#111]' : 'bg-[#0a0a0a]'); // Normal Look
+
+  return (
+    <motion.div
+      onClick={p.isEmpty ? null : onClick} // Disable click if empty placeholder
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      whileHover={!p.isEmpty ? { y: -8, scale: 1.02 } : {}}
+      whileTap={!p.isEmpty ? { scale: 0.98 } : {}}
+      className={`
+        relative w-full aspect-[9/16] md:aspect-[3/4] rounded-[32px]
+        border ${borderColor} ${containerBg} backdrop-blur-xl
+        flex flex-col overflow-hidden cursor-pointer shadow-2xl
+        transition-colors duration-300 group
+      `}
+    >
+      {/* 1. TOP BANNER IMAGE */}
+      <div className={`relative h-[45%] w-full overflow-hidden ${p.isEmpty ? 'opacity-30 grayscale' : ''}`}>
+        {/* Gradient Background */}
+        <div className={`absolute inset-0 bg-gradient-to-b ${p.bannerGradient}`} />
+
+        {/* Big Icon / Visual in Banner */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-30 group-hover:opacity-50 transition-opacity duration-500 transform group-hover:scale-110">
+          <p.icon size={80} strokeWidth={1} />
+        </div>
+
+        {/* Status Badge (Top Right) */}
+        <div className="absolute top-4 right-4">
+          {isActive && (
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg ${isElon ? 'bg-purple-500 text-white' : 'bg-white text-black'}`}>
+              <CheckCircle2 size={12} strokeWidth={3} />
+              <span>Active</span>
+            </div>
+          )}
+          {p.isLocked && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md text-white/60 text-[10px] font-bold uppercase tracking-wider">
+              <Lock size={12} />
+              <span>Locked</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. TEXT CONTENT (Bottom) */}
+      <div className={`relative flex-1 p-6 md:p-8 flex flex-col ${p.isEmpty ? 'opacity-50' : ''}`}>
+
+        {/* Title */}
+        <h3 className={`text-2xl md:text-3xl font-serif-display mb-3 ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'} transition-colors`}>
+          {p.title}
+        </h3>
+
+        {/* Description / Consequences */}
+        <div className="flex-1">
+          <p className="text-xs md:text-sm leading-relaxed text-white/50 group-hover:text-white/70 transition-colors">
+            {p.description}
+          </p>
+        </div>
+
+        {/* Footer Info (Consequences Tags) */}
+        {!p.isEmpty && (
+          <div className="mt-4 pt-4 border-t border-white/5 flex flex-wrap gap-2">
+            {p.tags.map((tag, i) => (
+              <span key={i} className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md border ${tag.warn ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                {tag.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Mouse Glow (Subtle) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+      </div>
+    </motion.div>
+  );
+};
+
+const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSelectPersonality }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Logic: Show this ONLY in Focus mode
+  if (mode !== 'focus') return null;
+
+  const personalities = [
+    {
+      id: 'default',
+      title: 'The Stoic',
+      description: 'The standard experience. You control the flow. Pause when you need to, break when you want to.',
+      icon: Brain,
+      bannerGradient: 'from-gray-700 to-black',
+      tags: [{ label: 'Flexible', warn: false }, { label: 'Manual Control', warn: false }],
+      isLocked: false,
+      isEmpty: false
+    },
+    {
+      id: 'elon',
+      title: 'Elon Musk',
+      description: 'Strict Mode forced ON. If you pause, you lose progress. Breaks are randomly skipped. High intensity only.',
+      icon: Zap,
+      bannerGradient: 'from-purple-600 to-purple-900/50',
+      tags: [{ label: 'Strict Mode', warn: true }, { label: 'Skips Breaks', warn: true }],
+      isLocked: false,
+      isEmpty: false
+    },
+    {
+      id: 'mom',
+      title: 'Your Mom',
+      description: 'Coming Soon.',
+      icon: Waves,
+      bannerGradient: 'from-emerald-800 to-black',
+      tags: [],
+      isLocked: true,
+      isEmpty: true // Renders as placeholder
+    }
+  ];
+
+  const handleSelect = (p) => {
+    if (p.isEmpty) return; // Do nothing for empty card
+
+    if (p.isLocked) {
+      onOpenPro();
+      return;
+    }
+
+    onSelectPersonality(p.id);
+    setTimeout(() => setIsOpen(false), 150);
+  };
+
+  const activePersonaObj = personalities.find(p => p.id === activePersonality) || personalities[0];
+  const isElonActive = activePersonality === 'elon';
+  const buttonLabel = activePersonality === 'default' ? 'Personalities' : activePersonaObj.title;
+
+  return (
+    <>
+      {/* --- TRIGGER BUTTON --- */}
+      <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {!isOpen && (
+            <motion.div
+              key="persona-pill"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative"
+            >
+              <motion.button
+                layoutId="personalities-pill"
+                onClick={() => setIsOpen(true)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className={`
+                  relative group flex items-center gap-3 px-6 py-3 rounded-full 
+                  shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500 border
+                  ${isElonActive
+                    ? 'bg-black border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.3)]'
+                    : 'bg-[#111]/80 border-white/10 hover:border-white/30'
+                  }
+                `}
+              >
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r ${isElonActive ? 'from-purple-500/20 to-transparent' : 'from-white/10 to-transparent'}`} />
+                <Brain size={18} className={`relative z-10 shrink-0 transition-colors ${isElonActive ? 'text-purple-400' : 'text-white/60 group-hover:text-white'}`} />
+                <span className={`text-xs font-bold relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap ${isElonActive ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>
+                  {buttonLabel}
+                </span>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* --- MODAL (PORTAL) --- */}
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden">
+
+              {/* BACKDROP */}
+              <motion.div
+                initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                animate={{ opacity: 1, backdropFilter: "blur(40px)" }}
+                exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
+                transition={{ duration: 0.5 }}
+                onClick={() => setIsOpen(false)}
+                className="absolute inset-0 bg-black/70 z-0"
+              />
+
+              {/* CONTENT WRAPPER */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                className="relative z-10 w-full max-w-6xl h-full flex flex-col p-6 md:p-12 pointer-events-none"
+              >
+
+                {/* Header */}
+                <div className="flex justify-between items-start mb-10 pointer-events-auto">
+                  <div className="flex flex-col gap-2">
+                    <motion.h2
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-5xl md:text-7xl font-serif-display text-white tracking-tight"
+                    >
+                      Choose your <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Companion.</span>
+                    </motion.h2>
+                  </div>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 flex items-center justify-center text-white/50 hover:text-white transition-all group"
+                  >
+                    <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                  </button>
+                </div>
+
+                {/* Cards Grid - INCREASED PADDING TO FIX CLIPPING */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full pointer-events-auto overflow-y-auto custom-scrollbar pb-32 pt-4 px-4">
+                  {personalities.map((p, i) => (
+                    <motion.div
+                      key={p.id}
+                      initial={{ opacity: 0, y: 40 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + (i * 0.1), duration: 0.5, ease: "easeOut" }}
+                      className="h-full"
+                    >
+                      <PersonalityCard
+                        p={p}
+                        activeId={activePersonality}
+                        onClick={() => handleSelect(p)}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  );
+};
+
+const ExtraTimePopup = ({ minutes, visible }) => (
+  <AnimatePresence>
+    {visible && (
+      <motion.div
+        initial={{ opacity: 0, y: -50, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.9 }}
+        className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 backdrop-blur-md border border-white/20 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4"
+      >
+        <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
+          <Zap size={20} fill="black" />
+        </div>
+        <div>
+          <h4 className="text-white font-bold text-sm">Break Skipped</h4>
+          <p className="text-white/60 text-xs">Elon mode engaged. +{minutes}m potential focus.</p>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+);
+
 const NoteSystemModals = ({
   notes,
   isLibraryOpen,
@@ -4749,6 +5025,57 @@ function MainApp() {
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
   const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
   const [isTallyHovered, setIsTallyHovered] = useState(false);
+  const [activePersonality, setActivePersonality] = useState(() => {
+    try {
+      const saved = localStorage.getItem('zen_timer_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.activePersonality || 'default';
+      }
+    } catch (e) { console.error(e); }
+    return 'default';
+  });
+  const [extraFocusPopup, setExtraFocusPopup] = useState({ visible: false, minutes: 0 });
+  const skipStatsRef = useRef({ attempted: 0, skipped: 0 });
+
+  // Restore Elon stats on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('zen_timer_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.skipStats) {
+          skipStatsRef.current = parsed.skipStats;
+        }
+      }
+    } catch (e) { }
+  }, []);
+  const [elonRejectId, setElonRejectId] = useState(null);
+
+  const handleSelectPersonality = (id) => {
+    const previousId = activePersonality;
+    setActivePersonality(id);
+
+    if (id === 'elon') {
+      // Enable strict mode for Elon if extension is present
+      if (isExtensionConnected) {
+        setStrictMode(true);
+      }
+      // Only reset stats if we are starting a FRESH session (timer not running)
+      if (!isActive) {
+        skipStatsRef.current = { attempted: 0, skipped: 0 };
+      }
+    } else {
+      // SWITCHING AWAY FROM ELON
+      if (previousId === 'elon') {
+        // ONLY turn off Strict Mode if the timer has NOT started yet.
+        // If timer is running, Strict Mode stays sticky to prevent cheating.
+        if (!isActive) {
+          setStrictMode(false);
+        }
+      }
+    }
+  };
 
   // --- USER ACTIVITY TRACKER (For Cinematic Mode) ---
   const [isUserActive, setIsUserActive] = useState(true);
@@ -6264,16 +6591,55 @@ function MainApp() {
             }
             if (strictMode) document.exitFullscreen().catch(() => { });
 
+            // 1. DETERMINE INTENDED NEXT MODE
+            let intendedNextMode = 'shortBreak';
+            let intendedTimeLeft = settings.shortBreak * 60;
+
             if (pomoCount + 1 >= settings.pomosBeforeLongBreak) {
-              nextMode = 'longBreak';
-              nextTimeLeft = settings.longBreak * 60;
-            } else {
-              nextMode = 'shortBreak';
-              nextTimeLeft = settings.shortBreak * 60;
+              intendedNextMode = 'longBreak';
+              intendedTimeLeft = settings.longBreak * 60;
             }
-            if (settings.autoStartBreaks) nextIsActive = true;
+
+            // 2. ELON MUSK LOGIC (Skip Break Check)
+            let skipBreak = false;
+
+            if (activePersonality === 'elon') {
+              skipStatsRef.current.attempted += 1;
+              const { attempted, skipped } = skipStatsRef.current;
+
+              // Only skip if we haven't hit 50% yet
+              if ((skipped / attempted) < 0.5) {
+                // 50% Random chance
+                if (Math.random() > 0.5) {
+                  skipBreak = true;
+                  skipStatsRef.current.skipped += 1;
+                }
+              }
+            }
+
+            if (skipBreak) {
+              // ELON MODE: SKIP BREAK
+              // We go straight back to FOCUS
+              nextMode = 'focus';
+              nextTimeLeft = settings.focus * 60;
+              if (settings.autoStartWork) nextIsActive = true;
+              // Even if autoStartWork is off, Elon implies intensity, maybe force it?
+              // Let's stick to settings or force true:
+              nextIsActive = true; // Elon forces the next session
+
+              // Trigger Popup
+              setExtraFocusPopup({ visible: true, minutes: Math.floor(intendedTimeLeft / 60) });
+              setTimeout(() => setExtraFocusPopup({ visible: false, minutes: 0 }), 5000);
+
+            } else {
+              // NORMAL BEHAVIOR
+              nextMode = intendedNextMode;
+              nextTimeLeft = intendedTimeLeft;
+              if (settings.autoStartBreaks) nextIsActive = true;
+            }
 
           } else if (mode === 'shortBreak') {
+            // ... (existing shortBreak end logic) ...
             setPomoCount(prev => prev + 1);
             nextMode = 'focus';
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
@@ -6281,6 +6647,7 @@ function MainApp() {
             if (settings.autoStartWork) nextIsActive = true;
 
           } else if (mode === 'longBreak') {
+            // ... (existing longBreak end logic) ...
             setPomoCount(0);
             nextMode = 'focus';
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
@@ -6300,7 +6667,6 @@ function MainApp() {
             targetEndTime: nextTarget,
             mode: nextMode,
             timeLeft: nextTimeLeft,
-            sessionName,
             lastUpdated: Date.now()
           });
         }
@@ -6314,8 +6680,33 @@ function MainApp() {
     };
   }, [isActive, mode, settings, pomoCount, devMode, strictMode]);
 
-  useEffect(() => { if (isActive && endTimeRef.current) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: true, targetEndTime: endTimeRef.current, timestamp: Date.now() })); } }, [isActive, mode]);
-  useEffect(() => { if (!isActive) { localStorage.setItem('zen_timer_state', JSON.stringify({ mode, isActive: false, timeLeft, timestamp: Date.now() })); } }, [isActive, mode, timeLeft]);
+  useEffect(() => {
+    if (isActive && endTimeRef.current) {
+      localStorage.setItem('zen_timer_state', JSON.stringify({
+        mode,
+        isActive: true,
+        targetEndTime: endTimeRef.current,
+        timestamp: Date.now(),
+        // ADDED PERSISTENCE:
+        activePersonality,
+        skipStats: skipStatsRef.current
+      }));
+    }
+  }, [isActive, mode, activePersonality]); // Added activePersonality to dependency array
+
+  useEffect(() => {
+    if (!isActive) {
+      localStorage.setItem('zen_timer_state', JSON.stringify({
+        mode,
+        isActive: false,
+        timeLeft,
+        timestamp: Date.now(),
+        // ADDED PERSISTENCE:
+        activePersonality,
+        skipStats: skipStatsRef.current
+      }));
+    }
+  }, [isActive, mode, timeLeft, activePersonality]);
 
   const isInitialMount = useRef(true);
   const prevDurationRef = useRef(settings[mode] * 60);
@@ -6818,28 +7209,80 @@ function MainApp() {
 
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
-            {/* --- MODE SWITCHER (Updated Margins: mb-2) --- */}
+            {/* --- MODE SWITCHER (Updated with Elon Logic) --- */}
             <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
               {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
                 const isCurrent = mode === m.id;
+
+                // ELON LOGIC: Restrict breaks
+                const isElonRestricted = activePersonality === 'elon' && m.id !== 'focus';
+                const isRejecting = elonRejectId === m.id;
+
                 const totalSeconds = settings[m.id] * 60;
                 const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
-                let containerClass = `relative h-full rounded-full transition-all ${isActive ? 'duration-1000 ease-in-out' : 'duration-300 ease-out'} overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
+
+                let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
 
                 if (isActive) {
-                  if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent"; }
-                  else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent"; }
+                  // Timer Running State
+                  if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
+                  else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
                 } else {
-                  containerClass += "flex-1 mx-1 md:mx-1.5 cursor-pointer ";
-                  if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white"; }
-                  else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white"; }
+                  // Timer Stopped State
+                  containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
+
+                  if (isCurrent) {
+                    containerClass += "bg-white text-black font-medium border border-white cursor-default ";
+                  } else if (isElonRestricted) {
+                    // LOCKED STATE
+                    containerClass += "bg-transparent text-white/20 border border-transparent cursor-not-allowed grayscale ";
+                  } else {
+                    // Normal Inactive State
+                    containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-pointer ";
+                  }
                 }
 
                 return (
-                  <button key={m.id} onClick={() => !isActive && handleModeChange(m.id)} className={containerClass} disabled={isActive}>
+                  <motion.button
+                    key={m.id}
+                    onClick={() => {
+                      // 1. ELON REJECTION LOGIC
+                      if (isElonRestricted) {
+                        setElonRejectId(m.id);
+                        setTimeout(() => setElonRejectId(null), 600); // Reset after anim
+                        return;
+                      }
+                      // 2. Normal Switch
+                      if (!isActive) handleModeChange(m.id);
+                    }}
+                    className={containerClass}
+                    disabled={isActive && !isRejecting} // Allow click event for rejection anim even if technically disabled elsewhere
+
+                    // REJECTION ANIMATION
+                    animate={isRejecting ? {
+                      x: [0, -5, 5, -5, 5, 0], // Shake
+                      boxShadow: [
+                        "0px 0px 0px 0px rgba(168, 85, 247, 0)",
+                        "0px 0px 20px 2px rgba(168, 85, 247, 0.6)", // Purple Glow
+                        "0px 0px 0px 0px rgba(168, 85, 247, 0)"
+                      ],
+                      borderColor: [
+                        "rgba(255,255,255,0)",
+                        "rgba(168, 85, 247, 0.8)", // Purple Border
+                        "rgba(255,255,255,0)"
+                      ]
+                    } : {}}
+                    transition={{ duration: 0.5 }}
+                  >
+                    {/* Progress Bar Background */}
                     <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
-                    <span className="relative z-10 mix-blend-difference text-white font-medium">{m.label}</span>
-                  </button>
+
+                    {/* Label */}
+                    <span className={`relative z-10 font-medium flex items-center gap-2 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
+                      {isElonRestricted && <Lock size={10} className={isRejecting ? "text-purple-400" : "text-white/20"} />}
+                      {m.label}
+                    </span>
+                  </motion.button>
                 );
               })}
             </div>
@@ -6912,12 +7355,23 @@ function MainApp() {
               />
             </div>
 
+            <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
+
             <GameCenter
               mode={mode}
               timeLeft={timeLeft}
               background={settings.background}
               isPro={isPro}
               onOpenPro={() => setProModalSource('arcade')} // Pass 'arcade' source
+            />
+
+            <PersonalitiesCenter
+              mode={mode}
+              isPro={isPro}
+              onOpenPro={() => setProModalSource('personalities')}
+              // --- ADD THESE TWO LINES: ---
+              activePersonality={activePersonality}
+              onSelectPersonality={handleSelectPersonality}
             />
 
           </div>
