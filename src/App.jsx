@@ -6116,34 +6116,34 @@ function MainApp() {
           }
 
           // --- 3. SMART TIMER SYNC ---
-          if (data.timerState) {
-            const remote = data.timerState;
-            // Prevent echo: Only update if server is newer than our last write
-            if (remote.lastUpdated > lastRemoteUpdate.current) {
-              lastRemoteUpdate.current = remote.lastUpdated;
-              setMode(remote.mode);
+          // if (data.timerState) {
+          //   const remote = data.timerState;
+          //   // Prevent echo: Only update if server is newer than our last write
+          //   if (remote.lastUpdated > lastRemoteUpdate.current) {
+          //     lastRemoteUpdate.current = remote.lastUpdated;
+          //     setMode(remote.mode);
 
-              if (remote.isActive) {
-                const now = Date.now();
-                const target = remote.targetEndTime;
-                const remaining = Math.max(0, Math.ceil((target - now) / 1000));
+          //     if (remote.isActive) {
+          //       const now = Date.now();
+          //       const target = remote.targetEndTime;
+          //       const remaining = Math.max(0, Math.ceil((target - now) / 1000));
 
-                if (remaining > 0) {
-                  setTimeLeft(remaining);
-                  setIsActive(true);
-                  endTimeRef.current = target;
-                } else {
-                  setIsActive(false);
-                  setTimeLeft(0);
-                  endTimeRef.current = null;
-                }
-              } else {
-                setIsActive(false);
-                setTimeLeft(remote.timeLeft);
-                endTimeRef.current = null;
-              }
-            }
-          }
+          //       if (remaining > 0) {
+          //         setTimeLeft(remaining);
+          //         setIsActive(true);
+          //         endTimeRef.current = target;
+          //       } else {
+          //         setIsActive(false);
+          //         setTimeLeft(0);
+          //         endTimeRef.current = null;
+          //       }
+          //     } else {
+          //       setIsActive(false);
+          //       setTimeLeft(remote.timeLeft);
+          //       endTimeRef.current = null;
+          //     }
+          //   }
+          // }
 
           // --- 4. STATS LOGIC (OFFLINE-FIRST FIX) ---
           const serverStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
