@@ -5495,7 +5495,7 @@ function MainApp() {
           if (activeElement.id === 'session-name-input') { setIsEditingName(false); }
         }
 
-        // D. Close Note Editor
+        // D. Close Note Editor made this change just for the sake of it 
         if (editingNote) {
           // Optional: Auto-save or just close? 
           // Usually better to save, but Esc implies "Cancel/Exit"
