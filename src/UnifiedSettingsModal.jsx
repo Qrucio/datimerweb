@@ -464,11 +464,44 @@ const UnifiedSettingsModal = ({
                       <div><h3 className="text-2xl font-serif-display text-white mb-1">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
-                          const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src;
+                          const src = bg.src || bg;
+                          const id = bg.id || idx;
+                          const isActive = settings.background === src;
+                          
+                          // 1. Check if it's a video
+                          const isVideo = src.match(/\.(mp4|webm)$/i);
+
                           return (
-                            <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-[1.02]' : 'hover:scale-105 ring-1 ring-white/10'}`}>
-                              {src.match(/\.(mp4|webm)$/i) ? <video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline /> : <img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />}
-                              {isActive && <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Active</div></div>}
+                            <button 
+                              key={id} 
+                              onClick={() => handleBackgroundChange(src)} 
+                              className={`relative aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}
+                            >
+                              {/* 2. RENDER THE VIDEO OR IMAGE */}
+                              {isVideo ? (
+                                <video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline /> 
+                              ) : (
+                                <img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                              )}
+
+                              {/* 3. THE NEW AESTHETIC ANIMATED TAG */}
+                              {isVideo && (
+                                <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg">
+                                  {/* Pulsing Dot */}
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
+                                  {/* Label */}
+                                  <span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span>
+                                </div>
+                              )}
+
+                              {/* 4. ACTIVE STATE OVERLAY (Existing logic) */}
+                              {isActive && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+                                  <div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">
+                                    Active
+                                  </div>
+                                </div>
+                              )}
                             </button>
                           );
                         })}

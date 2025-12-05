@@ -2883,17 +2883,25 @@ const LiquidStrictBtn = ({
   isLocked,
   onMouseEnter,
   isExtensionConnected,
-  mode
+  mode,
+  onMenuChange // <--- 1. NEW PROP
 }) => {
   const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
   const isMenuOpen = status === 'confirming';
   const browserType = useRef(getBrowserType()).current;
 
-  // UI States
+  // --- 2. RESTORED MISSING VARIABLES ---
   const isMissing = !isExtensionConnected;
   const isBreak = mode !== 'focus';
   const showAllowed = isStrict && isBreak;
+
+  // --- 3. NEW EFFECT FOR MENU STATE ---
+  useEffect(() => {
+    if (onMenuChange) {
+      onMenuChange(isMenuOpen);
+    }
+  }, [isMenuOpen, onMenuChange]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -2963,7 +2971,6 @@ const LiquidStrictBtn = ({
                 ) : (
                   <>
                     <a
-                      // 1. ADD YOUR LINKS HERE LATER
                       href={browserType === 'firefox' ? "https://addons.mozilla.org/firefox/downloads/file/4633776/079d159c8a564ccb9d72-1.0.0.xpi" : "https://www.dropbox.com/scl/fi/mvitnd6gv7zvxmwxxwe7w/altimer-companion-chromium.zip?rlkey=utl46iuck2qwof84d52pw6tvk&st=cvl1ifog&dl=1"}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -2973,14 +2980,12 @@ const LiquidStrictBtn = ({
                       {browserType === 'firefox' ? "Add to Firefox" : "Download Extension"}
                     </a>
 
-                    {/* 2. CHROME SPECIFIC NOTE & GUIDE */}
                     {browserType !== 'firefox' && (
                       <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10 text-left">
                         <p className="text-[12px] text-yellow-500/80 leading-relaxed mb-1">
                           <span className="font-bold">Note:</span> As a small indie dev, I couldn't afford the fees to upload my extension to the Chrome Web Store. Please follow this guide to install the extension instead:
                         </p>
                         <a
-                          // 3. ADD YOUR GUIDE LINK HERE
                           href="https://www.notion.so/qrucio/Guide-to-install-Altimer-Companion-on-Chrome-2bdaf72de1fb8091a214d52c9d8a35aa?source=copy_link"
                           target="_blank"
                           rel="noopener noreferrer"
@@ -3021,7 +3026,6 @@ const LiquidStrictBtn = ({
         onMouseEnter={onMouseEnter}
         onClick={(e) => {
           e.stopPropagation();
-          // Always allow clicking if missing, otherwise respect locked/break state
           if (!isMissing && isLocked && !isBreak) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
@@ -3314,12 +3318,13 @@ const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSele
       isLocked: false,
       isEmpty: false
     },
-    {
+{
       id: 'elon',
       title: 'Elon Musk',
       description: 'Strict Mode forced ON. If you pause, you lose progress. Breaks are randomly skipped. High intensity only.',
       icon: Zap,
-      bannerGradient: 'from-purple-600 to-purple-900/50',
+      // Updated to a deep, rich violet-to-black fade
+      bannerGradient: 'from-[#2e1065] to-black', 
       tags: [{ label: 'Strict Mode', warn: true }, { label: 'Skips Breaks', warn: true }],
       isLocked: false,
       isEmpty: false
@@ -5319,6 +5324,7 @@ function MainApp() {
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
   const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isStrictMenuOpen, setIsStrictMenuOpen] = useState(false);
 
   // --- STRICT MODE STATE & LOGIC ---
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
@@ -7107,7 +7113,9 @@ function MainApp() {
 
             {/* DIVIDER 2 (Between 1 and 2) */}
             <BendingDivider
-              activeSide={hoveredDockIndex === 1 ? 'left' : hoveredDockIndex === 2 ? 'right' : null}
+              // 4. UPDATE THIS CONDITION
+              // Checks if hovered OR if menu is locked open
+              activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null}
               isDimmed={isMusicPlaying || strictMode}
             />
 
@@ -7120,6 +7128,7 @@ function MainApp() {
               isLocked={isStrictLocked}
               isExtensionConnected={isExtensionConnected}
               mode={mode}
+              onMenuChange={setIsStrictMenuOpen} // <--- 5. PASS HANDLER
             />
 
           </motion.div>
