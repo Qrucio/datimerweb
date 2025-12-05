@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './words';
 import { Storage } from './utils/storage';
+import UnifiedSettingsModal from './UnifiedSettingsModal';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -2048,7 +2049,6 @@ const ModernSlider = ({ value, max = 1, onChange, color = "white", className = "
   );
 };
 
-// --- UPDATED MUSIC MODAL (FIXED PLAY/PAUSE LOGIC) ---
 const MusicModal = ({
   isOpen, onClose,
   // Music Props
@@ -2079,7 +2079,6 @@ const MusicModal = ({
   // --- CLEANUP ON CLOSE ---
   useEffect(() => {
     if (!isOpen && isSelectionMode) {
-      // If modal closes during selection, stop everything
       onStopAllAmbience();
     }
   }, [isOpen, isSelectionMode, onStopAllAmbience]);
@@ -2095,21 +2094,22 @@ const MusicModal = ({
   };
 
   const handleConfirmSelection = () => {
-    // Save currently playing sounds as the "unlocked" ones
     const selectedIds = Object.keys(ambienceState);
     if (onSaveAmbienceSelection) {
       onSaveAmbienceSelection(selectedIds);
-      // Stop them after confirming so they don't keep playing in non-loop mode? 
-      // Or let them continue (user will likely pause them manually later).
-      // Let's let them continue but switch to loop mode? 
-      // For simplicity, we save and let the MainApp logic handle subsequent plays.
     }
   };
 
   const showMasterVolume = activeTab !== 'ambience' || (activeTab === 'ambience' && (isPlaying || isLofiPlaying));
-
-  // Calculate selection count based on ACTIVE sounds
   const selectedCount = isSelectionMode ? Object.keys(ambienceState).length : 0;
+
+  // --- SNAPPY TRANSITIONS ---
+  // We separate Enter and Exit transitions. 
+  // Exit is super fast (0.1s) to make room for the new tab immediately.
+  const tabTransition = {
+    enter: { duration: 0.25, ease: "easeOut" },
+    exit: { duration: 0.08, ease: "linear" } // <--- THE FIX FOR SNAPPINESS
+  };
 
   return (
     <AnimatePresence>
@@ -2118,15 +2118,17 @@ const MusicModal = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md md:p-4"
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md md:p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            // OPTIMIZED: Slower slide but simple easeOut
-            transition={{ duration: 0.35, ease: "easeOut" }}
+            // --- UPDATED: MATCHING OTHER MODALS (Scale + Fade) ---
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            // ----------------------------------------------------
             className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2150,8 +2152,8 @@ const MusicModal = ({
                   const isActive = activeTab === tab.id;
                   const Icon = tab.icon;
                   return (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-300 flex items-center gap-2 z-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white'}`}>
-                      {isActive && <motion.div layoutId="activeTabBg" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1]" transition={{ type: "spring", bounce: 0.2, duration: 0.6 }} />}
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-2 z-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white'}`}>
+                      {isActive && <motion.div layoutId="activeTabBg" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1]" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
                       <Icon size={14} className={isActive ? "text-black" : ""} strokeWidth={2} />
                       <span>{tab.label}</span>
                     </button>
@@ -2188,33 +2190,27 @@ const MusicModal = ({
 
                 {/* 1. AMBIENCE TAB */}
                 {activeTab === 'ambience' && (
-                  <motion.div key="ambience" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
+                  <motion.div
+                    key="ambience"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0, transition: tabTransition.enter }}
+                    exit={{ opacity: 0, x: -10, transition: tabTransition.exit }}
+                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
+                  >
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
                       {AMBIENT_SOUNDS.map((track) => {
                         const trackState = ambienceState[track.id];
                         const isActive = !!trackState;
                         const Icon = track.icon;
-
                         const isUnlocked = isPro || unlockedAmbiences.includes(track.id);
 
                         const handleClick = () => {
                           if (isSelectionMode) {
-                            // SELECTION MODE LOGIC
-                            if (isActive) {
-                              onToggleAmbience(track); // Stop (Deselect)
-                            } else {
-                              if (selectedCount < 3) {
-                                onToggleAmbience(track, true); // Play (Select) in PREVIEW mode (no loop)
-                              }
-                              // If >= 3, do nothing (or maybe shake effect?)
-                            }
+                            if (isActive) { onToggleAmbience(track); }
+                            else { if (selectedCount < 3) onToggleAmbience(track, true); }
                           } else {
-                            // NORMAL MODE LOGIC
-                            if (isUnlocked) {
-                              onToggleAmbience(track, false); // Normal Play
-                            } else {
-                              onOpenPro('ambience');
-                            }
+                            if (isUnlocked) { onToggleAmbience(track, false); }
+                            else { onOpenPro('ambience'); }
                           }
                         };
 
@@ -2224,28 +2220,20 @@ const MusicModal = ({
                             onClick={handleClick}
                             className={`
                               relative aspect-[4/3] rounded-2xl md:rounded-3xl p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all duration-300 border group
-                              ${isActive
-                                ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]'
-                                : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
-                              }
+                              ${isActive ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}
                               ${(isSelectionMode && isActive) ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-black' : ''}
                               ${(isSelectionMode && !isActive && selectedCount >= 3) ? 'opacity-30 grayscale cursor-not-allowed' : ''}
                             `}
                           >
-                            {/* LOCKED OVERLAY (Normal Mode) */}
                             {!isSelectionMode && !isUnlocked && (
-                              <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-[2px]">
-                                <Lock size={24} className="text-white/50" />
-                              </div>
+                              <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-[2px]"><Lock size={24} className="text-white/50" /></div>
                             )}
-
                             <div className="flex justify-between items-start pointer-events-none">
                               <span className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-colors duration-300 ${isActive ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}>
                                 <Icon size={20} strokeWidth={1.5} className={isActive ? "animate-pulse" : ""} />
                               </span>
                               {isActive && <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />}
                             </div>
-
                             <div className="relative z-20">
                               <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>{track.title}</h4>
                               <div className={`transition-all duration-300 ease-out overflow-hidden ${isActive ? 'h-5 opacity-100 mt-2' : 'h-0 opacity-0'}`} onClick={(e) => e.stopPropagation()}>
@@ -2259,39 +2247,35 @@ const MusicModal = ({
                   </motion.div>
                 )}
 
-                {/* 2. LIBRARY TAB (Locked for Non-Pro) */}
+                {/* 2. LIBRARY TAB */}
                 {activeTab === 'library' && (
-                  <motion.div key="library" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
+                  <motion.div
+                    key="library"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0, transition: tabTransition.enter }}
+                    exit={{ opacity: 0, x: -10, transition: tabTransition.exit }}
+                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
+                  >
                     <div className="flex flex-col gap-3">
                       {MUSIC_TRACKS.map((track, i) => {
                         const isCurrent = currentTrack?.id === track.id && !isLofiPlaying;
                         const isPlayingState = isCurrent && isPlaying;
-
                         return (
                           <motion.div
                             key={track.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            onClick={() => {
-                              if (isPro) {
-                                isCurrent && isPlaying ? onPause() : onPlay(track);
-                              } else {
-                                onOpenPro('music');
-                              }
-                            }}
+                            onClick={() => { if (isPro) { isCurrent && isPlaying ? onPause() : onPlay(track); } else { onOpenPro('music'); } }}
                             className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group relative overflow-hidden ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}
                           >
-                            {/* LOCK OVERLAY */}
                             {!isPro && (
                               <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-yellow-500/30 text-yellow-400">
-                                  <Lock size={12} />
-                                  <span className="text-[10px] font-bold uppercase tracking-widest">Pro</span>
+                                  <Lock size={12} /><span className="text-[10px] font-bold uppercase tracking-widest">Pro</span>
                                 </div>
                               </div>
                             )}
-
                             <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg">
                               {track.cover ? <img src={track.cover} alt="art" className={`w-full h-full object-cover transition-opacity ${!isPro ? 'grayscale opacity-50' : 'opacity-80 group-hover:opacity-100'}`} /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>}
                               {isPro && (
@@ -2314,7 +2298,13 @@ const MusicModal = ({
 
                 {/* 3. LOFI TAB */}
                 {activeTab === 'lofi' && (
-                  <motion.div key="lofi" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }} className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8">
+                  <motion.div
+                    key="lofi"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1, transition: tabTransition.enter }}
+                    exit={{ opacity: 0, scale: 1.05, transition: tabTransition.exit }}
+                    className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8"
+                  >
                     <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
                       <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative">
                         <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" />
@@ -3522,6 +3512,7 @@ const NoteSystemModals = ({
 
   const [selectedTag, setSelectedTag] = useState("All");
   const [draggingId, setDraggingId] = useState(null);
+
 
   // --- REFS ---
   const draggingIdRef = useRef(null);
@@ -4950,6 +4941,7 @@ function MainApp() {
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+    const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -7018,23 +7010,19 @@ function MainApp() {
             <button onClick={() => setShowAccount(true)} className="rounded-full overflow-hidden ml-2 w-8 h-8">
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
-            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
-              <Settings size={22} />
-            </button>
           </div>
         </div>
 
         {/* --- DESKTOP HEADER: Settings & Stats (Quote Removed) --- */}
+
         <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-4">
 
-            {/* 1. SETTINGS ICON (Now on the Left) */}
-            <button onClick={() => setShowSettings(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white">
-              <Settings size={20} />
-            </button>
-
-            {/* 2. ACCOUNT ICON (Now on the Right - Profile Pic) */}
-            <button onClick={() => setShowAccount(true)} className="relative group rounded-full overflow-hidden w-9 h-9">
+            {/* 2. PROFILE ICON (Opens Unified Modal) */}
+            <button 
+              onClick={() => setIsUnifiedModalOpen(true)} 
+              className="relative group rounded-full overflow-hidden w-9 h-9 transition-transform hover:scale-105 active:scale-95"
+            >
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
 
@@ -7406,16 +7394,24 @@ function MainApp() {
           />
         </div>
       </div >
-      <AccountModal
-        isOpen={showAccount}
-        onClose={() => setShowAccount(false)}
-        user={user}
-        stats={stats}
-        onSignOut={handleSignOut} // Make sure handleSignOut is defined in App
-        currentHandle={userHandle}
-        isPro={isPro}
 
+      <UnifiedSettingsModal
+        isOpen={isUnifiedModalOpen}
+        onClose={() => setIsUnifiedModalOpen(false)}
+        user={user}
+        signOut={handleSignOut}
+        settings={settings}
+        setSettings={setSettings}
+        handleSettingsSave={handleSettingsSave}
+        handleBackgroundChange={handleBackgroundChange}
+        backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
+        
+        // --- ADD THESE TWO LINES ---
+        stats={stats}
+        isPro={isPro}
+        // ---------------------------
       />
+
       <FriendProfileModal
         isOpen={showStats} // Using showStats state to trigger this
         onClose={() => {
@@ -7424,7 +7420,7 @@ function MainApp() {
         }}
         friend={viewingFriendStats}
       />
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} settings={settings} onSave={handleSettingsSave} onBackgroundChange={handleBackgroundChange} user={user} isTimerRunning={isTimerRunning} devMode={devMode} setDevMode={setDevMode} customBackgrounds={customBackgrounds} onAddCustomBackground={handleAddCustomBackground} onDeleteCustomBackground={handleDeleteCustomBackground} />
+
 
       <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
       <MusicModal
