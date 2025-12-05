@@ -4929,11 +4929,6 @@ function MainApp() {
   }, []);
 
   // --- CACHE-FIRST STATE INITIALIZATION ---
-  const [sessionName, setSessionName] = useState(() => {
-    return localStorage.getItem('zen_cache_session_name') || '';
-  });
-  const [isEditingName, setIsEditingName] = useState(false);
-
   const [notes, setNotes] = useState(Storage.getNotes());
 
   const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
@@ -5211,6 +5206,10 @@ function MainApp() {
   };
 
   const saveNotesOrder = async (currentNotes) => {
+    // 1. Save to LocalStorage immediately (Keeps order if you refresh)
+    Storage.saveNotesLocally(currentNotes);
+
+    // 2. Save to DB
     if (user) {
       try {
         await setDoc(doc(db, "users", user.uid), { notes: currentNotes }, { merge: true });
@@ -5246,13 +5245,23 @@ function MainApp() {
 
 
   const handleDeleteNote = async (noteId) => {
-    // Filter out the note to delete
+    // 1. Filter out the note to delete
     const updatedNotes = notes.filter(n => n.id !== noteId);
+
+    // 2. Update React State (Instant UI feedback)
     setNotes(updatedNotes);
 
-    // Sync to Firestore
+    // 3. Update Local Storage (CRITICAL FIX: Prevents resurrection)
+    Storage.saveNotesLocally(updatedNotes);
+
+    // 4. Sync to Firestore
     if (user) {
-      await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+      try {
+        await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+      } catch (e) {
+        console.error("Delete failed", e);
+        // Optional: You could revert state here if DB fails, but for notes it's usually fine
+      }
     }
   };
 
@@ -5431,7 +5440,6 @@ function MainApp() {
   const accumulatedTimeRef = useRef(0);
   const lastHeartbeatRef = useRef(0);
   const prevSettings = useRef(DEFAULT_SETTINGS);
-  const prevSessionName = useRef('');
   const lastStatSaveTime = useRef(Date.now());
   const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
   const prevNotes = useRef([]);
@@ -5549,16 +5557,6 @@ function MainApp() {
       // S: Settings
       if (e.key === 's' || e.key === 'S') { e.preventDefault(); setShowSettings(prev => !prev); }
 
-      // O: Edit Session Name
-      if (e.key === 'o' || e.key === 'O') {
-        e.preventDefault();
-        setIsEditingName(true);
-        // Timeout to allow render
-        setTimeout(() => {
-          const input = document.getElementById('session-name-input');
-          if (input) { input.focus(); input.select(); }
-        }, 50);
-      }
     };
 
     window.addEventListener('keydown', handleKeyPress);
@@ -5575,57 +5573,25 @@ function MainApp() {
     // Music
     isMusicPlaying, currentTrack, volume,
     // Inputs
-    isEditingName, // If you use these inside the handler
   ]);
 
   const playAlarm = (currentMode) => { const audio = audioRefs.current[currentMode]; if (audio) { audio.currentTime = 0; const playPromise = audio.play(); if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Audio play failed, falling back to beep:", error); fallbackBeep(); }); } } else { fallbackBeep(); } };
   const fallbackBeep = () => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (AudioContext) { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 440; osc.type = 'sine'; gain.gain.value = 0.1; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1); osc.stop(ctx.currentTime + 1); } } catch (e) { console.error("Audio fallback failed", e); } };
 
 
+  // App.jsx
+
   const flushUnsavedTime = async () => {
-    const amount = unsavedSecondsRef.current;
-
-    // Guard: If nothing to save, stop.
-    if (amount === 0 || !user) return;
-
-    // Reset IMMEDIATELY so we don't double-count if called twice fast
+    // We don't need to write to DB here. 
+    // LocalStorage has already captured every second via the timer loop.
+    // We just reset the ref to prevent double-counting if logic changes later.
     unsavedSecondsRef.current = 0;
-
-    const userRef = doc(db, "users", user.uid);
-    try {
-      await setDoc(userRef, {
-        stats: {
-          // We ONLY increment the total. We don't overwrite "dailyFocusTime" 
-          // because that might conflict with our daily sync logic.
-          // We are just adding "seconds worked" to the pile.
-          totalFocusTime: mode === 'focus' ? increment(amount) : increment(0),
-
-          // Update the legacy fields just in case you use them elsewhere,
-          // but rely on LocalStorage for the UI display.
-          dailyFocusTime: mode === 'focus' ? increment(amount) : increment(0),
-          dailyBreakTime: mode !== 'focus' ? increment(amount) : increment(0),
-
-          lastActiveDate: Timestamp.now()
-        },
-        lastUpdated: new Date()
-      }, { merge: true });
-
-      // Also update public profile so friends see it
-      const publicRef = doc(db, "publicProfiles", user.uid);
-      setDoc(publicRef, {
-        "stats.dailyFocusTime": mode === 'focus' ? increment(amount) : increment(0),
-        "stats.dailyBreakTime": mode !== 'focus' ? increment(amount) : increment(0)
-      }, { merge: true });
-
-    } catch (e) {
-      console.error("Failed to sync time:", e);
-      // If it fails, put the time back in the bucket to try again later
-      unsavedSecondsRef.current += amount;
-    }
   };
 
 
   // --- NEW: Sync Timer State Helper ---
+  // App.jsx (~Line 2060)
+
   const syncTimerState = async (newState) => {
     if (!user) return;
 
@@ -5639,19 +5605,17 @@ function MainApp() {
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
     try {
-      // 1. Save to Private Doc (Your data)
-      await setDoc(doc(db, "users", user.uid), payload, { merge: true });
-
-      // 2. Save to Public Profile (For friends to see)
+      // ONLY update Public Profile Status (Online/Offline/Focusing)
+      // We DO NOT send stats here.
       await setDoc(doc(db, "publicProfiles", user.uid), {
         timerState: payload.timerState
       }, { merge: true });
+
     } catch (e) {
       console.error("Sync failed", e);
     }
   };
 
-  // --- UPDATED AUTH EFFECT (Fixes Race Condition & Adds Guest Support) ---
   // --- UPDATED AUTH EFFECT (Guest Skip Logic) ---
   useEffect(() => {
     const initAuth = async () => {
@@ -5828,38 +5792,48 @@ function MainApp() {
           let timeLeft = 0;
 
           if (data.timerState) {
+            // ... inside the useEffect for friend profiles ...
+
             const now = Date.now();
+            const GRACE_PERIOD = 5 * 60 * 1000; // 5 Minutes
 
-            // --- NEW LOGIC: Trust the math, not just the update time ---
-            if (data.timerState.isActive) {
-              // If the timer is technically still running based on Target Time
-              if (data.timerState.targetEndTime > now) {
-                isOnline = true; // They are online because their timer is running
-                isActive = true;
-                mode = data.timerState.mode;
+            // ... when parsing data ...
+            if (data.timerState) {
+              const ts = data.timerState; // Shorthand
+              const lastUpdate = ts.lastUpdated || 0;
+              const isDataStale = (now - lastUpdate) > GRACE_PERIOD;
 
-                // Calculate time remaining LOCALLY
-                timeLeft = Math.ceil((data.timerState.targetEndTime - now) / 1000);
-                statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
-              } else {
-                // Timer expired and they haven't come back to reset it yet
-                // We mark them as online but Idle for a grace period
-                isOnline = true;
-                isActive = false;
-                statusText = "Idle";
+              // SCENARIO 1: Timer is Running (Active)
+              if (ts.isActive) {
+                // We trust the end time. Even if they close the tab, 
+                // the session is valid until the clock runs out.
+                if (ts.targetEndTime > now) {
+                  isOnline = true;
+                  isActive = true;
+                  mode = ts.mode;
+                  timeLeft = Math.ceil((ts.targetEndTime - now) / 1000);
+                  statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+                } else {
+                  // Timer finished naturally, but user hasn't touched app in a while
+                  // We show them as "Idle" (Online but away)
+                  isOnline = true;
+                  isActive = false;
+                  statusText = "Idle";
+                }
               }
-            } else {
-              // --- PAUSED STATE LOGIC ---
-              // If paused, we fall back to checking how long ago they paused
-              const lastUpdated = data.timerState.lastUpdated || 0;
-              // Give them a generous 10-minute buffer if paused
-              if (now - lastUpdated < 600000) {
-                isOnline = true;
-                isActive = false;
-                statusText = "Paused";
-              } else {
-                isOnline = false;
-                statusText = "Offline";
+              // SCENARIO 2: Timer is Paused/Stopped
+              else {
+                if (isDataStale) {
+                  // It has been > 5 mins since they paused.
+                  // They probably closed the tab. Mark as OFFLINE.
+                  isOnline = false;
+                  statusText = "Offline";
+                } else {
+                  // They paused recently (within 5 mins). They are still here.
+                  isOnline = true;
+                  isActive = false;
+                  statusText = "Paused";
+                }
               }
             }
           }
@@ -6157,10 +6131,6 @@ function MainApp() {
               lastRemoteUpdate.current = remote.lastUpdated;
               setMode(remote.mode);
 
-              const remoteName = remote.sessionName || data.sessionName || "";
-              setSessionName(remoteName);
-              localStorage.setItem('zen_cache_session_name', remoteName);
-
               if (remote.isActive) {
                 const now = Date.now();
                 const target = remote.targetEndTime;
@@ -6227,83 +6197,46 @@ function MainApp() {
       return () => unsub();
     }
   }, [user]);
+  // --- OPTIMIZED SAVE LOGIC (Critical Changes Only) ---
   useEffect(() => {
     if (!user || !dataLoaded) return;
 
+    // Helper to compare objects deeply
     const isDifferent = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
 
-    // FIXED: Compare 'notes' with 'prevNotes.current'
+    // Check for Critical Changes (Notes, Settings, Session Name)
+    // We do NOT check 'stats' here anymore. Stats are handled by flushUnsavedTime().
     const notesChanged = JSON.stringify(notes) !== JSON.stringify(prevNotes.current);
-    const hasCriticalChanges = notesChanged || isDifferent(settings, prevSettings.current) || sessionName !== prevSessionName.current;
+    const hasCriticalChanges = notesChanged || isDifferent(settings, prevSettings.current);
 
-    const timeSinceLastStatSave = Date.now() - lastStatSaveTime.current;
-    const shouldSaveStats = timeSinceLastStatSave > 60000; // Save every minute
-
-    if (hasCriticalChanges || shouldSaveStats) {
+    if (hasCriticalChanges) {
       const saveData = async () => {
         const userDocRef = doc(db, "users", user.uid);
-
         const today = new Date();
-        let newStats = { ...stats };
-        let lastActiveDate = newStats.lastActiveDate ? (newStats.lastActiveDate.toDate ? newStats.lastActiveDate.toDate() : new Date(newStats.lastActiveDate)) : null;
 
-        // --- STREAK CALCULATION LOGIC ---
-        if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
-          if (lastActiveDate && isYesterday(today, lastActiveDate)) {
-            newStats.currentStreak += 1;
-          } else if (!lastActiveDate || !isSameDay(lastActiveDate, today)) {
-            newStats.currentStreak = 1;
-          }
-          newStats.lastActiveDate = today;
-          setStats(newStats);
-        }
-
+        // 1. Save Private Data (Settings, Notes, Session Name)
+        // We include 'stats' here just to keep the document complete, 
+        // but we aren't "pushing" the live timer update here.
         const payload = {
-          notes, // Saving notes
+          notes,
           settings,
-          sessionName,
           lastUpdated: today,
-          stats: newStats
+          stats // This just syncs whatever the current state is, mostly for backup
         };
 
-        // 1. Save Private Data (Existing)
         await setDoc(userDocRef, payload, { merge: true });
 
-        // 2. NEW: Sync Public Stats (Efficiently)
-        // We only update the 'stats' & 'isPro' field in publicProfiles
-        // This runs only when necessary (debounced), preventing database spam.
-        if (user) {
-          const publicRef = doc(db, "publicProfiles", user.uid);
-          await setDoc(publicRef, {
-            stats: newStats,
-            isPro: isPro
-          }, { merge: true });
-        }
-
-        // Update Refs
+        // Update Refs so we don't save again until the next change
         prevNotes.current = notes;
         prevSettings.current = settings;
-        prevSessionName.current = sessionName;
-
-        if (shouldSaveStats) { lastStatSaveTime.current = Date.now(); }
       };
-      const handler = setTimeout(saveData, 1000);
+
+      // Debounce slightly to prevent rapid-fire saves while typing a note
+      const handler = setTimeout(saveData, 2000);
       return () => clearTimeout(handler);
     }
-  }, [notes, settings, sessionName, user, dataLoaded, stats]);
+  }, [notes, settings, user, dataLoaded]);
 
-  useEffect(() => {
-    if (!isActive && user && dataLoaded) {
-      const saveFinal = async () => {
-        const userDocRef = doc(db, "users", user.uid);
-        const today = new Date();
-        const payload = { notes, settings, sessionName, lastUpdated: today, stats };
-        await setDoc(userDocRef, payload, { merge: true });
-        lastStatSaveTime.current = Date.now();
-      };
-      saveFinal();
-    }
-  }, [isActive]); // notes/settings/stats are read from closure, which is fine here
 
   // --- FOCUS MODE LOGIC ---
   useEffect(() => {
@@ -6531,17 +6464,6 @@ function MainApp() {
           return prev;
         });
 
-        // --- B. HEARTBEAT (Server Sync) ---
-        if (now - lastHeartbeatRef.current > 300000) {
-          lastHeartbeatRef.current = now;
-          syncTimerState({
-            isActive: true,
-            targetEndTime: endTimeRef.current,
-            mode: mode,
-            timeLeft: secondsRemaining,
-            sessionName: sessionName
-          });
-        }
 
         // --- C. STATS LEDGER (The Gatekeeper) ---
         // Only proceed if the Wall Clock says 1 full second has passed
@@ -6713,32 +6635,34 @@ function MainApp() {
 
   // --- UPDATED TOGGLE TIMER ---
   const toggleTimer = () => {
+    // 1. Flush: effectively does nothing now (Silent)
     if (isActive) flushUnsavedTime();
 
     const newIsActive = !isActive;
     setIsActive(newIsActive);
 
+    // 2. Extension Sync (Browser API only, no DB)
     syncWithExtension(newIsActive, strictMode, mode);
 
     if (newIsActive) {
       lastHeartbeatRef.current = Date.now();
     }
 
+    // 3. Prepare Payload
     let stateToSync = {
       isActive: newIsActive,
       mode,
-      sessionName,
-      timeLeft
+      timeLeft,
+      // If starting, set target. If pausing, nullify target.
+      targetEndTime: newIsActive ? Date.now() + timeLeft * 1000 : null
     };
 
     if (newIsActive) {
-      const target = Date.now() + timeLeft * 1000;
-      endTimeRef.current = target;
-      stateToSync.targetEndTime = target;
-    } else {
-      stateToSync.targetEndTime = null;
+      endTimeRef.current = stateToSync.targetEndTime;
     }
 
+    // 4. SYNC TO DB (The "Status" Update)
+    // This writes to publicProfiles so friends see "Paused"
     syncTimerState(stateToSync);
   };
 
@@ -6763,7 +6687,6 @@ function MainApp() {
       targetEndTime: null,
       mode: 'focus',
       timeLeft: settings['focus'] * 60,
-      sessionName,
       lastUpdated: Date.now()
     });
 
@@ -6784,7 +6707,6 @@ function MainApp() {
       targetEndTime: null,
       mode: newMode,
       timeLeft: settings[newMode] * 60,
-      sessionName
     });
   };
 
@@ -6831,7 +6753,6 @@ function MainApp() {
             targetEndTime: newTargetEndTime,
             mode: mode,
             timeLeft: newTimeLeft,
-            sessionName,
             lastUpdated: Date.now()
           }
         };
@@ -6855,7 +6776,6 @@ function MainApp() {
             targetEndTime: null,
             mode: mode,
             timeLeft: newDurationSeconds,
-            sessionName,
             lastUpdated: Date.now()
           }
         };
@@ -6890,7 +6810,6 @@ function MainApp() {
   const handleAddCustomBackground = (newBg) => { setCustomBackgrounds(prev => [...prev, newBg]); };
   const handleDeleteCustomBackground = (bgId) => { const bgToDelete = customBackgrounds.find(b => b.id === bgId); if (bgToDelete && settings.background === bgToDelete.src) { setSettings(prev => ({ ...prev, background: '' })); } setCustomBackgrounds(prev => prev.filter(bg => bg.id !== bgId)); };
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
-  useEffect(() => { if (isEditingName && nameInputRef.current) nameInputRef.current.focus(); }, [isEditingName]);
 
   useEffect(() => {
     // 1. Define your icons here
