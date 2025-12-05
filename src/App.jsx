@@ -3423,8 +3423,8 @@ const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSele
                       animate={{ opacity: 1, y: 0 }}
                       className="text-5xl md:text-7xl font-serif-display text-white tracking-tight"
                     >
-                      Choose your <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Companion.</span>
+                      Pick your <br />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Poison.</span>
                     </motion.h2>
                   </div>
                   <button
@@ -4941,7 +4941,7 @@ function MainApp() {
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
-    const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
+  const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -7019,8 +7019,8 @@ function MainApp() {
           <div className="flex items-center gap-4">
 
             {/* 2. PROFILE ICON (Opens Unified Modal) */}
-            <button 
-              onClick={() => setIsUnifiedModalOpen(true)} 
+            <button
+              onClick={() => setIsUnifiedModalOpen(true)}
               className="relative group rounded-full overflow-hidden w-9 h-9 transition-transform hover:scale-105 active:scale-95"
             >
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
@@ -7405,11 +7405,11 @@ function MainApp() {
         handleSettingsSave={handleSettingsSave}
         handleBackgroundChange={handleBackgroundChange}
         backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
-        
+
         // --- ADD THESE TWO LINES ---
         stats={stats}
         isPro={isPro}
-        // ---------------------------
+      // ---------------------------
       />
 
       <FriendProfileModal
