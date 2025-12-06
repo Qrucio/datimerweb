@@ -2105,19 +2105,17 @@ const LiquidStrictBtn = ({
   onMouseEnter,
   isExtensionConnected,
   mode,
-  onMenuChange // <--- 1. NEW PROP
+  onMenuChange
 }) => {
   const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
   const isMenuOpen = status === 'confirming';
   const browserType = useRef(getBrowserType()).current;
 
-  // --- 2. RESTORED MISSING VARIABLES ---
   const isMissing = !isExtensionConnected;
   const isBreak = mode !== 'focus';
   const showAllowed = isStrict && isBreak;
 
-  // --- 3. NEW EFFECT FOR MENU STATE ---
   useEffect(() => {
     if (onMenuChange) {
       onMenuChange(isMenuOpen);
@@ -2134,25 +2132,29 @@ const LiquidStrictBtn = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  // --- Dynamic Styles ---
-  let btnBg = "";
+  // --- STYLE LOGIC UPDATED ---
+  // Default: Apply the white hover effect (matches Music button)
+  let btnBg = "hover:bg-white/10";
   let btnText = "text-white/70 group-hover:text-white";
   let iconColor = "";
 
   if (isMissing) {
-    // Red Warning Style (Clickable now)
+    // Red Warning Style (Overrides default hover)
     btnBg = "bg-red-500/10 border border-red-500/20 animate-pulse cursor-pointer hover:bg-red-500/20";
     btnText = "text-red-400 font-bold";
     iconColor = "text-red-400";
   } else if (showAllowed) {
-    btnBg = "bg-green-500/10 border border-green-500/20";
+    // Green Allowed Style (Overrides default hover)
+    btnBg = "bg-green-500/10 border border-green-500/20 hover:bg-green-500/20";
     btnText = "text-green-400";
     iconColor = "text-green-400";
   } else if (isStrict) {
+    // Strict Active Style
+    // Keep the default 'hover:bg-white/10' for the background
+    // Just force the text to be solid white
     btnText = "text-white";
   }
 
-  // --- EXPANSION LOGIC ---
   const shouldExpand = isMenuOpen || (isStrict && !isMissing);
 
   return (
@@ -2166,7 +2168,7 @@ const LiquidStrictBtn = ({
             className="absolute bottom-full left-1/2 mb-4 w-80 bg-[#111]/95 backdrop-blur-xl border border-white/20 p-5 rounded-2xl shadow-2xl flex flex-col gap-3 z-[60] origin-bottom"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* --- MODAL HEADER --- */}
+            {/* HEADER */}
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center border border-white/5 ${isMissing ? 'bg-red-500/10 text-red-400' : (isStrict ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400')}`}>
                 {isMissing ? <Lock size={18} /> : (isStrict ? <Unlock size={18} /> : <Lock size={18} />)}
@@ -2178,13 +2180,12 @@ const LiquidStrictBtn = ({
               </div>
             </div>
 
-            {/* --- MODAL CONTENT --- */}
+            {/* CONTENT */}
             {isMissing ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-white/70 leading-relaxed">
                   Strict Mode requires our free companion extension to block websites.
                 </p>
-
                 {browserType === 'webkit' ? (
                   <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
                     <p className="text-xs text-white/50">Safari/WebKit is not currently supported.</p>
@@ -2200,7 +2201,6 @@ const LiquidStrictBtn = ({
                       <Download size={14} />
                       {browserType === 'firefox' ? "Add to Firefox" : "Download Extension"}
                     </a>
-
                     {browserType !== 'firefox' && (
                       <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10 text-left">
                         <p className="text-[12px] text-yellow-500/80 leading-relaxed mb-1">
@@ -2218,7 +2218,6 @@ const LiquidStrictBtn = ({
                     )}
                   </>
                 )}
-
                 <button onClick={() => setStatus('idle')} className="w-full py-2 text-xs text-white/30 hover:text-white transition-colors">Close</button>
               </div>
             ) : (
@@ -2236,7 +2235,6 @@ const LiquidStrictBtn = ({
                 </div>
               </>
             )}
-
             <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/95 border-r border-b border-white/20 rotate-45 backdrop-blur-xl"></div>
           </motion.div>
         )}
@@ -2250,6 +2248,7 @@ const LiquidStrictBtn = ({
           if (!isMissing && isLocked && !isBreak) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
+        // FIX APPLIED HERE: Added btnBg which now defaults to 'hover:bg-white/10'
         className={`relative p-2 rounded-full transition-all group flex items-center ${btnBg} ${btnText} ${isMenuOpen ? 'bg-white/10' : ''}`}
       >
         {isMissing
@@ -2340,8 +2339,8 @@ const LiquidBmcBtn = ({
             </div>
 
             {/* CONTENT: SARCASTIC MESSAGE */}
-            <p className="text-sm text-white/70 leading-relaxed italic">
-              "Please help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. Also, instant noodles are destroying my soul."
+            <p className="text-sm text-white/70 leading-relaxed">
+              Help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. I will spend some of it on coffee though."
             </p>
 
             {/* ACTION BUTTON (Custom styled to match app, links to your slug) */}
@@ -2364,7 +2363,7 @@ const LiquidBmcBtn = ({
               className="w-full py-2 text-[10px] text-white/20 hover:text-red-400 transition-colors flex items-center justify-center gap-1 mt-1 group/hide"
             >
               <Ban size={10} />
-              <span className="group-hover/hide:underline underline-offset-2 decoration-red-400/30">I hate fun. Hide this forever.</span>
+              <span className="group-hover/hide:underline underline-offset-2 decoration-red-400/30">Hide this forever.</span>
             </button>
 
             {/* ARROW */}
@@ -3906,6 +3905,7 @@ function MainApp() {
   const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isStrictMenuOpen, setIsStrictMenuOpen] = useState(false);
+  const [isBmcMenuOpen, setIsBmcMenuOpen] = useState(false);
 
   // --- STRICT MODE STATE & LOGIC ---
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
@@ -5589,16 +5589,17 @@ function MainApp() {
               onMenuChange={setIsStrictMenuOpen}
             />
 
-            {/* --- DIVIDER 3 (Between Strict and BMC) --- */}
-            {/* Only show divider if BMC is NOT disabled */}
+            {/* DIVIDER 3 (Between Strict and BMC) */}
             {!isBmcDisabled && (
               <BendingDivider
                 activeSide={
+                  // 1. Check LEFT neighbor (Strict Mode) - Hovered OR Menu Open
                   (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left'
-                    : hoveredDockIndex === 3 ? 'right'
+                    // 2. Check RIGHT neighbor (BMC) - Hovered OR Menu Open
+                    : (hoveredDockIndex === 3 || isBmcMenuOpen) ? 'right'
                       : null
                 }
-                isDimmed={strictMode} // reuse dimming logic
+                isDimmed={strictMode}
               />
             )}
 
@@ -5606,11 +5607,8 @@ function MainApp() {
             <LiquidBmcBtn
               isDisabled={isBmcDisabled}
               onDisable={handleDisableBmc}
-              onMenuChange={(isOpen) => {
-                // You can reuse isStrictMenuOpen or create a new state isBmcMenuOpen 
-                // if you want perfectly isolated divider logic, but reusing isn't fatal.
-                // Ideally, creating [isBmcMenuOpen, setIsBmcMenuOpen] state is cleaner.
-              }}
+              // Connect the state setter here
+              onMenuChange={setIsBmcMenuOpen}
               onMouseEnter={() => setHoveredDockIndex(3)}
             />
 
