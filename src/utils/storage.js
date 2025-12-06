@@ -1,11 +1,12 @@
-import { doc, writeBatch, collection, Timestamp, getDoc, setDoc } from "firebase/firestore";
+import { doc, writeBatch, Timestamp, increment } from "firebase/firestore";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
     HISTORY: 'zen_stats_history',   // Data waiting to be uploaded
-    NOTES: 'zen_cache_notes',       // Notes content
+    NOTES: 'zen_cache_notes',
+    TRASH: 'zen_cache_trash',       // <--- NEW: The Hit List (Deleted Note IDs)
     SETTINGS: 'zen_cache_settings', // User preferences
-    TIMER: 'zen_timer_state',       // Current timer status (for crash recovery)
+    TIMER: 'zen_timer_state',       // Current timer status
     PRO_CLAIM: 'zen_pro_claim'      // Offline Pro License
 };
 
@@ -23,15 +24,15 @@ const getDateId = (date = new Date()) => {
 export const Storage = {
     // --- 1. STATS MANAGEMENT (The "Ledger") ---
 
-    // Call this every second in your timer loop. It costs nothing.
+    // Call this every second in your timer loop.
     updateLocalStats: (elapsedSeconds, mode) => {
         const today = getDateId();
         let data = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
 
-        // If the date in storage is NOT today, move it to history queue
+        // Rollover Check: If data is from yesterday, queue it and reset
         if (data.date && data.date !== today) {
             Storage.queueDayForSync(data);
-            data = {}; // Reset for today
+            data = {};
         }
 
         // Initialize if empty
@@ -76,41 +77,52 @@ export const Storage = {
 
     // --- 2. THE SYNC WORKER (The "Bank Run") ---
 
-    // Call this ONCE when the app loads (useEffect)
     syncPendingData: async (db, user) => {
         if (!user) return;
 
-        // 1. Check for old stats in the "Current" slot (e.g. user opened app next day)
+        // 1. Check current slot for stale data (e.g. user opened app next day)
         const current = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
         if (current.date && current.date !== getDateId()) {
             Storage.queueDayForSync(current);
             localStorage.removeItem(KEYS.STATS);
         }
 
-        // 2. Upload the Queue
+        // 2. Load Queue
         const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
         if (history.length === 0) return;
 
-        console.log(`[Sync] Found ${history.length} days to upload...`);
+        console.log(`[Sync] Found ${history.length} items to upload...`);
 
         try {
+            // CONSOLIDATE DUPLICATES (Optimization)
+            // Combine multiple small entries for the same date into one big payload
+            const consolidated = history.reduce((acc, item) => {
+                const date = item.date;
+                if (!acc[date]) {
+                    acc[date] = { ...item };
+                } else {
+                    acc[date].dailyFocusTime = (acc[date].dailyFocusTime || 0) + (item.dailyFocusTime || 0);
+                    acc[date].dailyBreakTime = (acc[date].dailyBreakTime || 0) + (item.dailyBreakTime || 0);
+                    acc[date].dailySessions = (acc[date].dailySessions || 0) + (item.dailySessions || 0);
+                }
+                return acc;
+            }, {});
+
             const batch = writeBatch(db);
 
-            // We calculate total stats to update the main profile if needed
-            let totalFocusToAdd = 0;
-
-            history.forEach(dayStat => {
-                // Add to history subcollection: users/{uid}/history/{YYYY-MM-DD}
+            Object.values(consolidated).forEach(dayStat => {
                 const historyRef = doc(db, "users", user.uid, "history", dayStat.date);
+
+                // CRITICAL FIX: Use 'increment' to add to server totals instead of overwriting
                 batch.set(historyRef, {
-                    ...dayStat,
+                    date: dayStat.date,
+                    dailyFocusTime: increment(dayStat.dailyFocusTime || 0),
+                    dailyBreakTime: increment(dayStat.dailyBreakTime || 0),
+                    dailySessions: increment(dayStat.dailySessions || 0),
                     uploadedAt: Timestamp.now()
                 }, { merge: true });
-
-                totalFocusToAdd += (dayStat.dailyFocusTime || 0);
             });
 
-            // Commit Batch
             await batch.commit();
 
             // Clear queue only on success
@@ -122,7 +134,7 @@ export const Storage = {
         }
     },
 
-    // --- 3. NOTES (Optimistic) ---
+    // --- 3. NOTES ---
     saveNotesLocally: (notes) => {
         localStorage.setItem(KEYS.NOTES, JSON.stringify(notes));
     },
@@ -133,7 +145,16 @@ export const Storage = {
         } catch { return []; }
     },
 
-    // --- 4. SETTINGS ---
+    // --- 4. TRASH (The Hit List) ---
+    saveTrashLocally: (trashMap) => {
+        localStorage.setItem(KEYS.TRASH, JSON.stringify(trashMap));
+    },
+
+    getTrash: () => {
+        try { return JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}'); } catch { return {}; }
+    },
+
+    // --- 5. SETTINGS ---
     saveSettingsLocally: (settings) => {
         localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
     },
@@ -145,37 +166,26 @@ export const Storage = {
         } catch { return defaults; }
     },
 
-    // --- 5. PRO LICENSE MANAGEMENT (The "Lease") ---
-
-    // Call this when initializing 'isPro' state (App Load)
+    // --- 6. PRO LICENSE MANAGEMENT ---
     getProStatus: () => {
         try {
             const claim = JSON.parse(localStorage.getItem(KEYS.PRO_CLAIM) || '{}');
-
-            // 1. If never pro, return false
             if (!claim.isPro) return false;
 
-            // 2. Check Expiration
             const now = Date.now();
             const lastVerified = claim.lastVerified || 0;
 
             if (now - lastVerified > GRACE_PERIOD_MS) {
-                console.warn("Pro license expired. Please connect to internet to verify.");
                 return false; // Expired
             }
-
-            // 3. Valid Pro License
             return true;
-        } catch {
-            return false;
-        }
+        } catch { return false; }
     },
 
-    // Call this whenever Firebase successfully syncs user data
     saveProStatus: (isPro) => {
         localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify({
             isPro: isPro,
-            lastVerified: Date.now() // Refreshes the 7-day timer
+            lastVerified: Date.now()
         }));
     }
 };

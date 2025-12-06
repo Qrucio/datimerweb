@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { TYPING_WORDS } from './utils/words';
 import { Storage } from './utils/storage';
-import UnifiedSettingsModal from './components/UnifiedSettingsModal';
+import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
 import OnboardingFlow from './components/OnboardingFlow';
+import SocialModal from './components/modals/SocialModal';
+import MusicModal, { ModernSlider } from './components/modals/MusicModal'; // Import ModernSlider if you need it in MiniPlayer
+import Avatar from './components/Avatar';
+import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
+import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
+import TypingGame from './components/games/TypingGame';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -91,34 +96,7 @@ const AppLoader = () => (
   </div>
 );
 
-// Custom Snake Icon (Pixel style to match the game vibe)
-const SnakeIcon = ({ size = 24, className = "" }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <path
-      d="M21 7H17V11H13V15H9V19H3V15H7V11H11V7H15V3H21V7Z"
-      fill="currentColor"
-    />
-    <circle cx="18.5" cy="5.5" r="1.5" fill="black" fillOpacity="0.5" />
-  </svg>
-);
 
-function useInterval(callback, delay) {
-  const savedCallback = useRef();
-  useEffect(() => { savedCallback.current = callback; }, [callback]);
-  useEffect(() => {
-    if (delay !== null) {
-      const id = setInterval(() => savedCallback.current(), delay);
-      return () => clearInterval(id);
-    }
-  }, [delay]);
-}
 
 // --- ERROR BOUNDARY COMPONENT ---
 class ErrorBoundary extends React.Component {
@@ -200,19 +178,6 @@ const callGemini = async (prompt) => {
   }
 };
 
-const BACKGROUND_OPTIONS = [
-  { id: 'canyonnight', src: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1920&auto=format&fit=crop' },
-  { id: 'greenforest', src: 'https://images.unsplash.com/photo-1470115636492-6d2b56f9146d?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { id: 'mars', src: 'https://cdn.pixabay.com/video/2021/02/13/65129-512069341_medium.mp4' },
-  { id: 'earth', src: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' },
-  { id: 'noensunset', src: 'https://cdn.pixabay.com/video/2021/02/14/65182-513048357_small.mp4' },
-  { id: 'lightinthefall', src: 'https://cdn.pixabay.com/video/2022/08/10/127433-738466676_medium.mp4' },
-  { id: 'mountains', src: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920' },
-  { id: 'watercolornature', src: 'https://images.unsplash.com/photo-1694369999734-e2aaded39109?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=birmingham-museums-trust--7BpqU1rD2E-unsplash.jpg&w=1920' },
-  { id: 'auroralights', src: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=lightscape-LtnPejWDSAY-unsplash.jpg&w=1920' },
-  { id: 'tokyonightlight', src: 'https://images.unsplash.com/photo-1626946548234-a65fd193db41?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=qiwei-hou-6PA1vVnnKtg-unsplash.jpg&w=1920' },
-  { id: 'bluegradient', src: 'https://cdn.pixabay.com/video/2022/03/06/109908-685705862_small.mp4' },
-];
 
 const cleanText = (text) => {
   if (!text) return "";
@@ -460,16 +425,6 @@ const RevealLogo = ({ src, className, disableReveal = false }) => {
   );
 };
 
-const GoogleLogo = () => (
-  <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.23856)">
-      <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z" />
-      <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z" />
-      <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z" />
-      <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.799 L -6.734 42.379 C -8.804 40.439 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z" />
-    </g>
-  </svg>
-);
 
 const Toggle = ({ label, checked, onChange }) => (
   <div
@@ -495,19 +450,6 @@ const Toggle = ({ label, checked, onChange }) => (
     </div>
   </div>
 );
-
-const StaggeredText = ({ text, className, delayStart = 0 }) => {
-  const words = text.split(" ");
-  return (
-    <span className={`inline-flex flex-wrap justify-center gap-x-2 ${className}`}>
-      {words.map((word, i) => (
-        <span key={i} className="word-animate" style={{ animationDelay: `${delayStart + (i * 0.15)}s` }}>{word}</span>
-      ))}
-    </span>
-  );
-};
-
-
 
 // Updated StatCard: Monochrome & Rounded-2xl
 const StatCard = ({ label, value, icon: Icon }) => (
@@ -683,68 +625,6 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
   );
 };
 
-const Avatar = ({
-  userData,
-  photoURL,
-  name,
-  size = "md",
-  isPinned = false,
-  isPro = false
-}) => {
-  const [imageError, setImageError] = useState(false);
-
-  // Extract values: Prefer direct props, fallback to userData object
-  const finalPhoto = photoURL || userData?.photoURL;
-  const finalName = name || userData?.displayName || userData?.name;
-  const finalIsPro = isPro || userData?.isPro || userData?.subscription?.plan === 'pro';
-  const finalIsPinned = isPinned || userData?.isPinned;
-
-  useEffect(() => { setImageError(false); }, [finalPhoto]);
-
-  const sizeClasses = {
-    sm: "w-6 h-6 text-[10px]",
-    md: "w-10 h-10 text-xs",
-    lg: "w-12 h-12 text-sm",
-    full: "w-full h-full"
-  };
-
-  return (
-    <div className={`relative flex-shrink-0 ${sizeClasses[size]} select-none group`}>
-      {/* --- PREMIUM PRO EFFECTS --- */}
-      {finalIsPro && (
-        <>
-          {/* Layer 1: Ambient Golden Glow (Blurred & Pulsing) */}
-          <div className="absolute -inset-[3px] rounded-full bg-gradient-to-br from-yellow-600 via-amber-400 to-yellow-600 opacity-40 blur-[3px] animate-pulse z-0" />
-          {/* Layer 2: Rotating Metallic Reflection (Sharp Ring) */}
-          <div className="absolute -inset-[1.5px] rounded-full overflow-hidden z-0">
-            <div
-              className="w-[200%] h-[200%] absolute top-[-50%] left-[-50%] animate-[spin_4s_linear_infinite]"
-              style={{ background: 'conic-gradient(transparent 0deg, #b45309 60deg, #fcd34d 180deg, #b45309 300deg, transparent 360deg)' }}
-            />
-          </div>
-        </>
-      )}
-
-      {/* --- MAIN IMAGE CONTAINER --- */}
-      <div className={`relative z-10 w-full h-full rounded-full overflow-hidden bg-[#111] ${finalIsPro ? 'border-[1.5px] border-transparent bg-clip-padding' : 'border border-white/10'}`}>
-        {finalPhoto && !imageError ? (
-          <img src={finalPhoto} alt={finalName} referrerPolicy="no-referrer" onError={() => setImageError(true)} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center font-bold text-white/80 uppercase">
-            {finalName ? finalName.charAt(0) : '?'}
-          </div>
-        )}
-      </div>
-
-      {/* --- PIN INDICATOR --- */}
-      {finalIsPinned && (
-        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white rounded-full flex items-center justify-center border border-black shadow-sm z-20">
-          <Pin size={8} className="text-black fill-black" />
-        </div>
-      )}
-    </div>
-  );
-};
 
 const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
   const content = {
@@ -763,11 +643,42 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
       description: <>You have chosen your 3 free sounds. Upgrade to <span className="text-yellow-400 font-bold">Pro</span> to unlock the full library and mix unlimited sounds.</>,
       icon: CloudRain
     },
-    // --- NEW SECTION ---
     music: {
       title: "Unlock Focus Music",
       description: <>Curated Focus Tracks are a <span className="text-yellow-400 font-bold">Pro</span> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
       icon: Music
+    },
+    // --- NEW: SETTINGS (ALL FEATURES) ---
+    settings: {
+      title: "Unlock Everything",
+      description: (
+        <div className="flex flex-col gap-3 mt-1">
+          <p className="text-white/60 text-sm">Become a Pro member to remove all limits and access the complete experience.</p>
+          <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col gap-2 text-left">
+            <div className="flex items-center gap-3">
+              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><StickyNoteIcon size={12} /></div>
+              <span className="text-xs text-white/80">Unlimited Notes & Themes</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Gamepad2 size={12} /></div>
+              <span className="text-xs text-white/80">Full Arcade Access (Snake, Typing)</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><CloudRain size={12} /></div>
+              <span className="text-xs text-white/80">Unlock All 50+ Ambience Sounds</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Music size={12} /></div>
+              <span className="text-xs text-white/80">Premium Focus Music & Lofi</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Crown size={12} /></div>
+              <span className="text-xs text-white/80">Gold "Pro" Profile Badge</span>
+            </div>
+          </div>
+        </div>
+      ),
+      icon: Crown
     }
   };
 
@@ -800,7 +711,12 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
               <Icon size={32} />
             </div>
             <h2 className="relative z-10 text-2xl font-serif-display text-white mb-2">{currentContent.title}</h2>
-            <p className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-2">{currentContent.description}</p>
+
+            {/* CHANGED FROM <p> TO <div> TO SUPPORT RICH CONTENT */}
+            <div className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-1">
+              {currentContent.description}
+            </div>
+
             <button onClick={() => { if (onUpgrade) onUpgrade(); }} className="relative z-10 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-yellow-500/20">Upgrade to Pro</button>
             <button onClick={onClose} className="mt-4 text-xs text-white/30 hover:text-white uppercase tracking-widest font-bold transition-colors">Maybe Later</button>
           </motion.div>
@@ -1345,309 +1261,6 @@ const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
 );
 
 
-const SocialModal = ({
-  isOpen, onClose, user, friends, friendRequests,
-  onSendRequest, onAcceptRequest, onDeclineRequest,
-  onBlockUser, onUnblockUser, checkOutgoingRequest,
-  onRemoveFriend, onTogglePin, onViewStats, onSearchUsers,
-  blockedUsers, initialView = 'list'
-}) => {
-  const [view, setView] = useState(initialView);
-  const [searchText, setSearchText] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [rawSearchResults, setRawSearchResults] = useState([]);
-  const [requestStatuses, setRequestStatuses] = useState({});
-  const [searchPerformed, setSearchPerformed] = useState(false);
-  const [errorMsg, setErrorMsg] = useState(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      setView(initialView);
-      setSearchText("");
-      setRawSearchResults([]);
-      setSearchPerformed(false);
-      setErrorMsg(null);
-      setRequestStatuses({});
-    }
-  }, [isOpen, initialView]);
-
-  // Search Debounce
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (!searchText.trim()) {
-        setRawSearchResults([]);
-        setSearchPerformed(false);
-        return;
-      }
-      setIsSearching(true);
-      const results = await onSearchUsers(searchText);
-      setIsSearching(false);
-      setRawSearchResults(results);
-      setSearchPerformed(true);
-
-      if (results.length > 0) {
-        const statuses = {};
-        for (const res of results) {
-          const isSent = await checkOutgoingRequest(res.uid);
-          statuses[res.uid] = isSent ? 'sent' : 'none';
-        }
-        setRequestStatuses(statuses);
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [searchText, onSearchUsers, checkOutgoingRequest, blockedUsers]);
-
-  const filteredSearchResults = rawSearchResults.filter(result =>
-    !friends.some(friend => friend.uid === result.uid) && result.uid !== user.uid
-  );
-
-  const handleSendRequest = async (targetUser) => {
-    setRequestStatuses(prev => ({ ...prev, [targetUser.uid]: 'sent' }));
-    const result = await onSendRequest(targetUser);
-    if (!result.success) {
-      setRequestStatuses(prev => ({ ...prev, [targetUser.uid]: 'none' }));
-      setErrorMsg(result.error);
-      setTimeout(() => setErrorMsg(null), 3000);
-    }
-  };
-
-  const handleBlock = async (targetUser) => {
-    await onBlockUser(targetUser);
-    if (friendRequests.some(req => req.uid === targetUser.uid)) {
-      onDeclineRequest(targetUser.uid);
-    }
-    setRawSearchResults(prev => prev.filter(r => r.uid !== targetUser.uid));
-  };
-
-  const sortedFriends = [...friends].sort((a, b) => {
-    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-    if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
-    return 0;
-  });
-
-  const modalVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: 10 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } },
-    exit: { opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.15, ease: "easeOut" } }
-  };
-
-  const slideVariants = {
-    enter: (direction) => ({ x: direction > 0 ? 20 : -20, opacity: 0 }),
-    center: { x: 0, opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
-    exit: (direction) => ({ x: direction < 0 ? 20 : -20, opacity: 0, transition: { duration: 0.15, ease: "easeIn" } })
-  };
-
-  const direction = view === 'list' ? -1 : 1;
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
-          <motion.div
-            layout
-            variants={modalVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="bg-[#111] border border-white/10 p-6 rounded-3xl w-[95vw] md:w-full md:max-w-md shadow-2xl overflow-hidden mx-2 md:mx-0 flex flex-col max-h-[85vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6 shrink-0">
-              <h3 className="text-xl font-medium text-white">Social</h3>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setView(view === 'blocked' ? 'list' : 'blocked')}
-                  className={`p-2 rounded-full transition-colors ${view === 'blocked' ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-white/50 hover:text-white'}`}
-                  title="Blocked Users"
-                >
-                  <Ban size={20} />
-                </button>
-                <button
-                  onClick={() => setView(view === 'requests' ? 'list' : 'requests')}
-                  className={`relative p-2 rounded-full transition-colors ${view === 'requests' ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}
-                >
-                  <Bell size={20} />
-                  {friendRequests.length > 0 && view !== 'requests' && (
-                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-[#111]" />
-                  )}
-                </button>
-                <button onClick={onClose} className="w-9 h-9 flex items-center justify-center p-1 bg-white/5 rounded-full text-white/50 hover:text-white active:text-white/70 hover:bg-white/10 transition-colors"><X size={20} /></button>
-              </div>
-            </div>
-
-            <div className="overflow-y-auto custom-scrollbar flex-1 -mr-2 pr-2">
-              <AnimatePresence mode="wait" custom={direction}>
-
-                {/* VIEW: BLOCKED LIST */}
-                {view === 'blocked' && (
-                  <motion.div key="blocked" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-xs uppercase tracking-widest text-red-400 font-bold">Blocked Users</h4>
-                    </div>
-                    {!blockedUsers || blockedUsers.length === 0 ? (
-                      <div className="text-center py-12 text-white/20 text-sm italic">No blocked users.</div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {blockedUsers.map(bUser => (
-                          <div key={bUser.uid} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-3 opacity-70">
-                              <Avatar userData={bUser} size="md" />
-                              <div className="flex flex-col">
-                                <span className="text-sm font-bold text-white">{bUser.displayName || "Unknown User"}</span>
-                                <span className="text-[10px] text-white/50">Blocked</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => onUnblockUser(bUser.uid)}
-                              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold rounded-lg transition-colors"
-                            >
-                              UNBLOCK
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {/* VIEW: REQUESTS */}
-                {view === 'requests' && (
-                  <motion.div key="requests" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold">Pending Requests</h4>
-                      <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded-full text-white/60">{friendRequests.length}</span>
-                    </div>
-                    {friendRequests.length === 0 ? (
-                      <div className="text-center py-12 text-white/20 text-sm italic">No pending requests.</div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        {friendRequests.map(req => (
-                          <div key={req.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Avatar userData={req} size="md" />
-
-                              {/* Horizontal Layout for Request Name + Handle */}
-                              <div className="flex flex-col md:flex-row md:items-baseline md:gap-2">
-                                <span className="text-sm font-bold text-white">{req.displayName}</span>
-                                <span className="text-xs text-white/50 font-medium">{req.handle}</span>
-                              </div>
-
-                            </div>
-                            <div className="flex gap-3 pr-2 items-center">
-                              <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(req)} />
-                              <LiquidButton icon={X} label="Deny?" variant="danger" onConfirm={() => onDeclineRequest(req.uid)} />
-                              <button onClick={() => onAcceptRequest(req)} className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-green-400 hover:scale-110 transition-all shadow-md z-20"><Check size={14} strokeWidth={3} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-
-                {/* VIEW: LIST (Search & Friends) */}
-                {view === 'list' && (
-                  <motion.div key="list" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit">
-                    <div className="mb-4 relative">
-                      <div className="relative z-10">
-                        <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Find users..." className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-white/30 transition-colors" />
-                        <div className="absolute right-2 top-2 p-1.5 text-white/30">
-                          {isSearching ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {errorMsg && <p className="text-red-400 text-xs mb-4 ml-1">{errorMsg}</p>}
-
-                    {filteredSearchResults.length > 0 && (
-                      <div className="mb-6 animate-fade-in">
-                        <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Found Users</h4>
-                        <div className="flex flex-col gap-2">
-                          {filteredSearchResults.map(result => {
-                            const isSent = requestStatuses[result.uid] === 'sent';
-                            return (
-                              <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <Avatar userData={result} size="md" />
-
-                                  {/* SIDE BY SIDE NAME & HANDLE */}
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-sm font-bold text-white leading-tight">{result.displayName}</span>
-                                    <span className="text-xs text-white/50">{result.handle}</span>
-                                  </div>
-
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(result)} />
-
-                                  {isSent ? (
-                                    <button disabled className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all scale-100 cursor-default">
-                                      <Check size={16} strokeWidth={3} />
-                                    </button>
-                                  ) : (
-                                    <button onClick={() => handleSendRequest(result)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-black hover:bg-gray-200 transition-all shadow-md active:scale-95">
-                                      <UserPlus size={16} strokeWidth={2.5} />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="w-full h-px bg-white/10 my-4"></div>
-                      </div>
-                    )}
-
-                    {/* Friend List */}
-                    <div className="flex flex-col gap-2">
-                      <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4>
-                      {friends.length === 0 ? (
-                        <div className="text-center py-8 text-white/30 text-sm">No friends yet.</div>
-                      ) : (
-                        sortedFriends.map((friend) => (
-                          <div key={friend.uid} onClick={() => onViewStats(friend)} className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative">
-                            <div className="flex items-center gap-3 pointer-events-none">
-                              <Avatar userData={friend} size="md" />
-                              <div className="flex flex-col justify-center">
-
-                                {/* SIDE BY SIDE NAME & HANDLE */}
-                                <div className="flex items-baseline gap-2 mb-1">
-                                  <span className="text-sm font-medium text-white leading-none">{friend.displayName}</span>
-                                  <span className="text-xs text-white/50">{friend.handle}</span>
-                                </div>
-
-                                <div className="text-[10px] text-white/50 flex items-center gap-1.5">
-                                  <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
-                                  {friend.statusText}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => onTogglePin(friend.uid, friend.isPinned)} className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}><Pin size={16} className={friend.isPinned ? "fill-white" : ""} /></button>
-                              <LiquidButton icon={UserMinus} label="Remove?" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
 // ... (SettingsModal, ConfirmationModal, KeyboardHelpModal remain unchanged)
 const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, user, isTimerRunning, devMode, setDevMode, customBackgrounds, onAddCustomBackground, onDeleteCustomBackground }) => {
   const [localSettings, setLocalSettings] = useState(settings);
@@ -1973,399 +1586,6 @@ const NotificationCenter = () => {
   );
 };
 
-// 1. FOCUS MUSIC LIST (Renamed from 'Focus' to 'Music' in UI)
-const MUSIC_TRACKS = [
-  {
-    id: 'lofi-study',
-    title: 'Lofi Study',
-    src: 'https://archive.org/download/track1_202511/track1.mp3',
-    cover: 'https://i.pinimg.com/736x/9c/76/23/9c7623f7939be1725435bef4dea604f8.jpg'
-  },
-  {
-    id: 'binaural',
-    title: 'Binaural Beats',
-    src: 'https://archive.org/download/track2_202511/track1.mp3',
-    cover: 'https://i.pinimg.com/736x/96/03/ce/9603cee1ddcce4c184587c66532fbc63.jpg'
-  },
-  {
-    id: 'deep-focus',
-    title: 'Deep Focus Ambient',
-    src: 'https://archive.org/download/track2_202511/track2.mp3',
-    cover: 'https://i.pinimg.com/736x/e2/4e/0d/e24e0d3d5f5f07c562f08a5ebfc4c776.jpg'
-  },
-];
-
-// 2. AMBIENCE GRID LIST
-const AMBIENT_SOUNDS = [
-  { id: 'rain', title: 'Soft Rain', icon: CloudRain, src: 'https://assets.mixkit.co/active_storage/sfx/2393/2393.wav' },
-  { id: 'thunder', title: 'Thunder', icon: CloudLightning, src: 'https://assets.mixkit.co/active_storage/sfx/2395/2395.wav' },
-  { id: 'flowingwater', title: 'Nature', icon: Wind, src: 'https://assets.mixkit.co/active_storage/sfx/61/61.wav' },
-  { id: 'ocean', title: 'Ocean', icon: Waves, src: 'https://cdn.pixabay.com/download/audio/2024/10/12/audio_7dd52a2e33.mp3?filename=ocean-waves-250310.mp3' },
-  { id: 'cafe', title: 'Coffee Shop', icon: Coffee, src: 'https://cdn.pixabay.com/download/audio/2021/10/10/audio_1009cd220b.mp3?filename=cafe-ambience-9263.mp3' },
-  { id: 'campfire', title: 'Campfire', icon: Tent, src: 'https://cdn.pixabay.com/download/audio/2025/11/19/audio_908a09a5b0.mp3?filename=campfire-crackling-sound-439573.mp3' },
-  { id: 'train', title: 'Train Ride', icon: Train, src: 'https://cdn.pixabay.com/download/audio/2022/02/07/audio_21e77afab8.mp3?filename=train-riding-inside-17188.mp3' },
-  { id: 'keyboard', title: 'Typing', icon: Keyboard, src: 'https://cdn.pixabay.com/download/audio/2025/03/03/audio_9ecd5092f4.mp3?filename=typing-on-laptop-keyboard-308455.mp3' },
-];
-
-// --- UPDATED MINIMALIST "HEADLESS" SLIDER ---
-const ModernSlider = ({ value, max = 1, onChange, color = "white", className = "" }) => {
-  const percentage = max > 0 ? (value / max) * 100 : 0;
-
-  return (
-    <div className={`relative flex items-center h-5 w-full group cursor-pointer touch-none ${className}`}>
-      {/* 1. Invisible Interactive Layer */}
-      <input
-        type="range"
-        min="0"
-        max={max}
-        step="0.01"
-        value={value}
-        onChange={onChange}
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
-      />
-
-      {/* 2. Visual Track */}
-      <div className="absolute inset-x-0 flex items-center pointer-events-none z-10">
-        <div
-          className={`
-            w-full rounded-full transition-all duration-300 ease-out
-            ${color === 'black' ? 'bg-black/10' : 'bg-white/10'}
-            h-[2px] group-hover:h-[4px] group-active:h-[4px]
-          `}
-        >
-          {/* 3. Visual Fill */}
-          <div
-            className="h-full rounded-full transition-all duration-75 ease-out"
-            style={{
-              width: `${percentage}%`,
-              backgroundColor: color
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const MusicModal = ({
-  isOpen, onClose,
-  // Music Props
-  currentTrack, isPlaying, onPlay, onPause,
-  isLoading, progress, duration, onSeek,
-  // Ambience Props
-  ambienceState, onToggleAmbience, onAmbienceVolume, onStopAllAmbience,
-  // Global Props
-  volume, onVolumeChange,
-  isLofiPlaying, onToggleLofi,
-  // Pro / Selection Props
-  isPro,
-  unlockedAmbiences = [],
-  ambienceSetupDone = false,
-  onSaveAmbienceSelection,
-  onOpenPro
-}) => {
-  const [activeTab, setActiveTab] = useState('ambience');
-
-  // Sync tab if Lofi is active externally
-  useEffect(() => {
-    if (isOpen && isLofiPlaying) setActiveTab('lofi');
-  }, [isOpen, isLofiPlaying]);
-
-  // Determine Selection Mode
-  const isSelectionMode = !isPro && !ambienceSetupDone;
-
-  // --- CLEANUP ON CLOSE ---
-  useEffect(() => {
-    if (!isOpen && isSelectionMode) {
-      onStopAllAmbience();
-    }
-  }, [isOpen, isSelectionMode, onStopAllAmbience]);
-
-  const toggleMute = () => onVolumeChange(volume > 0 ? 0 : 0.5);
-
-  const formatTime = (time) => {
-    if (isNaN(time)) return "0:00";
-    const totalSeconds = Math.floor(time);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const handleConfirmSelection = () => {
-    const selectedIds = Object.keys(ambienceState);
-    if (onSaveAmbienceSelection) {
-      onSaveAmbienceSelection(selectedIds);
-    }
-  };
-
-  const showMasterVolume = activeTab !== 'ambience' || (activeTab === 'ambience' && (isPlaying || isLofiPlaying));
-  const selectedCount = isSelectionMode ? Object.keys(ambienceState).length : 0;
-
-  // --- SNAPPY TRANSITIONS ---
-  // We separate Enter and Exit transitions. 
-  // Exit is super fast (0.1s) to make room for the new tab immediately.
-  const tabTransition = {
-    enter: { duration: 0.25, ease: "easeOut" },
-    exit: { duration: 0.08, ease: "linear" } // <--- THE FIX FOR SNAPPINESS
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md md:p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            // --- UPDATED: MATCHING OTHER MODALS (Scale + Fade) ---
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-            // ----------------------------------------------------
-            className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Background Gradients */}
-            <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 md:p-8 pb-4 z-20 shrink-0 mt-8 md:mt-0">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2>
-                <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p>
-              </div>
-              <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90"><X size={20} /></button>
-            </div>
-
-            {/* Tabs */}
-            <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-between items-center">
-              <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl whitespace-nowrap">
-                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi Radio', icon: Radio }].map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  const Icon = tab.icon;
-                  return (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-2 z-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white'}`}>
-                      {isActive && <motion.div layoutId="activeTabBg" className="absolute inset-0 bg-white rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1]" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
-                      <Icon size={14} className={isActive ? "text-black" : ""} strokeWidth={2} />
-                      <span>{tab.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* SELECTION BANNER */}
-            <AnimatePresence>
-              {isSelectionMode && activeTab === 'ambience' && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 md:px-8 pb-2 z-20">
-                  <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-400"><Sparkles size={16} /></div>
-                      <div>
-                        <h4 className="text-white font-bold text-sm">Play to Select (Free Plan)</h4>
-                        <p className="text-white/50 text-xs">Chosen sounds will be yours forever. Others will lock.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-yellow-400 font-mono font-bold text-sm">{selectedCount} / 3</span>
-                      {selectedCount > 0 && (
-                        <button onClick={handleConfirmSelection} className="px-4 py-1.5 bg-yellow-400 text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-yellow-300 transition-colors shadow-lg">Confirm</button>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex-1 overflow-hidden relative z-10">
-              <AnimatePresence mode="wait">
-
-                {/* 1. AMBIENCE TAB */}
-                {activeTab === 'ambience' && (
-                  <motion.div
-                    key="ambience"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0, transition: tabTransition.enter }}
-                    exit={{ opacity: 0, x: -10, transition: tabTransition.exit }}
-                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
-                  >
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
-                      {AMBIENT_SOUNDS.map((track) => {
-                        const trackState = ambienceState[track.id];
-                        const isActive = !!trackState;
-                        const Icon = track.icon;
-                        const isUnlocked = isPro || unlockedAmbiences.includes(track.id);
-
-                        const handleClick = () => {
-                          if (isSelectionMode) {
-                            if (isActive) { onToggleAmbience(track); }
-                            else { if (selectedCount < 3) onToggleAmbience(track, true); }
-                          } else {
-                            if (isUnlocked) { onToggleAmbience(track, false); }
-                            else { onOpenPro('ambience'); }
-                          }
-                        };
-
-                        return (
-                          <motion.div
-                            key={track.id}
-                            onClick={handleClick}
-                            className={`
-                              relative aspect-[4/3] rounded-2xl md:rounded-3xl p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all duration-300 border group
-                              ${isActive ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}
-                              ${(isSelectionMode && isActive) ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-black' : ''}
-                              ${(isSelectionMode && !isActive && selectedCount >= 3) ? 'opacity-30 grayscale cursor-not-allowed' : ''}
-                            `}
-                          >
-                            {!isSelectionMode && !isUnlocked && (
-                              <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-[2px]"><Lock size={24} className="text-white/50" /></div>
-                            )}
-                            <div className="flex justify-between items-start pointer-events-none">
-                              <span className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-colors duration-300 ${isActive ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}>
-                                <Icon size={20} strokeWidth={1.5} className={isActive ? "animate-pulse" : ""} />
-                              </span>
-                              {isActive && <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />}
-                            </div>
-                            <div className="relative z-20">
-                              <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>{track.title}</h4>
-                              <div className={`transition-all duration-300 ease-out overflow-hidden ${isActive ? 'h-5 opacity-100 mt-2' : 'h-0 opacity-0'}`} onClick={(e) => e.stopPropagation()}>
-                                <ModernSlider value={trackState?.volume || 0.5} onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))} color={isActive ? "black" : "white"} className="py-1" />
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* 2. LIBRARY TAB */}
-                {activeTab === 'library' && (
-                  <motion.div
-                    key="library"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0, transition: tabTransition.enter }}
-                    exit={{ opacity: 0, x: -10, transition: tabTransition.exit }}
-                    className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32"
-                  >
-                    <div className="flex flex-col gap-3">
-                      {MUSIC_TRACKS.map((track, i) => {
-                        const isCurrent = currentTrack?.id === track.id && !isLofiPlaying;
-                        const isPlayingState = isCurrent && isPlaying;
-                        return (
-                          <motion.div
-                            key={track.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.05 }}
-                            onClick={() => { if (isPro) { isCurrent && isPlaying ? onPause() : onPlay(track); } else { onOpenPro('music'); } }}
-                            className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group relative overflow-hidden ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}
-                          >
-                            {!isPro && (
-                              <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-yellow-500/30 text-yellow-400">
-                                  <Lock size={12} /><span className="text-[10px] font-bold uppercase tracking-widest">Pro</span>
-                                </div>
-                              </div>
-                            )}
-                            <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg">
-                              {track.cover ? <img src={track.cover} alt="art" className={`w-full h-full object-cover transition-opacity ${!isPro ? 'grayscale opacity-50' : 'opacity-80 group-hover:opacity-100'}`} /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>}
-                              {isPro && (
-                                <div className={`absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isCurrent || 'opacity-0 group-hover:opacity-100'}`}>
-                                  {isPlayingState ? <Pause size={20} className="text-white fill-white" /> : <Play size={20} className="text-white fill-white ml-1" />}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className={`text-sm md:text-lg font-medium truncate ${isCurrent ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>{track.title}</h4>
-                              <p className="text-xs md:text-sm text-white/30 uppercase tracking-widest font-medium mt-0.5 md:mt-1">{isCurrent && isPlaying ? 'Now Playing' : 'Focus Track'}</p>
-                            </div>
-                            {isCurrent && (<div className="flex gap-1 h-3 md:h-4 items-end px-2 md:px-4">{[1, 2, 3, 4].map(n => (<motion.div key={n} animate={isPlaying ? { height: [4, 16, 8, 12, 4] } : { height: 4 }} transition={{ repeat: Infinity, duration: 1, delay: n * 0.1 }} className="w-1 bg-green-400 rounded-full" />))}</div>)}
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* 3. LOFI TAB */}
-                {activeTab === 'lofi' && (
-                  <motion.div
-                    key="lofi"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1, transition: tabTransition.enter }}
-                    exit={{ opacity: 0, scale: 1.05, transition: tabTransition.exit }}
-                    className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8"
-                  >
-                    <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
-                      <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative">
-                        <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" />
-                        {isLofiPlaying && <div className="absolute inset-0 bg-red-500/20 animate-pulse"></div>}
-                      </div>
-                      <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2">Lofi Girl Radio</h3>
-                      <p className="text-white/40 text-xs md:text-sm mb-6 md:mb-8">beats to relax/study to. All hail Lofi Girl!</p>
-                      <button onClick={onToggleLofi} className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 ${isLofiPlaying ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' : 'bg-white text-black hover:bg-gray-200 shadow-white/10'}`}>
-                        {isLofiPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
-                        {isLofiPlaying ? 'Pause Radio' : 'Start Radio'}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Bottom Player Bar */}
-            <div className="h-auto md:h-24 bg-gradient-to-t from-black via-[#0a0a0a]/95 to-transparent flex flex-col md:flex-row items-center px-6 md:px-8 py-4 md:py-0 gap-4 md:gap-6 z-30 shrink-0 absolute bottom-0 left-0 right-0 border-t border-white/5 md:border-t-0">
-              <div className="flex items-center w-full md:w-auto gap-4">
-                <button
-                  onClick={() => {
-                    if (isLofiPlaying) { onToggleLofi(); }
-                    else if (activeTab === 'lofi') { onToggleLofi(); }
-                    else if (currentTrack) { isPlaying ? onPause() : onPlay(currentTrack); }
-                  }}
-                  className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] shrink-0"
-                >
-                  {(isLofiPlaying || (currentTrack && isPlaying)) ? <Pause size={18} fill="black" /> : <Play size={18} fill="black" className="ml-0.5" />}
-                </button>
-                <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
-                  <div className="flex justify-between items-end">
-                    <span className="text-sm font-bold text-white truncate pr-2">{isLofiPlaying ? "Lofi Girl Radio" : (currentTrack ? currentTrack.title : "No Track Selected")}</span>
-                    {!isLofiPlaying && currentTrack && <span className="text-[10px] font-mono text-white/40 shrink-0">{formatTime(progress)} / {formatTime(duration)}</span>}
-                  </div>
-                  <div className="w-full">
-                    {!isLofiPlaying && currentTrack ? (
-                      <ModernSlider value={progress} max={duration || 100} onChange={(e) => onSeek(Number(e.target.value))} color="white" />
-                    ) : (
-                      isLofiPlaying && <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-red-500 animate-[pulse_2s_infinite]" style={{ width: '100%' }} /></div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <AnimatePresence>
-                {showMasterVolume && (
-                  <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.2 }} className="flex items-center gap-3 w-full md:w-40 group pl-2 md:pl-0">
-                    <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors shrink-0">{volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}</button>
-                    <div className="flex-1"><ModernSlider value={volume} max={1} onChange={(e) => onVolumeChange(parseFloat(e.target.value))} color="white" /></div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 const StickyNote = ({ text, onClick, className = "", style = {}, scale = 1 }) => (
   <motion.div
@@ -3059,131 +2279,6 @@ const LiquidStrictBtn = ({
   );
 };
 
-const LiquidButton = ({
-  icon: Icon,
-  label = "Sure?",
-  onConfirm,
-  variant = "danger",
-  size = "sm",
-  disabled = false
-}) => {
-  const [status, setStatus] = useState('idle');
-  const containerRef = useRef(null);
-
-  const BASE_SIZE = size === 'sm' ? 32 : 40;
-  const EXPANDED_WIDTH = 130;
-  const EXPANDED_HEIGHT = size === 'sm' ? 36 : 44;
-
-  const styles = {
-    danger: {
-      idleBg: "rgba(255, 255, 255, 0.05)",
-      idleColor: "rgba(255, 255, 255, 0.5)",
-      idleHoverBg: "rgba(220, 38, 38, 0.2)",
-      idleHoverColor: "#f87171",
-      confirmBg: "rgba(220, 38, 38, 0.15)",
-      confirmBorder: "rgba(220, 38, 38, 0.3)",
-      labelColor: "text-red-500",
-      confirmBtnClass: "bg-red-500 text-white hover:bg-red-400"
-    },
-    success: {
-      idleBg: "rgba(255, 255, 255, 1)",
-      idleColor: "#000",
-      idleHoverBg: "rgba(74, 222, 128, 1)",
-      idleHoverColor: "#000",
-      confirmBg: "rgba(34, 197, 94, 0.15)",
-      confirmBorder: "rgba(34, 197, 94, 0.3)",
-      labelColor: "text-green-500",
-      confirmBtnClass: "bg-green-500 text-white hover:bg-green-400"
-    },
-    neutral: {
-      idleBg: "rgba(255, 255, 255, 0.05)",
-      idleColor: "rgba(255, 255, 255, 0.5)",
-      idleHoverBg: "rgba(255, 255, 255, 0.1)",
-      idleHoverColor: "#fff",
-      confirmBg: "rgba(255, 255, 255, 0.1)",
-      confirmBorder: "rgba(255, 255, 255, 0.1)",
-      labelColor: "text-white",
-      confirmBtnClass: "bg-white text-black"
-    }
-  }[variant];
-
-  useEffect(() => {
-    let timer;
-    if (status === 'confirming') { timer = setTimeout(() => setStatus('idle'), 3000); }
-    return () => clearTimeout(timer);
-  }, [status]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) { setStatus('idle'); }
-    };
-    if (status === 'confirming') document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [status]);
-
-  if (disabled) {
-    return (<div className={`w-${size === 'sm' ? '8' : '10'} h-${size === 'sm' ? '8' : '10'} flex items-center justify-center opacity-30`}> <Icon size={size === 'sm' ? 14 : 18} /> </div>);
-  }
-
-  return (
-    <div className={`relative ${size === 'sm' ? 'w-8 h-8' : 'w-10 h-10'} flex items-center justify-center z-10`}>
-      <motion.div
-        ref={containerRef}
-        layout
-        onClick={(e) => e.stopPropagation()}
-        initial={false}
-        animate={status === 'confirming'
-          ? { width: EXPANDED_WIDTH, height: EXPANDED_HEIGHT, borderRadius: 20, backgroundColor: styles.confirmBg, borderColor: styles.confirmBorder, borderWidth: 1 }
-          : { width: BASE_SIZE, height: BASE_SIZE, borderRadius: 50, backgroundColor: styles.idleBg, borderColor: "rgba(0,0,0,0)", borderWidth: 0 }
-        }
-        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-        className="absolute right-0 flex items-center justify-center overflow-hidden shadow-lg backdrop-blur-md"
-      >
-        <AnimatePresence mode="popLayout">
-          {status === 'idle' ? (
-            <motion.button
-              key="icon"
-              layout="position"
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1, color: styles.idleColor }}
-              exit={{ opacity: 0, scale: 0.5 }}
-              transition={{ duration: 0.2 }}
-              whileHover={{ backgroundColor: styles.idleHoverBg, color: styles.idleHoverColor }}
-              onClick={(e) => { e.stopPropagation(); setStatus('confirming'); }}
-              className="w-full h-full flex items-center justify-center"
-            >
-              <Icon size={size === 'sm' ? 14 : 18} strokeWidth={variant === 'success' ? 3 : 2} />
-            </motion.button>
-          ) : (
-            <motion.div key="content" initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="flex items-center justify-between w-full px-1">
-
-              {/* --- 1. CONFIRM (TICK) IS NOW FIRST (LEFT) --- */}
-              <button
-                onClick={(e) => { e.stopPropagation(); onConfirm(); setStatus('idle'); }}
-                className={`w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-110 active:scale-95 ${styles.confirmBtnClass}`}
-              >
-                <Check size={14} strokeWidth={3} />
-              </button>
-
-              {/* --- 2. LABEL (CENTER) --- */}
-              <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${styles.labelColor}`}>{label}</span>
-
-              {/* --- 3. CANCEL (X) IS NOW LAST (RIGHT) --- */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setStatus('idle'); }}
-                className="w-7 h-7 rounded-full bg-black/20 text-white/50 flex items-center justify-center hover:bg-black/40 hover:text-white transition-colors"
-              >
-                <X size={12} strokeWidth={3} />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </div>
-  );
-};
-
-// --- APPLE-STYLE SEGMENTED TOGGLE (Defined Outside to fix animation glitches) ---
 // --- APPLE-STYLE TOGGLE (No Text, Click-to-Flip) ---
 const SegmentedToggle = ({ label, checked, onChange, id }) => (
   <div className="flex justify-between items-center w-full group py-2">
@@ -4073,619 +3168,6 @@ const NoteSystemModals = ({
   );
 };
 
-const SnakeGame = ({ onExit, timeLeft }) => {
-  const GRID_SIZE = 20;
-  const [snake, setSnake] = useState([{ x: 10, y: 10 }]);
-  const [food, setFood] = useState({ x: 15, y: 5 });
-  const [direction, setDirection] = useState({ x: 0, y: -1 });
-  const [gameOver, setGameOver] = useState(false);
-  const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(() => parseInt(localStorage.getItem('zen_snake_highscore') || '0'));
-  const [isPaused, setIsPaused] = useState(false);
-  const gameBoardRef = useRef(null);
-
-  // Controls (WASD + Arrow Keys)
-  const handleInput = useCallback((e) => {
-    // 1. STOP PROPAGATION: Prevents global app shortcuts (like 'S' for Settings) from firing
-    e.stopPropagation();
-    if (gameOver) return;
-
-    const key = e.key.toLowerCase();
-
-    setDirection(prev => {
-      // Prevent 180 degree turns
-      if ((key === 'arrowup' || key === 'w') && prev.y === 1) return prev;
-      if ((key === 'arrowdown' || key === 's') && prev.y === -1) return prev;
-      if ((key === 'arrowleft' || key === 'a') && prev.x === 1) return prev;
-      if ((key === 'arrowright' || key === 'd') && prev.x === -1) return prev;
-
-      if (key === 'arrowup' || key === 'w') return { x: 0, y: -1 };
-      if (key === 'arrowdown' || key === 's') return { x: 0, y: 1 };
-      if (key === 'arrowleft' || key === 'a') return { x: -1, y: 0 };
-      if (key === 'arrowright' || key === 'd') return { x: 1, y: 0 };
-
-      return prev;
-    });
-  }, [gameOver]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => handleInput(e);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleInput]);
-
-  useInterval(() => {
-    if (gameOver || isPaused) return;
-
-    setSnake(prevSnake => {
-      const newHead = { x: prevSnake[0].x + direction.x, y: prevSnake[0].y + direction.y };
-
-      // Wall Wrap
-      if (newHead.x < 0 || newHead.x >= GRID_SIZE || newHead.y < 0 || newHead.y >= GRID_SIZE) {
-        setGameOver(true);
-        return prevSnake;
-      }
-      // Self Collision
-      if (prevSnake.some(segment => segment.x === newHead.x && segment.y === newHead.y)) {
-        setGameOver(true);
-        return prevSnake;
-      }
-
-      const newSnake = [newHead, ...prevSnake];
-
-      if (newHead.x === food.x && newHead.y === food.y) {
-        setScore(s => {
-          const newScore = s + 10;
-          if (newScore > highScore) {
-            setHighScore(newScore);
-            localStorage.setItem('zen_snake_highscore', newScore);
-          }
-          return newScore;
-        });
-        let newFood;
-        do {
-          newFood = {
-            x: Math.floor(Math.random() * GRID_SIZE),
-            y: Math.floor(Math.random() * GRID_SIZE)
-          };
-        } while (newSnake.some(s => s.x === newFood.x && s.y === newFood.y));
-        setFood(newFood);
-      } else {
-        newSnake.pop();
-      }
-      return newSnake;
-    });
-  }, 120);
-
-  const resetGame = () => {
-    setSnake([{ x: 10, y: 10 }]);
-    setFood({ x: 15, y: 5 });
-    setDirection({ x: 0, y: -1 });
-    setGameOver(false);
-    setScore(0);
-  };
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  return (
-    <div
-      id="snake-game-container"
-      className="flex flex-col items-center justify-center w-full h-full relative bg-[#111] overflow-hidden p-4"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* HUD HEADER */}
-      <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-20 pointer-events-none">
-        <div className="flex flex-col items-start gap-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-xs font-bold text-white/40 tracking-widest uppercase">Score</span>
-            <span className="text-2xl font-mono text-white font-bold">{score}</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] font-bold text-white/30 tracking-widest uppercase">Best</span>
-            <span className="text-sm font-mono text-yellow-500">{highScore}</span>
-          </div>
-        </div>
-
-        <button
-          onClick={onExit}
-          className="pointer-events-auto p-3 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all group"
-        >
-          <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-        </button>
-      </div>
-
-      {/* TIMER */}
-      <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
-        <div className={`text-6xl md:text-7xl font-clock font-bold tracking-tight drop-shadow-2xl transition-colors ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white/90'}`}>
-          {formatTime(timeLeft)}
-        </div>
-        <span className="text-xs font-bold text-white/30 uppercase tracking-[0.2em] mt-2">Break Time</span>
-      </div>
-
-      {/* GAME BOARD */}
-      <div className="relative z-10 mt-24 flex-shrink-0 w-full max-w-[500px] aspect-square max-h-[55vh] flex items-center justify-center">
-        <div
-          ref={gameBoardRef}
-          className="w-full h-full bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl overflow-hidden relative grid"
-          style={{
-            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-            gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`
-          }}
-        >
-          {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => {
-            const x = i % GRID_SIZE;
-            const y = Math.floor(i / GRID_SIZE);
-            const isSnake = snake.some(s => s.x === x && s.y === y);
-            const isHead = snake[0].x === x && snake[0].y === y;
-            const isFood = food.x === x && food.y === y;
-
-            return (
-              <div key={i} className="w-full h-full relative border-[0.5px] border-white/[0.02]">
-                {isSnake && (
-                  // FLICKER FIX: Standard div, no layoutId
-                  <div
-                    className={`absolute inset-[1px] rounded-sm ${isHead ? 'bg-white z-10 shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.3)]'}`}
-                  />
-                )}
-                {isFood && (
-                  // Food keeps layoutId for smooth spawn animation
-                  <motion.div
-                    layoutId="food"
-                    className="absolute inset-[2px] rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-pulse"
-                  />
-                )}
-              </div>
-            )
-          })}
-
-          {/* GAME OVER OVERLAY */}
-          <AnimatePresence>
-            {gameOver && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-6 text-center"
-              >
-                <h3 className="text-3xl md:text-4xl font-serif-display text-white mb-2">Game Over</h3>
-                <div className="text-white/50 mb-8 font-mono">Final Score: <span className="text-white font-bold">{score}</span></div>
-
-                <div className="flex flex-col gap-3 w-full max-w-[200px]">
-                  <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold text-sm uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                    Play Again
-                  </button>
-                  <button onClick={onExit} className="w-full py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white font-bold text-xs uppercase tracking-widest rounded-full transition-colors">
-                    Exit Arcade
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* CONTROLS HINT */}
-      <div className="mt-6 flex items-center gap-6 text-white/20 text-[10px] font-mono uppercase tracking-widest flex-shrink-0">
-        <span className="flex items-center gap-1"><span className="border border-white/20 px-1 rounded">WASD</span> to Move</span>
-        <span className="flex items-center gap-1"><span className="border border-white/20 px-1 rounded">Arrows</span> to Move</span>
-      </div>
-    </div>
-  );
-};
-
-// --- TYPING GAME COMPONENT ---
-
-const TypingGame = ({ onExit, timeLeft: sessionTimeLeft }) => {
-  // CONFIG STATE
-  const [mode, setMode] = useState('words'); // 'words' | 'time'
-  const [targetCount, setTargetCount] = useState(25); // 25, 50, 75, 100
-  const [targetTime, setTargetTime] = useState(30); // 15, 25, 60
-
-  // GAME STATE
-  const [text, setText] = useState("");
-  const [input, setInput] = useState("");
-  const [startTime, setStartTime] = useState(null);
-  const [wpm, setWpm] = useState(0);
-  const [accuracy, setAccuracy] = useState(100);
-  const [mistakes, setMistakes] = useState(0);
-  const [gameState, setGameState] = useState("waiting"); // 'waiting' | 'playing' | 'finished'
-
-  // TIME MODE STATE
-  const [gameTimeLeft, setGameTimeLeft] = useState(targetTime);
-
-  const inputRef = useRef(null);
-  const containerRef = useRef(null);
-  const activeWordRef = useRef(null);
-
-  // NEW: Ref to track input inside the timer interval without resetting it
-  const latestInputRef = useRef(input);
-
-  // Focus management
-  useEffect(() => {
-    const focusInput = () => { if (gameState !== 'finished') inputRef.current?.focus(); };
-    window.addEventListener('click', focusInput);
-    focusInput();
-    return () => window.removeEventListener('click', focusInput);
-  }, [gameState]);
-
-  // Sync ref with state
-  useEffect(() => {
-    latestInputRef.current = input;
-  }, [input]);
-
-  // Game Timer (Time Mode Only)
-  useEffect(() => {
-    let interval;
-    if (gameState === 'playing' && mode === 'time') {
-      interval = setInterval(() => {
-        setGameTimeLeft(prev => {
-          if (prev <= 1) {
-            // FIX: Use the ref here so we don't need 'input' in the dependency array
-            finishGame(latestInputRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [gameState, mode]); // FIX: Removed 'input' from dependencies
-
-  // Initial Setup & Config Changes
-  useEffect(() => { resetGame(); }, [mode, targetCount, targetTime]);
-
-  const generateWords = (count) => {
-    return Array.from({ length: count }, () => TYPING_WORDS[Math.floor(Math.random() * TYPING_WORDS.length)]).join(" ");
-  };
-
-  const resetGame = () => {
-    const initialWords = generateWords(mode === 'words' ? targetCount : 50);
-    setText(initialWords);
-    setInput("");
-    latestInputRef.current = ""; // Reset ref
-    setStartTime(null);
-    setMistakes(0);
-    setGameState("waiting");
-    setGameTimeLeft(targetTime);
-    setWpm(0);
-    setAccuracy(100);
-
-    // Reset Scroll
-    if (containerRef.current) containerRef.current.scrollTop = 0;
-
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  const handleKeyDown = (e) => {
-    // ESCAPE LOGIC
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      if (gameState === 'playing' || gameState === 'finished') {
-        resetGame();
-      } else {
-        onExit();
-      }
-    }
-
-    // CTRL + BACKSPACE LOGIC (FIXED)
-    if (gameState === 'playing' && e.ctrlKey && e.key === 'Backspace') {
-      e.preventDefault();
-      setInput(prev => {
-        if (prev.length === 0) return prev;
-
-        // 1. If cursor is at a space, just delete the space
-        if (prev.endsWith(' ')) {
-          return prev.slice(0, -1);
-        }
-
-        // 2. Find the start of the current word
-        const lastSpaceIndex = prev.lastIndexOf(' ');
-
-        // If no spaces found, delete everything (it's the first word)
-        if (lastSpaceIndex === -1) return "";
-
-        // Keep everything up to (and including) the last space
-        return prev.substring(0, lastSpaceIndex + 1);
-      });
-    }
-  };
-
-  const handleInputChange = (e) => {
-    if (gameState === "finished") return;
-
-    const val = e.target.value;
-    const oldLength = input.length;
-    const newLength = val.length;
-
-    // Start Game
-    if (gameState === "waiting") {
-      setGameState("playing");
-      setStartTime(Date.now());
-    }
-
-    // Mistake Logic (Only count new errors, not backspaces)
-    if (newLength > oldLength) {
-      const charTyped = val.slice(-1);
-      const charExpected = text[newLength - 1];
-      if (charTyped !== charExpected) {
-        setMistakes(prev => prev + 1);
-      }
-    }
-
-    setInput(val);
-
-    // END GAME LOGIC (Words Mode)
-    if (mode === 'words' && val.length === text.length) {
-      finishGame(val);
-    }
-
-    // INFINITE SCROLL LOGIC (Time Mode)
-    if (mode === 'time') {
-      if (text.length - val.length < 30) {
-        setText(prev => prev + " " + generateWords(25));
-      }
-    }
-
-    // AUTO SCROLL VISUALS
-    requestAnimationFrame(() => {
-      if (activeWordRef.current && containerRef.current) {
-        const container = containerRef.current;
-        const activeEl = activeWordRef.current;
-
-        const activeTop = activeEl.offsetTop;
-        const containerHeight = container.clientHeight;
-        const scrollTarget = activeTop - (containerHeight / 2) + (activeEl.clientHeight / 2);
-
-        container.scrollTo({
-          top: scrollTarget,
-          behavior: 'smooth'
-        });
-      }
-    });
-  };
-
-  const finishGame = (finalInputOverride) => {
-    const finalInput = typeof finalInputOverride === 'string' ? finalInputOverride : input;
-    const endTime = Date.now();
-    setGameState("finished");
-
-    // Precise Time Calculation (ms)
-    const durationMs = mode === 'time'
-      ? targetTime * 1000
-      : (endTime - startTime);
-
-    const timeInMinutes = Math.max(durationMs / 60000, 0.001); // Prevent divide by zero
-
-    // Standard WPM = (All Characters / 5) / Time in Minutes
-    const grossWpm = (finalInput.length / 5) / timeInMinutes;
-
-    // Accuracy = (Total - Mistakes) / Total
-    const calculatedAcc = finalInput.length > 0
-      ? Math.max(0, ((finalInput.length - mistakes) / finalInput.length) * 100)
-      : 100;
-
-    setWpm(Math.round(grossWpm));
-    setAccuracy(Math.round(calculatedAcc));
-  };
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const renderWordBlocks = () => {
-    const words = text.split(" ");
-    let charIndexCounter = 0;
-    const inputLen = input.length;
-
-    return words.map((word, wordIdx) => {
-      const isLastWord = wordIdx === words.length - 1;
-      const charsInWord = isLastWord ? word.split('') : [...word.split(''), ' '];
-      const wordStartIndex = charIndexCounter;
-      const wordEndIndex = wordStartIndex + charsInWord.length;
-
-      const isCurrentWord = inputLen >= wordStartIndex && inputLen < wordEndIndex;
-      const refProp = isCurrentWord ? { ref: activeWordRef } : {};
-
-      const block = (
-        <div key={wordIdx} className="inline-block whitespace-nowrap mr-3 mb-2" {...refProp}>
-          {charsInWord.map((char, localIdx) => {
-            const globalIndex = wordStartIndex + localIdx;
-            const inputChar = input[globalIndex];
-            const hasBeenTyped = globalIndex < inputLen;
-            const isCurrent = globalIndex === inputLen;
-            const isWrong = hasBeenTyped && inputChar !== char;
-            const isCorrect = hasBeenTyped && inputChar === char;
-
-            let styleClass = "relative inline-block whitespace-pre font-mono text-3xl md:text-4xl transition-colors duration-100 leading-relaxed ";
-
-            if (isWrong) {
-              styleClass += "text-red-500 opacity-100";
-            } else if (isCorrect) {
-              styleClass += "text-white opacity-100";
-            } else {
-              styleClass += "text-white/20";
-            }
-
-            return (
-              <span key={globalIndex} className={styleClass}>
-                {isCurrent && (
-                  <motion.span
-                    layoutId="typing-cursor"
-                    className="absolute inset-y-0 left-0 w-[2px] bg-cyan-400 cursor-blink shadow-[0_0_10px_rgba(34,211,238,0.8)]"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.1 }}
-                  />
-                )}
-                {char}
-              </span>
-            );
-          })}
-        </div>
-      );
-
-      charIndexCounter += charsInWord.length;
-      return block;
-    });
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex flex-col p-6 md:p-12 cursor-text overflow-hidden bg-[#111]"
-      onClick={() => inputRef.current?.focus()}
-    >
-      <input ref={inputRef} type="text" value={input} onChange={handleInputChange} onKeyDown={handleKeyDown} className="absolute opacity-0 top-0 left-0 w-0 h-0" autoComplete="off" spellCheck="false" />
-
-      {/* 2. TOP HUD - ALWAYS SHOWS SESSION TIMER (WHITE) */}
-      <div className="relative z-50 w-full flex justify-center items-start shrink-0 h-20">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-          <div className={`text-4xl md:text-5xl font-clock font-bold ${sessionTimeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-            {formatTime(sessionTimeLeft)}
-          </div>
-        </div>
-
-        <button
-          onClick={(e) => { e.stopPropagation(); onExit(); }}
-          className="absolute top-0 right-0 pointer-events-auto p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <X size={32} />
-        </button>
-      </div>
-
-      {/* 3. GAME AREA */}
-      {gameState !== "finished" ? (
-        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-7xl mx-auto relative z-10 min-h-0">
-
-          {/* CONFIGURATION BAR */}
-          <div className={`absolute top-0 left-1/2 -translate-x-1/2 mt-8 flex items-center gap-6 transition-all duration-500 z-[60] ${gameState === 'waiting' ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
-
-            {/* Sliding Pill Toggle */}
-            <div className="flex p-1 bg-white/5 rounded-full border border-white/10 relative">
-              {['words', 'time'].map(m => {
-                const isActive = mode === m;
-                return (
-                  <button
-                    key={m}
-                    onClick={(e) => { e.stopPropagation(); setMode(m); }}
-                    className={`relative px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-colors z-10 ${isActive ? 'text-black' : 'text-white/40 hover:text-white'}`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="config-pill-bg"
-                        className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    {m}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="w-px h-6 bg-white/10"></div>
-
-            {/* Options Switcher */}
-            <div className="flex gap-1">
-              {mode === 'words' ? (
-                [25, 50, 75, 100].map(count => (
-                  <button
-                    key={count}
-                    onClick={(e) => { e.stopPropagation(); setTargetCount(count); }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold font-mono transition-all ${targetCount === count ? 'text-cyan-400 bg-cyan-900/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                  >
-                    {count}
-                  </button>
-                ))
-              ) : (
-                [15, 25, 60].map(time => (
-                  <button
-                    key={time}
-                    onClick={(e) => { e.stopPropagation(); setTargetTime(time); }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold font-mono transition-all ${targetTime === time ? 'text-cyan-400 bg-cyan-900/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
-                  >
-                    {time === 60 ? '1m' : `${time}s`}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* GAME TIMER */}
-          <div className="mb-4 text-center h-8">
-            {mode === 'time' ? (
-              <span className={`text-2xl md:text-3xl font-mono font-bold text-cyan-400 transition-opacity ${gameState === 'playing' ? 'opacity-100' : 'opacity-50'}`}>
-                {formatTime(gameTimeLeft)}
-              </span>
-            ) : (
-              <span className="invisible text-2xl md:text-3xl font-mono font-bold">00:00</span>
-            )}
-          </div>
-
-          {/* TEXT CONTAINER */}
-          <div
-            ref={containerRef}
-            className="w-full h-40 overflow-hidden relative text-left"
-            style={{
-              maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)',
-              WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)'
-            }}
-          >
-            <div className="px-4 md:px-12 pt-[60px] pb-[60px] text-left">
-              {renderWordBlocks()}
-            </div>
-          </div>
-
-          <div className="mt-8 text-center flex flex-col gap-2">
-            <span className={`text-white/30 text-xs font-bold uppercase tracking-widest transition-opacity duration-500 ${gameState === 'waiting' ? 'opacity-100' : 'opacity-0'}`}>
-              Start typing to begin
-            </span>
-            <div className="flex items-center justify-center gap-2 text-white/20 text-[10px] font-mono uppercase tracking-widest">
-              <span>Press <span className="border border-white/20 px-1 rounded mx-0.5">Esc</span> to restart</span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* RESULTS SCREEN */
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center z-50 relative">
-          <h2 className="text-white font-serif-display text-4xl mb-12">Session Complete</h2>
-          <div className="flex gap-16 mb-16">
-            <div className="flex flex-col items-center group">
-              <span className="text-8xl md:text-9xl font-clock font-bold text-white transition-all cursor-default">{wpm}</span>
-              <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">WPM</span>
-            </div>
-            <div className="w-px bg-white/10"></div>
-            <div className="flex flex-col items-center group">
-              <span className="text-8xl md:text-9xl font-clock font-bold text-white transition-all cursor-default">{accuracy}%</span>
-              <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">Accuracy</span>
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex gap-6">
-              <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="px-10 py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-all flex items-center gap-3">
-                <RotateCcw size={18} strokeWidth={2.5} /> Restart
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="px-10 py-4 bg-transparent border border-white/20 text-white hover:bg-white hover:text-black font-bold uppercase tracking-widest rounded-full transition-all">
-                Close
-              </button>
-            </div>
-            <div className="text-white/20 text-[10px] font-mono uppercase tracking-widest mt-2">
-              <span>Press <span className="border border-white/20 px-1 rounded mx-0.5">Esc</span> to restart</span>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-};
-
 // Update the props to include 'background'
 const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -5199,22 +3681,29 @@ function MainApp() {
 
 
   const handleDeleteNote = async (noteId) => {
-    // 1. Filter out the note to delete
+    // 1. Remove from Active Notes (Instant UI update, no "deleted: true" clutter)
     const updatedNotes = notes.filter(n => n.id !== noteId);
 
-    // 2. Update React State (Instant UI feedback)
+    // 2. Add to Trash Ledger (The Hit List)
+    // We map ID -> Timestamp of deletion
+    const localTrash = Storage.getTrash();
+    const updatedTrash = { ...localTrash, [noteId]: Date.now() };
+
     setNotes(updatedNotes);
 
-    // 3. Update Local Storage (CRITICAL FIX: Prevents resurrection)
+    // 3. Save Both to Local Storage
     Storage.saveNotesLocally(updatedNotes);
+    Storage.saveTrashLocally(updatedTrash);
 
-    // 4. Sync to Firestore
+    // 4. Sync Both to Firestore
     if (user) {
       try {
-        await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+        await setDoc(doc(db, "users", user.uid), {
+          notes: updatedNotes,
+          trash: updatedTrash // <--- Sync the Hit List too
+        }, { merge: true });
       } catch (e) {
         console.error("Delete failed", e);
-        // Optional: You could revert state here if DB fails, but for notes it's usually fine
       }
     }
   };
@@ -5333,51 +3822,6 @@ function MainApp() {
     }
   };
 
-  // --- HANDLE CONFIRMATION LOGIC ---
-  const confirmHandleAndContinue = async () => {
-    // 1. Validation
-    if (handleStatus !== 'available' || !onboardingHandle) return;
-
-    setIsSavingHandle(true);
-    const fullHandle = `@${onboardingHandle}`;
-
-    localStorage.setItem('zen_user_handle', fullHandle);
-
-    try {
-      const batch = writeBatch(db);
-
-      // 2. Update/Create Public Profile (Use SET with Merge)
-      const publicRef = doc(db, "publicProfiles", user.uid);
-      batch.set(publicRef, {
-        uid: user.uid,
-        displayName: user.displayName || "User",
-        photoURL: user.photoURL || null,
-        handle: fullHandle,
-        handle_lowercase: fullHandle.toLowerCase(),
-        // Initialize these for new users so profile modal doesn't crash
-        isPro: isPro || false,
-        stats: stats || DEFAULT_STATS
-      }, { merge: true });
-
-      // 3. Update/Create Private User Doc (Use SET with Merge)
-      const userRef = doc(db, "users", user.uid);
-      batch.set(userRef, {
-        handle: fullHandle,
-        lastHandleChange: Date.now()
-      }, { merge: true });
-
-      await batch.commit();
-
-      setTimeout(() => {
-        setIsSavingHandle(false);
-        setOnboardingStep(3);
-      }, 500);
-
-    } catch (e) {
-      console.error("Error saving handle:", e);
-      setIsSavingHandle(false);
-    }
-  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -5388,8 +3832,6 @@ function MainApp() {
   }, []);
 
   const playBtnRef = useRef(null);
-  const sessionInputRef = useRef(null);
-  const nameInputRef = useRef(null);
   const endTimeRef = useRef(null);
   const audioRefs = useRef({});
   const accumulatedTimeRef = useRef(0);
@@ -6018,41 +4460,74 @@ function MainApp() {
           const prefs = data.preferences || {};
           setUnlockedAmbiences(prefs.unlockedAmbiences || []);
           setAmbienceSetupDone(prefs.ambienceSetupDone || false);
-
-          // --- 1. SMART NOTES SYNC (MERGE STRATEGY) ---
+          // --- 1. SMART NOTES SYNC (Hit List Strategy) ---
           if (data.notes) {
             const serverNotes = data.notes || [];
-            const localNotes = Storage.getNotes(); // Reads current cache
+            const localNotes = Storage.getNotes();
 
-            // Create a Map to merge by ID (Union)
-            const mergedMap = new Map();
+            // Load Trash Ledgers
+            const serverTrash = data.trash || {};
+            const localTrash = Storage.getTrash();
 
-            // 1. Put Server notes in first
-            serverNotes.forEach(note => mergedMap.set(note.id, note));
-
-            // 2. Overlay Local notes (If they are newer or new)
-            localNotes.forEach(localNote => {
-              const serverNote = mergedMap.get(localNote.id);
-
-              // If note doesn't exist on server (New), OR Local is newer version
-              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
-                mergedMap.set(localNote.id, localNote);
+            // A. MERGE TRASH (Union)
+            // If an ID is in either trash, it's in the master trash.
+            // We take the NEWER timestamp if it exists in both.
+            const mergedTrash = { ...serverTrash, ...localTrash };
+            Object.keys(localTrash).forEach(id => {
+              if (serverTrash[id] && serverTrash[id] > localTrash[id]) {
+                mergedTrash[id] = serverTrash[id];
               }
             });
 
-            const finalNotes = Array.from(mergedMap.values());
+            // B. MERGE NOTES
+            const mergedNotesMap = new Map();
+            serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
 
-            // 3. Only update if something actually changed from what we have
-            // This prevents infinite loops
+            localNotes.forEach(localNote => {
+              const serverNote = mergedNotesMap.get(localNote.id);
+              // Standard conflict resolution: Newer update wins
+              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
+                mergedNotesMap.set(localNote.id, localNote);
+              }
+            });
+
+            // C. EXECUTE THE HIT LIST (Kill Zombies)
+            Object.keys(mergedTrash).forEach(deletedId => {
+              const note = mergedNotesMap.get(deletedId);
+              if (note) {
+                const deleteTime = mergedTrash[deletedId];
+                const noteTime = note.updatedAt || 0;
+
+                // If deletion happened AFTER the last note update -> DELETE IT
+                if (deleteTime > noteTime) {
+                  mergedNotesMap.delete(deletedId);
+                } else {
+                  // Edge Case: Note was updated AFTER it was deleted (User restored it?)
+                  // Remove from trash so it stays alive
+                  delete mergedTrash[deletedId];
+                }
+              }
+            });
+
+            // D. GARBAGE COLLECTION (Clean the Hit List)
+            // Remove trash entries older than 30 days so the map doesn't grow forever
+            const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            Object.keys(mergedTrash).forEach(id => {
+              if (now - mergedTrash[id] > THIRTY_DAYS_MS) {
+                delete mergedTrash[id];
+              }
+            });
+
+            const finalNotes = Array.from(mergedNotesMap.values());
+
+            // E. SAVE EVERYTHING
+            // Only update state if something changed to avoid re-renders
             if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
               setNotes(finalNotes);
               Storage.saveNotesLocally(finalNotes);
-
-              // OPTIONAL: If we found local notes were newer/missing from server, 
-              // we should technically trigger a save up to server here, 
-              // but your 'auto-save' useEffect will likely catch this change 
-              // and do it automatically in a few seconds.
             }
+            Storage.saveTrashLocally(mergedTrash);
           }
 
           // --- 2. SMART SETTINGS SYNC ---
@@ -6343,18 +4818,8 @@ function MainApp() {
     setMusicProgress(time);
   };
 
-  const handleNameTransition = async (newName) => { setShowLoginBtn(false); await new Promise(r => setTimeout(r, 800)); setIsDeletingName(true); const currentText = "Hello, stranger"; const prefix = "Hello, "; for (let i = currentText.length; i >= prefix.length; i--) { setGreetingText(currentText.substring(0, i)); await new Promise(r => setTimeout(r, 80)); } setIsDeletingName(false); setIsTypingName(true); const targetText = prefix + newName; for (let i = prefix.length; i <= targetText.length; i++) { setGreetingText(targetText.substring(0, i)); await new Promise(r => setTimeout(r, 120)); } setIsTypingName(false); await new Promise(r => setTimeout(r, 1200)); setOnboardingStep(1); };
-  const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) { console.error(e); } };
 
-  const handleGuestLogin = async () => {
-    try {
-      // This creates a real UID so your database logic works,
-      // but requires no credentials from the user.
-      await signInAnonymously(auth);
-    } catch (e) {
-      console.error("Guest login failed", e);
-    }
-  };
+
 
   const handleSignOut = async () => {
     try {
@@ -6382,14 +4847,7 @@ function MainApp() {
     }
   };
 
-  const finishSessionInput = (e) => {
-    if (e.key === 'Enter') {
-      // Skip the "Let's go specific" step entirely
-      // Skip the morph animation
-      setOnboardingStep(3);
-    }
-  }
-  useEffect(() => { if (onboardingStep === 1) setTimeout(() => sessionInputRef.current?.focus(), 50); }, [onboardingStep]);
+
 
   // --- TIMER INTERVAL & TRANSITION LOGIC (Ghost-Proof) ---
   useEffect(() => {
@@ -7279,11 +5737,9 @@ function MainApp() {
         handleSettingsSave={handleSettingsSave}
         handleBackgroundChange={handleBackgroundChange}
         backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
-
-        // --- ADD THESE TWO LINES ---
         stats={stats}
         isPro={isPro}
-      // ---------------------------
+        onOpenPro={() => setProModalSource('settings')}
       />
 
       <FriendProfileModal
