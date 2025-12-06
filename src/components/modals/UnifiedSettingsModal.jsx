@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink
 } from 'lucide-react';
 import {
   getFirestore, collection, query, orderBy, getDocs, limit,
@@ -624,11 +624,30 @@ const UnifiedSettingsModal = ({
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
+                          // Extract Credit Info
+                          const credit = bg.credit;
+
                           return (
                             <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}>
                               {isVideo ? (<video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline />) : (<img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />)}
                               {isVideo && (<div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" /><span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span></div>)}
                               {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
+
+                              {/* --- CREDIT BADGE --- */}
+                              {credit && (
+                                <div className="absolute bottom-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                  <a
+                                    href={credit.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()} // Stop background selection
+                                    className="flex items-center gap-1.5 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/10 text-[9px] font-bold text-white/80 hover:text-white uppercase tracking-wider transition-colors"
+                                  >
+                                    <span>{credit.name}</span>
+                                    <ExternalLink size={8} />
+                                  </a>
+                                </div>
+                              )}
                             </button>
                           );
                         })}

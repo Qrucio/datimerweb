@@ -2279,6 +2279,131 @@ const LiquidStrictBtn = ({
   );
 };
 
+// --- LIQUID BMC BUTTON (Sarcastic & Unique) ---
+const LiquidBmcBtn = ({
+  isDisabled,
+  onDisable,
+  onMenuChange,
+  onMouseEnter
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  // Sync menu state to parent (MainApp) to handle dock dividers
+  useEffect(() => {
+    if (onMenuChange) onMenuChange(isOpen);
+  }, [isOpen, onMenuChange]);
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  if (isDisabled) return null;
+
+  return (
+    <div ref={containerRef} className="relative flex items-center">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
+            exit={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
+            className="absolute bottom-full left-1/2 mb-4 w-72 bg-[#111]/95 backdrop-blur-xl border border-yellow-500/30 p-5 rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.1)] flex flex-col gap-3 z-[60] origin-bottom"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* HEADER */}
+            <div className="flex items-start gap-3 border-b border-white/10 pb-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center border border-yellow-500/20 bg-yellow-500/10 text-yellow-400 shrink-0">
+                <Coffee size={20} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-base font-bold text-white leading-tight">
+                  Fuel the Dev
+                </span>
+                <span className="text-[10px] text-white/40 font-mono uppercase tracking-wide mt-0.5">
+                  (That's me)
+                </span>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="ml-auto text-white/30 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* CONTENT: SARCASTIC MESSAGE */}
+            <p className="text-sm text-white/70 leading-relaxed italic">
+              "Please help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. Also, instant noodles are destroying my soul."
+            </p>
+
+            {/* ACTION BUTTON (Custom styled to match app, links to your slug) */}
+            <a
+              href="https://www.buymeacoffee.com/qrucio"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center justify-center gap-2 w-full py-3 bg-[#FFDD00] text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-[#ffea00] hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
+            >
+              <Coffee size={14} className="group-hover:-rotate-12 transition-transform" />
+              Buy me a coffee
+            </a>
+
+            {/* HIDE FOREVER */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDisable();
+              }}
+              className="w-full py-2 text-[10px] text-white/20 hover:text-red-400 transition-colors flex items-center justify-center gap-1 mt-1 group/hide"
+            >
+              <Ban size={10} />
+              <span className="group-hover/hide:underline underline-offset-2 decoration-red-400/30">I hate fun. Hide this forever.</span>
+            </button>
+
+            {/* ARROW */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/95 border-r border-b border-yellow-500/30 rotate-45 backdrop-blur-xl"></div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        layout
+        onMouseEnter={onMouseEnter}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className={`relative p-2 rounded-full transition-all group flex items-center ${isOpen ? 'bg-white/10' : ''}`}
+      >
+        <div className={`relative transition-transform duration-300 ${isOpen ? 'scale-110' : 'group-hover:scale-110'}`}>
+          {/* Subtle glow behind the cup */}
+          <div className="absolute inset-0 bg-yellow-500 blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
+          <Coffee size={20} className="text-yellow-400 relative z-10" />
+        </div>
+
+        <motion.span
+          layout
+          className={`text-sm font-medium text-yellow-100/80 overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
+            ${isOpen
+              ? 'max-w-[150px] opacity-100 ml-2'
+              : 'max-w-0 opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2'
+            }
+          `}
+        >
+          Support
+        </motion.span>
+      </motion.button>
+    </div>
+  );
+};
+
 // --- APPLE-STYLE TOGGLE (No Text, Click-to-Flip) ---
 const SegmentedToggle = ({ label, checked, onChange, id }) => (
   <div className="flex justify-between items-center w-full group py-2">
@@ -3368,6 +3493,16 @@ function MainApp() {
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
   const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
+
+  // --- BUY ME A COFFEE ---
+  const [isBmcDisabled, setIsBmcDisabled] = useState(() => {
+    return localStorage.getItem('zen_bmc_disabled') === 'true';
+  });
+
+  const handleDisableBmc = () => {
+    setIsBmcDisabled(true);
+    localStorage.setItem('zen_bmc_disabled', 'true');
+  };
 
   // Check if extension is installed (Universal Method)
   useEffect(() => {
@@ -5451,7 +5586,32 @@ function MainApp() {
               isLocked={isStrictLocked}
               isExtensionConnected={isExtensionConnected}
               mode={mode}
-              onMenuChange={setIsStrictMenuOpen} // <--- 5. PASS HANDLER
+              onMenuChange={setIsStrictMenuOpen}
+            />
+
+            {/* --- DIVIDER 3 (Between Strict and BMC) --- */}
+            {/* Only show divider if BMC is NOT disabled */}
+            {!isBmcDisabled && (
+              <BendingDivider
+                activeSide={
+                  (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left'
+                    : hoveredDockIndex === 3 ? 'right'
+                      : null
+                }
+                isDimmed={strictMode} // reuse dimming logic
+              />
+            )}
+
+            {/* 4. BUY ME A COFFEE (Index 3) */}
+            <LiquidBmcBtn
+              isDisabled={isBmcDisabled}
+              onDisable={handleDisableBmc}
+              onMenuChange={(isOpen) => {
+                // You can reuse isStrictMenuOpen or create a new state isBmcMenuOpen 
+                // if you want perfectly isolated divider logic, but reusing isn't fatal.
+                // Ideally, creating [isBmcMenuOpen, setIsBmcMenuOpen] state is cleaner.
+              }}
+              onMouseEnter={() => setHoveredDockIndex(3)}
             />
 
           </motion.div>
