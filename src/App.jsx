@@ -17,6 +17,7 @@ import TypingGame from './components/games/TypingGame';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
+import CaffeineTracker from './components/CaffeineTracker';
 
 const getExtensionId = () => {
   const userAgent = navigator.userAgent.toLowerCase();
@@ -2133,26 +2134,26 @@ const LiquidStrictBtn = ({
   }, [isMenuOpen]);
 
   // --- STYLE LOGIC UPDATED ---
-  // Default: Apply the white hover effect (matches Music button)
+  // Default: Apply the white hover effect
   let btnBg = "hover:bg-white/10";
-  let btnText = "text-white/70 group-hover:text-white";
-  let iconColor = "";
+  // FIX: Changed to direct 'hover:text-white' for consistent brightness
+  let btnText = "text-white/70 hover:text-white";
+  let iconColor = "text-white/70 group-hover:text-white transition-colors"; // Explicit icon transition
 
   if (isMissing) {
-    // Red Warning Style (Overrides default hover)
+    // Red Warning Style
     btnBg = "bg-red-500/10 border border-red-500/20 animate-pulse cursor-pointer hover:bg-red-500/20";
     btnText = "text-red-400 font-bold";
     iconColor = "text-red-400";
   } else if (showAllowed) {
-    // Green Allowed Style (Overrides default hover)
+    // Green Allowed Style
     btnBg = "bg-green-500/10 border border-green-500/20 hover:bg-green-500/20";
     btnText = "text-green-400";
     iconColor = "text-green-400";
   } else if (isStrict) {
-    // Strict Active Style
-    // Keep the default 'hover:bg-white/10' for the background
-    // Just force the text to be solid white
+    // Strict Active Style (Solid White)
     btnText = "text-white";
+    iconColor = "text-white";
   }
 
   const shouldExpand = isMenuOpen || (isStrict && !isMissing);
@@ -2201,21 +2202,6 @@ const LiquidStrictBtn = ({
                       <Download size={14} />
                       {browserType === 'firefox' ? "Add to Firefox" : "Download Extension"}
                     </a>
-                    {browserType !== 'firefox' && (
-                      <div className="p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/10 text-left">
-                        <p className="text-[12px] text-yellow-500/80 leading-relaxed mb-1">
-                          <span className="font-bold">Note:</span> As a small indie dev, I couldn't afford the fees to upload my extension to the Chrome Web Store. Please follow this guide to install the extension instead:
-                        </p>
-                        <a
-                          href="https://www.notion.so/qrucio/Guide-to-install-Altimer-Companion-on-Chrome-2bdaf72de1fb8091a214d52c9d8a35aa?source=copy_link"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[12px] text-white/60 hover:text-white underline decoration-white/20 underline-offset-2 transition-colors flex items-center gap-1"
-                        >
-                          Installation guide <ArrowRight size={10} />
-                        </a>
-                      </div>
-                    )}
                   </>
                 )}
                 <button onClick={() => setStatus('idle')} className="w-full py-2 text-xs text-white/30 hover:text-white transition-colors">Close</button>
@@ -2248,14 +2234,13 @@ const LiquidStrictBtn = ({
           if (!isMissing && isLocked && !isBreak) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
-        // FIX APPLIED HERE: Added btnBg which now defaults to 'hover:bg-white/10'
         className={`relative p-2 rounded-full transition-all group flex items-center ${btnBg} ${btnText} ${isMenuOpen ? 'bg-white/10' : ''}`}
       >
         {isMissing
           ? <Lock size={20} className={iconColor} />
           : (showAllowed
             ? <Unlock size={20} className={iconColor} />
-            : (isStrict ? <Lock size={20} /> : <Unlock size={20} />)
+            : (isStrict ? <Lock size={20} className={iconColor} /> : <Unlock size={20} className={iconColor} />)
           )
         }
 
@@ -2278,130 +2263,6 @@ const LiquidStrictBtn = ({
   );
 };
 
-// --- LIQUID BMC BUTTON (Sarcastic & Unique) ---
-const LiquidBmcBtn = ({
-  isDisabled,
-  onDisable,
-  onMenuChange,
-  onMouseEnter
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  // Sync menu state to parent (MainApp) to handle dock dividers
-  useEffect(() => {
-    if (onMenuChange) onMenuChange(isOpen);
-  }, [isOpen, onMenuChange]);
-
-  // Click outside to close
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  if (isDisabled) return null;
-
-  return (
-    <div ref={containerRef} className="relative flex items-center">
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
-            animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, y: 10, scale: 0.95, x: "-50%" }}
-            className="absolute bottom-full left-1/2 mb-4 w-72 bg-[#111]/95 backdrop-blur-xl border border-yellow-500/30 p-5 rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.1)] flex flex-col gap-3 z-[60] origin-bottom"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* HEADER */}
-            <div className="flex items-start gap-3 border-b border-white/10 pb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center border border-yellow-500/20 bg-yellow-500/10 text-yellow-400 shrink-0">
-                <Coffee size={20} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-base font-bold text-white leading-tight">
-                  Fuel the Dev
-                </span>
-                <span className="text-[10px] text-white/40 font-mono uppercase tracking-wide mt-0.5">
-                  (That's me)
-                </span>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="ml-auto text-white/30 hover:text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* CONTENT: SARCASTIC MESSAGE */}
-            <p className="text-sm text-white/70 leading-relaxed">
-              Help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. I will spend some of it on coffee though.
-            </p>
-
-            {/* ACTION BUTTON (Custom styled to match app, links to your slug) */}
-            <a
-              href="https://www.buymeacoffee.com/qrucio"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center justify-center gap-2 w-full py-3 bg-[#FFDD00] text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-[#ffea00] hover:scale-[1.02] active:scale-95 transition-all shadow-lg"
-            >
-              <Coffee size={14} className="group-hover:-rotate-12 transition-transform" />
-              Buy me a coffee
-            </a>
-
-            {/* HIDE FOREVER */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDisable();
-              }}
-              className="w-full py-2 text-[10px] text-white/20 hover:text-red-400 transition-colors flex items-center justify-center gap-1 mt-1 group/hide"
-            >
-              <Ban size={10} />
-              <span className="group-hover/hide:underline underline-offset-2 decoration-red-400/30">Hide this forever.</span>
-            </button>
-
-            {/* ARROW */}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#111]/95 border-r border-b border-yellow-500/30 rotate-45 backdrop-blur-xl"></div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        layout
-        onMouseEnter={onMouseEnter}
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        className={`relative p-2 rounded-full transition-all group flex items-center ${isOpen ? 'bg-white/10' : ''}`}
-      >
-        <div className={`relative transition-transform duration-300 ${isOpen ? 'scale-110' : 'group-hover:scale-110'}`}>
-          {/* Subtle glow behind the cup */}
-          <div className="absolute inset-0 bg-yellow-500 blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
-          <Coffee size={20} className="text-yellow-400 relative z-10" />
-        </div>
-
-        <motion.span
-          layout
-          className={`text-sm font-medium text-yellow-100/80 overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
-            ${isOpen
-              ? 'max-w-[150px] opacity-100 ml-2'
-              : 'max-w-0 opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2'
-            }
-          `}
-        >
-          Support
-        </motion.span>
-      </motion.button>
-    </div>
-  );
-};
 
 // --- APPLE-STYLE TOGGLE (No Text, Click-to-Flip) ---
 const SegmentedToggle = ({ label, checked, onChange, id }) => (
@@ -3502,6 +3363,8 @@ function MainApp() {
     setIsBmcDisabled(true);
     localStorage.setItem('zen_bmc_disabled', 'true');
   };
+  // --- CAFFEINE TRACKER ---
+  const [showCaffeine, setShowCaffeine] = useState(false);
 
   // Check if extension is installed (Universal Method)
   useEffect(() => {
@@ -4148,10 +4011,15 @@ function MainApp() {
     }
   };
 
-  // --- UPDATED AUTH EFFECT (Guest Skip Logic) ---
+  // --- UPDATED AUTH EFFECT ---
   useEffect(() => {
     const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+      // Magic Link Check (Same as before)
+      const params = new URLSearchParams(window.location.search);
+      const demoMode = params.get('demo');
+      if (demoMode === 'caffeine' && !auth.currentUser) {
+        try { await signInAnonymously(auth); } catch (e) { console.error(e); }
+      } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
         await signInWithCustomToken(auth, __initial_auth_token);
       }
     };
@@ -4162,45 +4030,60 @@ function MainApp() {
       setIsAuthChecking(false);
 
       if (currentUser) {
-        // --- 1. GUEST USER LOGIC ---
-        if (currentUser.isAnonymous) {
-          console.log("Guest session active.");
-
-          // Generate a temporary local handle for UI consistency
-          // We do NOT save this to the database.
-          const shortId = currentUser.uid.substring(0, 5);
-          const guestHandle = `@guest_${shortId}`;
-          localStorage.setItem('zen_user_handle', guestHandle);
-          localStorage.setItem('pomodoro_user_name', "Guest");
-
-          // SKIP ONBOARDING: Go straight to Dashboard
+        // 0. MAGIC LINK UPGRADE (Same as before)
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('demo') === 'caffeine') {
+          // ... (Same demo logic as previous response) ...
+          console.log("☕ Caffeine Clock Demo Mode Activated");
+          window.history.replaceState({}, document.title, window.location.pathname);
+          const batch = writeBatch(db);
+          const userRef = doc(db, "users", currentUser.uid);
+          batch.set(userRef, {
+            subscription: { plan: 'pro', status: 'active', since: Date.now() },
+            settings: DEFAULT_SETTINGS,
+            handle: "@CaffeineClock"
+          }, { merge: true });
+          const publicRef = doc(db, "publicProfiles", currentUser.uid);
+          batch.set(publicRef, {
+            uid: currentUser.uid,
+            displayName: "Caffeine Clock Team",
+            handle: "@CaffeineClock",
+            handle_lowercase: "@caffeineclock",
+            isPro: true,
+            stats: DEFAULT_STATS
+          }, { merge: true });
+          await batch.commit();
+          setIsPro(true);
+          setUserHandle("@CaffeineClock");
+          localStorage.setItem('zen_user_handle', "@CaffeineClock");
+          localStorage.setItem('pomodoro_user_name', "Caffeine Clock");
           setOnboardingStep(3);
           setShowLoginBtn(false);
+          setShowCaffeine(true);
+          setDataLoaded(true);
+          return;
+        }
 
-          // Still sync pending offline data if they had any
+        // --- 1. GUEST USER LOGIC (FIXED) ---
+        if (currentUser.isAnonymous) {
+          console.log("Guest session active.");
+          // IMPORTANT: Remove any handle from local storage so UI knows they are guest
+          localStorage.removeItem('zen_user_handle');
+          localStorage.setItem('pomodoro_user_name', "Guest");
+
+          // Skip Onboarding immediately (Guests don't pick handles)
+          setOnboardingStep(3);
+          setShowLoginBtn(false);
           Storage.syncPendingData(db, currentUser);
           setDataLoaded(true);
           return;
         }
 
-        // --- 2. REGISTERED USER LOGIC (Google) ---
-        // Only check cache/DB if they are a real user
-
+        // --- 2. REGISTERED USER LOGIC ---
         const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
-        localStorage.setItem('pomodoro_user_name', firstName);
 
-        // Check Local Cache first to prevent flicker
-        const cachedHandle = localStorage.getItem('zen_user_handle');
-        // IMPORTANT: Ensure we don't accidentally use a left-over guest handle for a real user
-        const isValidCache = cachedHandle && !cachedHandle.startsWith('@guest_');
-
-        if (isValidCache) {
-          setOnboardingStep(3);
-          setShowLoginBtn(false);
-        }
-
+        // Check DB for existing handle (The definitive source)
         try {
-          // Sync with DB to verify/claim handle
           const publicRef = doc(db, "publicProfiles", currentUser.uid);
           const publicSnap = await getDoc(publicRef);
           const dbHandle = publicSnap.exists() ? publicSnap.data().handle : null;
@@ -4208,25 +4091,21 @@ function MainApp() {
           if (dbHandle) {
             // User HAS a handle -> Go to Dashboard
             localStorage.setItem('zen_user_handle', dbHandle);
-            const userRef = doc(db, "users", currentUser.uid);
-            await setDoc(userRef, { handle: dbHandle }, { merge: true });
 
-            setOnboardingStep(3);
+            setOnboardingStep(3); // Skip onboarding
             setShowLoginBtn(false);
           } else {
-            // User HAS NO handle (New Account or Converted Guest) -> Go to Step 1
-            // This is where they finally get to pick their unique name
-            setIsMigrating(false); // It's a new setup
-
-            // Suggest a handle based on their Google Name
+            // User HAS NO handle -> Go to Handle Step (1)
+            // This happens for new Google sign-ups
+            setIsMigrating(false);
+            // Suggest handle based on name
             const suggested = currentUser.displayName
               ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
               : "user";
+            // We set this via prop or local state if OnboardingFlow reads it, 
+            // but for now relying on OnboardingFlow's internal suggestion logic is fine.
 
-            setOnboardingHandle(suggested);
-
-            // FORCE STEP 1
-            setOnboardingStep(1);
+            setOnboardingStep(1); // Force Handle Creation
             setShowLoginBtn(false);
           }
         } catch (e) {
@@ -4236,14 +4115,12 @@ function MainApp() {
         Storage.syncPendingData(db, currentUser);
 
       } else {
-        // --- 3. NO USER (Logged Out) ---
+        // --- 3. NO USER ---
         setGreetingText("Hello, stranger");
         setShowLoginBtn(true);
-
         if (onboardingStep !== 3) {
           setOnboardingStep(0);
         }
-
         setDataLoaded(false);
       }
     });
@@ -5589,28 +5466,35 @@ function MainApp() {
               onMenuChange={setIsStrictMenuOpen}
             />
 
-            {/* DIVIDER 3 (Between Strict and BMC) */}
-            {!isBmcDisabled && (
-              <BendingDivider
-                activeSide={
-                  // 1. Check LEFT neighbor (Strict Mode) - Hovered OR Menu Open
-                  (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left'
-                    // 2. Check RIGHT neighbor (BMC) - Hovered OR Menu Open
-                    : (hoveredDockIndex === 3 || isBmcMenuOpen) ? 'right'
-                      : null
-                }
-                isDimmed={strictMode}
-              />
-            )}
-
-            {/* 4. BUY ME A COFFEE (Index 3) */}
-            <LiquidBmcBtn
-              isDisabled={isBmcDisabled}
-              onDisable={handleDisableBmc}
-              // Connect the state setter here
-              onMenuChange={setIsBmcMenuOpen}
-              onMouseEnter={() => setHoveredDockIndex(3)}
+            {/* DIVIDER 3 (Between Strict and Caffeine) */}
+            <BendingDivider
+              activeSide={
+                // Left neighbor: Strict Mode (Index 2)
+                (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left'
+                  // Right neighbor: Caffeine (Index 3) - FIXED INDEX CHECK
+                  : (hoveredDockIndex === 3) ? 'right'
+                    : null
+              }
+              isDimmed={strictMode}
             />
+
+            {/* 4. CAFFEINE TRACKER (Index 3 - FIXED) */}
+            <motion.button
+              layout
+              onMouseEnter={() => setHoveredDockIndex(3)} // <--- FIXED: WAS 4, NOW 3
+              onClick={() => setShowCaffeine(true)}
+              className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            >
+              <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
+              <motion.span
+                layout
+                className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
+                  ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}
+                `}
+              >
+                Caffeine
+              </motion.span>
+            </motion.button>
 
           </motion.div>
         </div>
@@ -5952,6 +5836,11 @@ function MainApp() {
         isOpen={showStrictDisableConfirm}
         onClose={() => setShowStrictDisableConfirm(false)}
         onConfirm={handleStrictDisable}
+      />
+
+      <CaffeineTracker
+        isOpen={showCaffeine}
+        onClose={() => setShowCaffeine(false)}
       />
 
       <SocialModal
