@@ -5,9 +5,10 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { TYPING_WORDS } from './words';
+import { TYPING_WORDS } from './utils/words';
 import { Storage } from './utils/storage';
 import UnifiedSettingsModal from './UnifiedSettingsModal';
+import OnboardingFlow from './components/OnboardingFlow';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -3318,13 +3319,13 @@ const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSele
       isLocked: false,
       isEmpty: false
     },
-{
+    {
       id: 'elon',
       title: 'Elon Musk',
       description: 'Strict Mode forced ON. If you pause, you lose progress. Breaks are randomly skipped. High intensity only.',
       icon: Zap,
       // Updated to a deep, rich violet-to-black fade
-      bannerGradient: 'from-[#2e1065] to-black', 
+      bannerGradient: 'from-[#2e1065] to-black',
       tags: [{ label: 'Strict Mode', warn: true }, { label: 'Skips Breaks', warn: true }],
       isLocked: false,
       isEmpty: false
@@ -4876,17 +4877,7 @@ function MainApp() {
     const hasHandle = localStorage.getItem('zen_user_handle'); // <--- CHECK THIS
     return hasHandle ? 3 : (localStorage.getItem('pomodoro_user_name') ? 3 : 0);
   });
-
-  const [greetingText, setGreetingText] = useState("Hello, stranger");
-
   const [isMigrating, setIsMigrating] = useState(false);
-  const [onboardingHandle, setOnboardingHandle] = useState("");
-  const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
-  const [handleSuggestions, setHandleSuggestions] = useState([]);
-  const [isSavingHandle, setIsSavingHandle] = useState(false);
-  const [isDeletingName, setIsDeletingName] = useState(false);
-  const [isTypingName, setIsTypingName] = useState(false);
-  const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
   const [initialState] = useState(loadTimerState);
@@ -5088,41 +5079,7 @@ function MainApp() {
   // Otherwise -> Hide UI (Opacity 0)
   const uiOpacityClass = (!focusMode || isUserActive) ? 'opacity-100' : 'opacity-0';
 
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      // Only run this check if we are in the onboarding step (Step 1)
-      if (onboardingStep === 1 && onboardingHandle.length >= 3) {
 
-        // Ignore if it matches current (unlikely in onboarding, but good safety)
-        if (user?.handle && onboardingHandle.toLowerCase() === user.handle.replace(/^@/, '').toLowerCase()) {
-          setHandleStatus("available");
-          return;
-        }
-
-        const fullHandle = `@${onboardingHandle}`;
-
-        // Query DB
-        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          setHandleStatus("available");
-        } else {
-          setHandleStatus("taken");
-          // Generate suggestions
-          const base = onboardingHandle.replace(/[^a-zA-Z0-9_]/g, '');
-          const s1 = `${base}_${Math.floor(Math.random() * 99)}`;
-          const s2 = `${base}${new Date().getFullYear()}`;
-          const s3 = `its_${base}`;
-          setHandleSuggestions([s1, s2, s3]);
-        }
-      } else if (onboardingStep === 1 && onboardingHandle.length > 0 && onboardingHandle.length < 3) {
-        setHandleStatus("idle"); // Too short
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [onboardingHandle, onboardingStep, user]);
 
   // --- OPTIMIZED SYNC: Run ONCE on mount ---
   useEffect(() => {
@@ -6399,23 +6356,27 @@ function MainApp() {
     }
   };
 
-  // --- UPDATED: Explicit Clean Up ---
   const handleSignOut = async () => {
     try {
       await signOut(auth);
 
-      // Privacy Wipe: Clear session data so the next user starts fresh
+      // 1. Clear User Identity Data
       localStorage.removeItem('pomodoro_user_name');
       localStorage.removeItem('zen_user_handle');
 
-      // Clear content caches
+      // 2. Clear caches (Recommended so next user starts fresh)
       localStorage.removeItem('zen_cache_settings');
       localStorage.removeItem('zen_cache_notes');
       localStorage.removeItem('zen_cache_session_name');
       localStorage.removeItem('zen_cache_stats');
 
-      // Hard reload to reset application state
-      window.location.reload();
+      // 3. Reset UI State
+      // We ONLY need to reset the step. 
+      // The OnboardingFlow component will mount and automatically 
+      // show "Hello, stranger" and the login buttons itself.
+      setIsMigrating(false);
+      setOnboardingStep(0);
+
     } catch (error) {
       console.error("Error signing out: ", error);
     }
@@ -6876,124 +6837,28 @@ function MainApp() {
       />
       {!settings.background && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
 
-      <div className={`fixed inset-0 z-50 bg-black flex flex-col items-center justify-center transition-all duration-1000 ${onboardingStep === 0 ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-        <h1 className="relative z-10 font-serif-display italic text-4xl md:text-6xl text-white tracking-tight min-h-[80px] flex items-center"><span>{(!isDeletingName && !isTypingName && (greetingText === "Hello, stranger" || greetingText.startsWith("Welcome back"))) ? <StaggeredText text={greetingText} /> : greetingText}</span>{(isDeletingName || isTypingName) && <span className="inline-block w-[2px] h-8 md:h-12 bg-white ml-1 cursor-blink"></span>}</h1>
-
-        {showLoginBtn && onboardingStep === 0 && (
-          // Added 'flex flex-col gap-4' to container for spacing
-          <div className="absolute bottom-20 md:bottom-32 animate-fade-in opacity-0 flex flex-col items-center gap-4" style={{ animationDelay: '1.5s', animationFillMode: 'forwards' }}>
-
-            {/* 1. GOOGLE BUTTON */}
-            <button onClick={handleLogin} className="group flex items-center gap-3 px-6 py-3 border border-white/20 rounded-full hover:bg-white/10 transition-all hover:border-white/50">
-              <GoogleLogo />
-              <span className="text-sm tracking-widest uppercase text-white/80 group-hover:text-white">Sign in with Google</span>
-            </button>
-
-            {/* 2. NEW GUEST BUTTON */}
-            <button
-              onClick={handleGuestLogin}
-              className="text-xs text-white/30 hover:text-white uppercase tracking-widest transition-colors font-medium px-4 py-2"
-            >
-              Continue as Guest
-            </button>
-
-          </div>
-        )}
-      </div>
+      {/* --- ONBOARDING FLOW (Step 0 & 1) --- */}
+      {onboardingStep < 3 && (
+        <OnboardingFlow
+          db={db}
+          auth={auth}
+          provider={provider}
+          user={user}
+          isMigrating={isMigrating}
+          onComplete={() => setOnboardingStep(3)}
+        />
+      )}
 
       {/* --- STEP 1: HANDLE ONBOARDING (FIXED ALIGNMENT & REDIRECT) --- */}
-      {onboardingStep === 1 && (
-        <div className={`fixed inset-0 z-40 bg-black flex flex-col items-center justify-center transition-all duration-700 ${onboardingStep === 1 ? 'opacity-100 blur-enter pointer-events-auto' : 'opacity-0 blur-exit pointer-events-none'}`}>
-          <div className="w-full max-w-4xl px-8 flex flex-col items-center">
-
-            <h2 className="font-serif-display text-3xl md:text-4xl text-white/90 text-center leading-tight mb-12">
-              {onboardingStep === 1 && (
-                isMigrating
-                  ? <StaggeredText text="We're moving to usernames. Claim yours." />
-                  : <StaggeredText text="Claim your identity." />
-              )}
-            </h2>
-
-            <div className="relative w-full flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-
-              {/* CENTERED INPUT GROUP */}
-              <div className="relative flex items-center justify-center">
-
-                {/* THE @ SYMBOL */}
-                <span className="text-3xl md:text-5xl font-light text-white/30 select-none mr-0.5 transform -translate-y-[1px]">@</span>
-
-                {/* INPUT WRAPPER (Auto-Resizing) */}
-                <div className="relative min-w-[20px]">
-
-                  {/* 1. GHOST SPAN (Invisible - Defines Width) */}
-                  <span className="invisible text-3xl md:text-5xl font-light whitespace-pre block h-full min-w-[1ch] px-1">
-                    {onboardingHandle || "username"}
-                  </span>
-
-                  {/* 2. REAL INPUT (Absolute Overlay) */}
-                  <input
-                    autoFocus
-                    type="text"
-                    value={onboardingHandle}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-                      setOnboardingHandle(val);
-                      if (val !== onboardingHandle) setHandleStatus("checking");
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && confirmHandleAndContinue()}
-                    // text-left ensures typing starts right next to the @
-                    className="absolute inset-0 w-full h-full bg-transparent border-none outline-none text-3xl md:text-5xl font-light text-white placeholder-white/10 text-left p-0 m-0 focus:ring-0 px-1"
-                    placeholder="username"
-                    spellCheck={false}
-                  />
-                </div>
-
-                {/* STATUS INDICATOR (Absolute Right of the group) */}
-                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 flex items-center">
-                  {handleStatus === 'checking' && <Loader2 size={24} className="animate-spin text-white/30" />}
-                  {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-green-500/20 p-1 rounded-full border border-green-500/50">
-                      <Check size={16} className="text-green-400" strokeWidth={3} />
-                    </motion.div>
-                  )}
-                  {handleStatus === 'taken' && (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-red-500/20 p-1 rounded-full border border-red-500/50">
-                      <X size={16} className="text-red-400" strokeWidth={3} />
-                    </motion.div>
-                  )}
-                </div>
-              </div>
-
-              {/* SUGGESTIONS & CONFIRM BUTTON AREA */}
-              <div className="h-24 mt-8 flex flex-col items-center justify-start w-full">
-                <AnimatePresence mode="wait">
-
-                  {/* CASE: TAKEN */}
-                  {handleStatus === 'taken' && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center gap-3">
-                      <span className="text-red-400 text-sm font-medium">That handle is taken. Try one of these?</span>
-                      <div className="flex flex-wrap justify-center gap-3">
-                        {handleSuggestions.map((s) => (
-                          <button key={s} onClick={() => { setOnboardingHandle(s); setHandleStatus("available"); }} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/30 text-white/70 hover:text-white text-sm transition-all">@{s}</button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* CASE: AVAILABLE (Show Continue) */}
-                  {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-4">
-                      <button onClick={confirmHandleAndContinue} disabled={isSavingHandle} className="group flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors">
-                        <span>{isSavingHandle ? "Setting up..." : "Press Enter to continue"}</span>
-                        {!isSavingHandle && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </div>
+      {onboardingStep < 3 && (
+        <OnboardingFlow
+          db={db}
+          auth={auth}
+          provider={provider}
+          user={user}
+          isMigrating={isMigrating}
+          onComplete={() => setOnboardingStep(3)} // This transitions to Dashboard
+        />
       )}
 
       {/* --- MAIN DASHBOARD (Responsive Redesign) --- */}
