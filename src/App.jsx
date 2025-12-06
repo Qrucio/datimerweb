@@ -7,7 +7,7 @@ import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { TYPING_WORDS } from './utils/words';
 import { Storage } from './utils/storage';
-import UnifiedSettingsModal from './UnifiedSettingsModal';
+import UnifiedSettingsModal from './components/UnifiedSettingsModal';
 import OnboardingFlow from './components/OnboardingFlow';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
