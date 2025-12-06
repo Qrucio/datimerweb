@@ -2340,7 +2340,7 @@ const LiquidBmcBtn = ({
 
             {/* CONTENT: SARCASTIC MESSAGE */}
             <p className="text-sm text-white/70 leading-relaxed">
-              Help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. I will spend some of it on coffee though."
+              Help me buy a real <span className="text-yellow-400/80">.com</span> domain so I don't look like a sketchy phishing site. I will spend some of it on coffee though.
             </p>
 
             {/* ACTION BUTTON (Custom styled to match app, links to your slug) */}
