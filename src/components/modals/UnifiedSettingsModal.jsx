@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle, ExternalLink
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw
 } from 'lucide-react';
 import {
   getFirestore, collection, query, orderBy, getDocs, limit,
@@ -13,50 +13,47 @@ import {
 
 // --- 0. INJECTED CSS FOR THE TOGGLE ---
 const toggleStyles = `
-  .theme-checkbox {
-    --toggle-size: 10px;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    width: 6.25em;
-    height: 3.125em;
-    background: linear-gradient(to right, #fff 50%, #000 50%) no-repeat; 
-    background-size: 205%;
-    background-position: 100%;
-    -webkit-transition: 0.4s;
-    -o-transition: 0.4s;
-    transition: 0.4s;
-    border-radius: 99em;
-    position: relative;
+  .checkbox {
+    display: none;
+  }
+
+  .slider {
+    width: 40px;
+    height: 20px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    border: 2px solid transparent;
+    transition: .3s;
+    box-shadow: 0 0 10px 0 rgb(0, 0, 0, 0.25) inset;
     cursor: pointer;
-    font-size: var(--toggle-size);
-    flex-shrink: 0;
-    border: 1px solid rgba(255,255,255,0.15);
-    margin-right: 2px;
   }
-  .theme-checkbox::before {
-    content: "";
-    width: 2.25em;
-    height: 2.25em;
-    position: absolute;
-    top: 0.438em;
-    left: 0.438em;
-    background: linear-gradient(to right, #000 50%, #fff 50%) no-repeat; 
-    background-size: 205%;
-    background-position: 100%;
-    border-radius: 50%;
-    -webkit-transition: 0.4s;
-    -o-transition: 0.4s;
-    transition: 0.4s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+
+  .slider::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: #fff;
+    transform: translateX(-20px);
+    border-radius: 20px;
+    transition: .3s;
+    box-shadow: 0 0 10px 3px rgb(0, 0, 0, 0.25);
   }
-  .theme-checkbox:checked::before {
-    left: calc(100% - 2.25em - 0.438em);
-    background-position: 0;
+
+  .checkbox:checked ~ .slider::before {
+    transform: translateX(20px);
+    box-shadow: 0 0 10px 3px rgb(0, 0, 0, 0.25);
   }
-  .theme-checkbox:checked {
-    background-position: 0;
-    border-color: #fff;
+
+  .checkbox:checked ~ .slider {
+    background-color: #34C759;
+  }
+
+  .checkbox:active ~ .slider::before {
+    transform: translate(0);
   }
 `;
 
@@ -84,24 +81,19 @@ const useDominantColor = (imageUrl) => {
 
   useEffect(() => {
     if (!imageUrl) return;
-
     const img = new Image();
     img.crossOrigin = "Anonymous";
     img.src = imageUrl;
-
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 1;
         canvas.height = 1;
-        // Draw the image resized to 1x1 pixel to get average color
         ctx.drawImage(img, 0, 0, 1, 1);
         const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        setColor(`rgba(${r}, ${g}, ${b}, 0.5)`); // Higher opacity for visibility
-      } catch (e) {
-        console.warn("Could not extract color (likely CORS)", e);
-      }
+        setColor(`rgba(${r}, ${g}, ${b}, 0.5)`);
+      } catch (e) { }
     };
   }, [imageUrl]);
 
@@ -109,11 +101,19 @@ const useDominantColor = (imageUrl) => {
 };
 
 // --- INPUT COMPONENTS ---
-const SettingInput = ({ label, value, onChange, min, max }) => (
+const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
   <div className="flex items-center justify-between py-3 group">
     <label className="text-white/70 text-xs md:text-sm font-medium group-hover:text-white transition-colors truncate pr-2">{label}</label>
     <div className="relative flex items-center justify-center w-20 md:w-24 bg-white/5 rounded-xl border border-white/10 focus-within:border-white/30 transition-all hover:bg-white/10 shrink-0">
-      <input type="number" value={value} onChange={onChange} min={min} max={max} className="w-full bg-transparent text-white text-center font-mono text-sm py-2 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-2 pr-6" />
+      <input
+        type="number"
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur} // Added onBlur handler
+        min={min}
+        max={max}
+        className="w-full bg-transparent text-white text-center font-mono text-sm py-2 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-2 pr-6"
+      />
       <span className="absolute right-3 text-white/30 text-xs pointer-events-none select-none">{label.toLowerCase().includes('intervals') ? 'x' : 'm'}</span>
     </div>
   </div>
@@ -130,7 +130,7 @@ const AestheticToggle = ({ label, description, checked, onChange, icon: Icon }) 
         {description && <p className="text-white/30 text-[10px] leading-tight mt-0.5 truncate">{description}</p>}
       </div>
     </div>
-    <input type="checkbox" className="theme-checkbox pointer-events-none" checked={checked} readOnly />
+    <div className="relative"><input type="checkbox" className="checkbox" checked={checked} readOnly /><div className="slider"></div></div>
   </div>
 );
 
@@ -198,46 +198,73 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
   );
 };
 
-// --- USER PROFILE CARD (UPDATED) ---
+// --- MODERN ARC-INSPIRED MEMBERSHIP CARD ---
 const UserProfileCard = ({ user, isPro, signOut }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [newHandle, setNewHandle] = useState("");
-  const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
+  const [handleStatus, setHandleStatus] = useState("idle");
   const [statusMsg, setStatusMsg] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [cooldownDays, setCooldownDays] = useState(0);
-
-  // New State: Listen for the REAL handle
   const [displayHandle, setDisplayHandle] = useState(user?.handle || "");
-
-  // Extract dominant color from profile picture for the background aura
+  const [rotation, setRotation] = useState(0);
   const dominantColor = useDominantColor(user?.photoURL);
-
   const db = getFirestore();
 
-  // --- LISTENER FOR REAL-TIME HANDLE UPDATES ---
+  const themes = useMemo(() => [
+    { name: 'Warm Amber', gradient: "from-[#7A3B19] via-[#B95A2A] to-[#E8A15A]", glow: "rgba(185, 90, 42, 0.5)" },
+    { name: 'Rich Berry', gradient: "from-[#461934] via-[#7A2E56] to-[#C77BA7]", glow: "rgba(122, 46, 86, 0.5)" },
+    { name: 'Ocean Night', gradient: "from-[#06283D] via-[#0F4C75] to-[#3A7CA5]", glow: "rgba(15, 76, 117, 0.5)" },
+    { name: 'Forest Deep', gradient: "from-[#053826] via-[#0B6B58] to-[#2BAE9D]", glow: "rgba(11, 107, 88, 0.5)" },
+    { name: 'Graphite Cocoa', gradient: "from-[#0C0A0B] via-[#2B2324] to-[#5C4B4C]", glow: "rgba(92, 75, 76, 0.5)" },
+  ], []);
+
+  const roles = useMemo(() => [
+    "Persistent Scholar", "Steady Achiever", "Focused Builder",
+    "Flow State Explorer", "Calm Operator", "Dedicated Learner",
+    "Mindful Maker", "Consistent Creator"
+  ], []);
+
+  const [themeIndex, setThemeIndex] = useState(0);
+  const [roleIndex, setRoleIndex] = useState(0);
+
+  useEffect(() => {
+    if (user?.uid) {
+      let hash = 0;
+      for (let i = 0; i < user.uid.length; i++) {
+        hash = user.uid.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      setThemeIndex(Math.abs(hash) % themes.length);
+      setRoleIndex(Math.abs(hash) % roles.length);
+    }
+  }, [user, themes.length, roles.length]);
+
+  const currentTheme = themes[themeIndex];
+  const currentRole = roles[roleIndex];
+
+  const handleRefresh = (e) => {
+    e.stopPropagation();
+    setRotation(prev => prev + 360);
+    setThemeIndex(prev => (prev + 1 + Math.floor(Math.random() * (themes.length - 1))) % themes.length);
+    setRoleIndex(prev => (prev + 1 + Math.floor(Math.random() * (roles.length - 1))) % roles.length);
+  };
+
   useEffect(() => {
     if (!user?.uid) return;
     const unsub = onSnapshot(doc(db, "publicProfiles", user.uid), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        if (data.handle) {
-          setDisplayHandle(data.handle);
-        }
+        if (data.handle) setDisplayHandle(data.handle);
       }
     });
     return () => unsub();
   }, [user, db]);
 
-  // Initialize edit input when opening edit mode
   useEffect(() => {
-    if (isEditing) {
-      setNewHandle(displayHandle.replace(/^@/, ''));
-    }
+    if (isEditing) setNewHandle(displayHandle.replace(/^@/, ''));
   }, [isEditing, displayHandle]);
 
-  // Check cooldown on mount/open
   useEffect(() => {
     const checkCooldown = async () => {
       if (!user) return;
@@ -246,7 +273,6 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
         setCooldownDays(0);
         return;
       }
-
       try {
         const userSnap = await getDoc(doc(db, "users", user.uid));
         if (userSnap.exists()) {
@@ -254,68 +280,38 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
           const now = Date.now();
           const diffTime = Math.abs(now - lastChange);
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays < 14) {
-            setCooldownDays(14 - diffDays);
-          } else {
-            setCooldownDays(0);
-          }
+          if (diffDays < 14) setCooldownDays(14 - diffDays);
+          else setCooldownDays(0);
         }
       } catch (e) { console.error("Cooldown check failed", e); }
     };
-
     if (isEditing) checkCooldown();
   }, [user, isEditing, db]);
 
-  // Handle availability checker
   useEffect(() => {
     if (!isEditing) return;
-
     const checkAvailability = async () => {
-      if (newHandle.length < 3) {
-        setHandleStatus("idle");
-        return;
-      }
-
-      // Don't check if it's same as current
+      if (newHandle.length < 3) { setHandleStatus("idle"); return; }
       const currentClean = (displayHandle || "").replace(/^@/, '');
-      if (newHandle.toLowerCase() === currentClean.toLowerCase()) {
-        setHandleStatus("available");
-        setStatusMsg("");
-        return;
-      }
-
+      if (newHandle.toLowerCase() === currentClean.toLowerCase()) { setHandleStatus("available"); setStatusMsg(""); return; }
       setHandleStatus("checking");
-
       try {
         const fullHandle = `@${newHandle}`;
-        const q = query(
-          collection(db, "publicProfiles"),
-          where("handle_lowercase", "==", fullHandle.toLowerCase())
-        );
+        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
         const snap = await getDocs(q);
-
-        if (snap.empty) {
-          setHandleStatus("available");
-          setStatusMsg("");
-        } else {
-          // Check if it's me
-          if (snap.docs[0].id === user.uid) {
-            setHandleStatus("available");
-            setStatusMsg("");
-          } else {
-            setHandleStatus("taken");
-            setStatusMsg("Taken");
-          }
+        if (snap.empty) { setHandleStatus("available"); setStatusMsg(""); }
+        else {
+          if (snap.docs[0].id === user.uid) { setHandleStatus("available"); setStatusMsg(""); }
+          else { setHandleStatus("taken"); setStatusMsg("Taken"); }
         }
       } catch (e) { console.error(e); }
     };
-
     const timer = setTimeout(checkAvailability, 500);
     return () => clearTimeout(timer);
   }, [newHandle, isEditing, user, db, displayHandle]);
 
-
-  const handleCopy = () => {
+  const handleCopy = (e) => {
+    e.stopPropagation();
     if (displayHandle) {
       navigator.clipboard.writeText(displayHandle);
       setCopied(true);
@@ -326,26 +322,14 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
   const handleSave = async () => {
     if (handleStatus !== 'available' || newHandle.length < 3) return;
     setIsSaving(true);
-
     try {
       const fullHandle = `@${newHandle}`;
       const batch = writeBatch(db);
-
       const publicRef = doc(db, "publicProfiles", user.uid);
-      batch.set(publicRef, {
-        handle: fullHandle,
-        handle_lowercase: fullHandle.toLowerCase()
-      }, { merge: true });
-
+      batch.set(publicRef, { handle: fullHandle, handle_lowercase: fullHandle.toLowerCase() }, { merge: true });
       const privateRef = doc(db, "users", user.uid);
-      batch.set(privateRef, {
-        handle: fullHandle,
-        lastHandleChange: Date.now()
-      }, { merge: true });
-
+      batch.set(privateRef, { handle: fullHandle, lastHandleChange: Date.now() }, { merge: true });
       await batch.commit();
-
-      // Update local state immediately for snappy feel
       setDisplayHandle(fullHandle);
       setIsEditing(false);
       setCooldownDays(14);
@@ -360,158 +344,65 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
   if (!user) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 15 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 200, damping: 25 }}
-      className="relative w-full max-w-sm aspect-[3/4] rounded-[32px] overflow-hidden shadow-2xl group select-none mx-auto border border-white/10"
-    >
-      {/* 1. BACKGROUND LAYER */}
-      <div className="absolute inset-0 bg-[#161616]" /> {/* Base Charcoal */}
-
-      {/* 2. DYNAMIC AURA BLOB (Matches PFP) */}
-      <motion.div
-        animate={{ backgroundColor: dominantColor }}
-        transition={{ duration: 1 }}
-        className="absolute -top-20 -left-20 w-96 h-96 rounded-full blur-[100px] opacity-50"
-      />
-
-      {/* 3. NOISE TEXTURE */}
-      <div className="absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")` }} />
-
-      {/* 4. CONTENT LAYER */}
-      <div className="relative z-10 h-full flex flex-col p-8 justify-between">
-
-        {/* HEADER: Avatar & Badge */}
-        <div className="flex justify-between items-start">
-          <div className="relative group/avatar">
-            {/* Soft Glow Behind Avatar */}
-            <div className={`absolute inset-0 blur-xl rounded-full opacity-0 group-hover/avatar:opacity-60 transition-opacity duration-700`} style={{ backgroundColor: dominantColor }} />
-
-            {/* Avatar Circle - GOLD RING RESTORED */}
-            <div className={`relative w-24 h-24 rounded-full p-[3px] overflow-hidden ${isPro ? 'bg-gradient-to-b from-yellow-300 via-yellow-500 to-yellow-700 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'ring-1 ring-white/10 bg-gradient-to-br from-white/10 to-transparent'}`}>
-              <div className="w-full h-full rounded-full border-2 border-black overflow-hidden relative">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                    <User size={32} className="text-white/20" />
+    <div className="flex flex-col items-center justify-center gap-6 py-8 w-full">
+      <div className="relative group perspective-1000 w-full max-w-[420px]">
+        <motion.div animate={{ backgroundColor: currentTheme.glow }} transition={{ duration: 0.8 }} className="absolute -inset-4 rounded-[40px] blur-[80px] opacity-40 group-hover:opacity-60 transition-opacity duration-700 pointer-events-none" />
+        <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 25 }} className="relative w-full aspect-[3/4] min-w-[360px] rounded-[28px] overflow-hidden shadow-2xl group select-none border border-white/10 bg-[#161616] flex flex-col p-8 font-sans">
+          <div className="absolute inset-0 bg-[#161616]" />
+          <AnimatePresence mode='wait'>
+            <motion.div key={currentTheme.name} initial={{ opacity: 0 }} animate={{ opacity: 0.9 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className={`absolute -top-[20%] -left-[20%] w-[160%] h-[160%] rounded-full bg-gradient-to-br ${currentTheme.gradient} blur-[90px] opacity-80`} />
+          </AnimatePresence>
+          <div className="absolute -top-20 -left-20 w-64 h-64 bg-[radial-gradient(closest-side,rgba(255,255,255,0.08),transparent_40%)] blur-[40px]" />
+          <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")` }} />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30 pointer-events-none" />
+          <div className="relative z-10 h-full flex flex-col justify-between w-full">
+            <div className="flex justify-between items-start gap-4 w-full shrink-0">
+              <div className="relative group/avatar shrink-0">
+                <div className="absolute inset-0 bg-white/20 blur-xl rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-700" />
+                <div className="relative w-[80px] h-[80px] rounded-full bg-gradient-to-br from-white/20 to-transparent border-[2px] border-white/10 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
+                  {user.photoURL ? (<img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />) : (<div className="w-full h-full bg-white/10 flex items-center justify-center rounded-full"><User size={36} className="text-white/40" /></div>)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md shadow-sm ${isPro ? 'bg-black/30 border-white/20 text-white' : 'bg-white/10 border-white/10 text-white/60'}`}>
+                  {isPro ? (<><Crown size={12} className="text-yellow-300 fill-yellow-300" /><span className="text-[10px] font-bold uppercase tracking-wider text-yellow-50">Pro Active</span></>) : (<span className="text-[10px] font-bold uppercase tracking-wider">Free Plan</span>)}
+                </div>
+                <button onClick={handleRefresh} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/20 text-white/40 hover:text-white transition-all backdrop-blur-md border border-white/5 hover:border-white/20 flex items-center justify-center" title="Refresh Card Style">
+                  <motion.div animate={{ rotate: rotation }} transition={{ type: "spring", stiffness: 200, damping: 15 }}><RefreshCw size={14} /></motion.div>
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col flex-1 justify-center gap-2.5 w-full my-6">
+              <h2 className="text-[36px] font-bold leading-[1.02] tracking-[-0.01em] text-white drop-shadow-sm font-sans">{user.displayName?.split(' ')[0] || "User"}</h2>
+              <div className="w-9 h-px bg-white/10 my-1.5" />
+              <AnimatePresence mode='wait'>
+                <motion.div key={currentRole} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 5 }} transition={{ duration: 0.3 }} className="text-[11px] uppercase tracking-[0.18em] font-semibold text-white/80 font-sans">{currentRole}</motion.div>
+              </AnimatePresence>
+              <div className="h-3" />
+              <div className="flex flex-col gap-1 min-h-[44px]">
+                {isEditing ? (
+                  <div className="flex flex-col gap-1 w-full max-w-[200px]">
+                    <div className="flex items-center border-b border-white/20 pb-1"><span className="text-white/40 text-sm mr-1">@</span><input autoFocus value={newHandle} onChange={(e) => setNewHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15))} className={`bg-transparent border-none outline-none text-sm font-semibold text-white w-full placeholder-white/20`} placeholder="username" />{handleStatus === 'checking' && <Loader2 size={12} className="animate-spin text-white/50" />}{handleStatus === 'available' && <Check size={12} className="text-green-400" />}{handleStatus === 'taken' && <AlertTriangle size={12} className="text-red-400" />}</div>
+                    <div className="flex justify-between items-center mt-1"><span className="text-[9px] text-red-400 h-3">{statusMsg}</span><div className="flex gap-2"><button onClick={() => setIsEditing(false)} className="text-[9px] text-white/40 hover:text-white uppercase font-bold">Cancel</button><button onClick={handleSave} disabled={handleStatus !== 'available' || isSaving} className={`text-[9px] uppercase font-bold ${handleStatus === 'available' ? 'text-green-400 hover:text-green-300' : 'text-white/20 cursor-not-allowed'}`}>Save</button></div></div>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 group/handle w-fit relative">
+                      <button onClick={handleCopy} className="text-[14px] text-white font-semibold tracking-wide font-sans shadow-black drop-shadow-sm hover:text-white/80 transition-colors text-left">{displayHandle || "@username"}</button>
+                      <button onClick={() => setIsEditing(true)} disabled={cooldownDays > 0} className={`opacity-0 group-hover/handle:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 ${cooldownDays > 0 ? 'text-white/20 cursor-not-allowed' : 'text-white/40 hover:text-white'}`}>{cooldownDays > 0 ? <Lock size={10} /> : <Pencil size={10} />}</button>
+                      <div className="absolute left-full ml-2 opacity-0 transition-opacity duration-300 pointer-events-none">{copied && <span className="text-[10px] text-green-400 font-bold bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-md">Copied</span>}</div>
+                    </div>
+                    <span className="text-[12px] text-white/50 font-normal font-sans tracking-wide">{user.email}</span>
+                  </>
                 )}
               </div>
             </div>
+            <div className="absolute bottom-8 right-8 pointer-events-none select-none"><div className="bg-white/5 rounded-lg p-2 backdrop-blur-sm border border-white/5"><img src="/logo/altimerblack.png" alt="Altimer Logo" className="w-10 opacity-70" /></div></div>
           </div>
-
-          {/* Membership Pill */}
-          <div className={`
-            px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md shadow-sm
-            ${isPro ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-200' : 'bg-white/5 border-white/10 text-white/50'}
-          `}>
-            {isPro ? (
-              <>
-                <Crown size={12} className="text-yellow-400 fill-yellow-400" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">Pro</span>
-              </>
-            ) : (
-              <span className="text-[10px] font-bold uppercase tracking-wider">Free</span>
-            )}
-          </div>
-        </div>
-
-        {/* MIDDLE: Identity Info */}
-        <div className="flex flex-col mt-auto mb-10">
-          <h2 className="text-4xl font-serif-display text-white tracking-tight leading-tight mb-1 pb-1 drop-shadow-sm truncate">
-            {user.displayName?.split(' ')[0] || "User"}
-          </h2>
-
-          <div className="flex flex-col gap-1 min-h-[50px]">
-            {isEditing ? (
-              // --- EDIT MODE ---
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-white/40 font-sans text-lg">@</span>
-                  <input
-                    autoFocus
-                    value={newHandle}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-                      setNewHandle(val);
-                    }}
-                    className={`bg-transparent border-b ${handleStatus === 'taken' ? 'border-red-500 text-red-200' : 'border-white/20 text-white'} outline-none w-full pb-1 font-sans font-medium tracking-wide placeholder-white/10`}
-                    placeholder="username"
-                  />
-                  {handleStatus === 'checking' && <Loader2 size={16} className="animate-spin text-white/50" />}
-                  {handleStatus === 'taken' && <AlertTriangle size={16} className="text-red-500" />}
-                  {handleStatus === 'available' && <Check size={16} className="text-green-500" />}
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-red-400 h-4">{statusMsg}</span>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setIsEditing(false); setNewHandle(displayHandle.replace(/^@/, '')); }} className="text-[10px] uppercase font-bold text-white/40 hover:text-white px-2 py-1">Cancel</button>
-                    <button
-                      onClick={handleSave}
-                      disabled={handleStatus !== 'available' || isSaving}
-                      className={`text-[10px] uppercase font-bold px-3 py-1 rounded bg-white text-black transition-opacity ${handleStatus !== 'available' ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
-                    >
-                      {isSaving ? 'Saving' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // --- VIEW MODE (UPDATED: Click to Copy + Hover Tooltip) ---
-              <>
-                <div className="flex items-center gap-3 group/handle w-fit relative">
-                  {/* THE HANDLE BUTTON */}
-                  <button
-                    onClick={handleCopy}
-                    className="text-base text-white/90 font-medium tracking-wide font-sans hover:text-white transition-colors text-left relative"
-                  >
-                    {displayHandle || "@username"}
-                  </button>
-
-                  {/* HOVER POPUP (Message Popup) */}
-                  <div className="absolute -top-8 left-0 px-2 py-1 bg-white text-black text-[10px] font-bold rounded opacity-0 group-hover/handle:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
-                    {copied ? "Copied!" : "Click to copy"}
-                    {/* Tiny Triangle Arrow */}
-                    <div className="absolute top-full left-4 -translate-x-1/2 border-4 border-transparent border-t-white" />
-                  </div>
-
-                  {/* EDIT BUTTON (Separate) */}
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    disabled={cooldownDays > 0}
-                    className={`hover:text-white transition-colors ${cooldownDays > 0 ? 'text-white/10 cursor-not-allowed' : 'text-white/40'}`}
-                  >
-                    {cooldownDays > 0 ? <Lock size={12} /> : <Pencil size={12} />}
-                  </button>
-                </div>
-
-                {/* Email */}
-                <span className="text-xs text-white/40 font-sans tracking-wide truncate">
-                  {user.email}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* FOOTER: Sign Out Button (CLEANED UP - No Glow) */}
-        <button
-          onClick={signOut}
-          className="w-full rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors duration-200"
-        >
-          <div className="flex items-center justify-center gap-2 py-4">
-            <LogOut size={14} className="text-white/60 transition-colors" />
-            <span className="text-xs font-bold text-white/60 uppercase tracking-widest transition-colors">
-              Sign Out
-            </span>
-          </div>
-        </button>
-
+        </motion.div>
       </div>
-    </motion.div>
+      <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full max-w-[420px] h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
+    </div>
   );
 };
 
@@ -528,6 +419,45 @@ const UnifiedSettingsModal = ({
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
+
+  // --- UPDATED SETTING HANDLERS ---
+
+  // 1. Allow empty strings while typing
+  const updateSetting = (key, value) => {
+    if (value === '') {
+      setSettings(prev => ({ ...prev, [key]: '' }));
+      return;
+    }
+    const val = parseInt(value, 10);
+    if (!isNaN(val)) {
+      setSettings(prev => ({ ...prev, [key]: val }));
+    }
+  };
+
+  // 2. Reset to default if left empty/zero on blur
+  const handleBlur = (key, defaultValue) => {
+    const val = settings[key];
+    if (val === '' || val === 0 || isNaN(val)) {
+      setSettings(prev => ({ ...prev, [key]: defaultValue }));
+    }
+  };
+
+  // 3. Toggle handler
+  const toggleSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
+
+  const contentVariants = {
+    hidden: { opacity: 0, y: 5 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.2, ease: "easeOut" }
+    },
+    exit: {
+      opacity: 0,
+      y: -5,
+      transition: { duration: 0.15, ease: "easeIn" }
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'stats' && statsView === 'history' && user) {
@@ -557,9 +487,8 @@ const UnifiedSettingsModal = ({
     return historyData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0 };
   };
   const selectedStats = getSelectedStats();
-  const updateSetting = (key, value) => { const val = typeof value === 'string' ? parseInt(value) || 0 : value; setSettings(prev => ({ ...prev, [key]: val })); };
+
   const tabs = [{ id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow.' }, { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel.' }, { id: 'stats', label: 'Statistics', icon: BarChart2, description: 'Track progress.' }];
-  const contentVariants = { hidden: { opacity: 0, x: 10 }, visible: { opacity: 1, x: 0, transition: { duration: 0.15, ease: "easeOut" } }, exit: { opacity: 0, x: -10, transition: { duration: 0.1, ease: "easeIn" } } };
 
   return (
     <AnimatePresence>
@@ -609,12 +538,52 @@ const UnifiedSettingsModal = ({
               </div>
 
               {/* CONTENT AREA */}
-              <div className="flex-1 p-6 md:p-12 overflow-y-auto custom-scrollbar relative">
+              <div className="flex-1 p-6 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
                 <AnimatePresence mode="wait">
                   {activeTab === 'preferences' && (
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
-                      <section><h3 className="text-2xl font-serif-display text-white mb-3">Timer Configuration</h3><div className="p-4 bg-white/5 border border-white/5 rounded-3xl"><div className="grid grid-cols-2 gap-x-6 gap-y-1"><SettingInput label="Focus Duration" value={settings.focus} onChange={(e) => updateSetting('focus', e.target.value)} min={1} max={120} /><SettingInput label="Short Break" value={settings.shortBreak} onChange={(e) => updateSetting('shortBreak', e.target.value)} min={1} max={30} /><SettingInput label="Long Break" value={settings.longBreak} onChange={(e) => updateSetting('longBreak', e.target.value)} min={5} max={60} /><SettingInput label="Intervals" value={settings.pomosBeforeLongBreak} onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)} min={1} max={10} /></div></div></section>
-                      <section><h3 className="text-2xl font-serif-display text-white mb-3">Automation</h3><div className="grid grid-cols-1 gap-2"><AestheticToggle label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => updateSetting('autoStartBreaks', val)} icon={Clock} /><AestheticToggle label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => updateSetting('autoStartWork', val)} icon={Zap} /></div></section>
+                      <section>
+                        <h3 className="text-2xl font-serif-display text-white mb-3">Timer Configuration</h3>
+                        <div className="p-4 bg-white/5 border border-white/5 rounded-3xl">
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                            <SettingInput
+                              label="Focus Duration"
+                              value={settings.focus}
+                              onChange={(e) => updateSetting('focus', e.target.value)}
+                              onBlur={() => handleBlur('focus', 25)}
+                              min={1} max={120}
+                            />
+                            <SettingInput
+                              label="Short Break"
+                              value={settings.shortBreak}
+                              onChange={(e) => updateSetting('shortBreak', e.target.value)}
+                              onBlur={() => handleBlur('shortBreak', 5)}
+                              min={1} max={30}
+                            />
+                            <SettingInput
+                              label="Long Break"
+                              value={settings.longBreak}
+                              onChange={(e) => updateSetting('longBreak', e.target.value)}
+                              onBlur={() => handleBlur('longBreak', 15)}
+                              min={5} max={60}
+                            />
+                            <SettingInput
+                              label="Intervals"
+                              value={settings.pomosBeforeLongBreak}
+                              onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)}
+                              onBlur={() => handleBlur('pomosBeforeLongBreak', 4)}
+                              min={1} max={10}
+                            />
+                          </div>
+                        </div>
+                      </section>
+                      <section>
+                        <h3 className="text-2xl font-serif-display text-white mb-3">Automation</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                          <AestheticToggle label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
+                          <AestheticToggle label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
+                        </div>
+                      </section>
                     </motion.div>
                   )}
 
@@ -624,30 +593,13 @@ const UnifiedSettingsModal = ({
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
-                          // Extract Credit Info
                           const credit = bg.credit;
-
                           return (
                             <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}>
                               {isVideo ? (<video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline />) : (<img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />)}
                               {isVideo && (<div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" /><span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span></div>)}
                               {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
-
-                              {/* --- CREDIT BADGE --- */}
-                              {credit && (
-                                <div className="absolute bottom-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                  <a
-                                    href={credit.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()} // Stop background selection
-                                    className="flex items-center gap-1.5 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/10 text-[9px] font-bold text-white/80 hover:text-white uppercase tracking-wider transition-colors"
-                                  >
-                                    <span>{credit.name}</span>
-                                    <ExternalLink size={8} />
-                                  </a>
-                                </div>
-                              )}
+                              {credit && (<div className="absolute bottom-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"><a href={credit.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/10 text-[9px] font-bold text-white/80 hover:text-white uppercase tracking-wider transition-colors"><span>{credit.name}</span><ExternalLink size={8} /></a></div>)}
                             </button>
                           );
                         })}
@@ -674,7 +626,6 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'account' && (
                     <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-4">
                       {user ? (
-                        // NEW ARC CARD COMPONENT
                         <UserProfileCard user={user} isPro={isPro} signOut={signOut} />
                       ) : (
                         <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 dashed flex flex-col items-center justify-center w-full max-w-lg aspect-video"><User size={48} className="text-white/30 mb-4" /><p className="text-white/50">Please sign in to manage your account.</p></div>
