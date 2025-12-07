@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
@@ -1037,130 +1037,358 @@ const AccountModal = ({
     </AnimatePresence>
   );
 };
+// --- HELPERS FOR FRIEND STATS ---
+
+const FriendStatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlight = false }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.3 }}
+    className={`relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden group 
+      ${isHero ? 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10 col-span-2' : 'bg-black/20 border border-white/5 hover:border-white/10 transition-colors'} 
+      ${highlight ? 'ring-1 ring-white/20 bg-white/5' : ''}`
+    }
+  >
+    <div className="flex justify-between items-start z-10">
+      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{label}</span>
+      <div className={`p-1.5 rounded-lg ${isHero ? 'bg-white/10 text-white' : 'bg-white/5 text-white/20 group-hover:text-white/50 transition-colors'}`}>
+        <Icon size={isHero ? 18 : 14} />
+      </div>
+    </div>
+    <div className={`mt-4 font-mono font-light tracking-wide text-white z-10 ${isHero ? 'text-3xl' : 'text-xl'}`}>
+      {value}
+    </div>
+    {isHero && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none" />}
+  </motion.div>
+);
+
+const FriendStreakCard = ({ streak }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+    className="col-span-2 relative overflow-hidden rounded-2xl p-6 border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40 group"
+  >
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.15),transparent_50%)]" />
+    <div className="flex items-center justify-between relative z-10">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] font-bold text-orange-400/80 uppercase tracking-widest">Current Streak</span>
+        </div>
+        <div className="text-4xl font-serif-display text-white flex items-baseline gap-1">
+          {streak} <span className="text-sm font-sans text-white/40 font-medium">days</span>
+        </div>
+      </div>
+      <motion.div
+        animate={{ scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        className="text-orange-500"
+      >
+        <Flame size={48} fill="currentColor" fillOpacity={0.2} strokeWidth={1.5} />
+      </motion.div>
+    </div>
+  </motion.div>
+);
+
+const FriendHistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedDate, onSelectDate, isExpanded, setIsExpanded }) => {
+  const [viewMode, setViewMode] = useState('days');
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // Basic Calendar Logic
+  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+
+  const handlePrevMonth = (e) => { e?.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); };
+  const handleNextMonth = (e) => { e?.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); };
+
+  // Navigation
+  const handlePrevDay = (e) => {
+    e?.stopPropagation();
+    const prev = new Date(selectedDate);
+    prev.setDate(prev.getDate() - 1);
+    onSelectDate(prev);
+    if (prev.getMonth() !== currentMonth.getMonth()) setCurrentMonth(new Date(prev.getFullYear(), prev.getMonth(), 1));
+  };
+  const handleNextDay = (e) => {
+    e?.stopPropagation();
+    const next = new Date(selectedDate);
+    next.setDate(next.getDate() + 1);
+    onSelectDate(next);
+    if (next.getMonth() !== currentMonth.getMonth()) setCurrentMonth(new Date(next.getFullYear(), next.getMonth(), 1));
+  };
+
+  const blanks = Array(firstDayOfMonth).fill(null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1));
+  const allSlots = [...blanks, ...days];
+
+  return (
+    <motion.div layout className={`w-full bg-white/5 border border-white/5 rounded-3xl overflow-hidden relative transition-colors duration-300 ${isExpanded ? 'p-6' : 'p-4 hover:bg-white/10 cursor-pointer'}`} onClick={() => !isExpanded && setIsExpanded(true)}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {isExpanded ? (
+          <motion.div key="expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="flex justify-between items-center mb-6">
+              <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-lg font-serif-display text-white hover:text-white/80 transition-colors flex items-center gap-2">
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </button>
+              <div className="flex gap-1">
+                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
+                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronRight size={18} /></button>
+                <button onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors ml-2"><ChevronDown size={18} className="rotate-180" /></button>
+              </div>
+            </div>
+            {viewMode === 'days' ? (
+              <div className="animate-fade-in">
+                <div className="grid grid-cols-7 mb-2">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (<div key={i} className="text-center text-[10px] font-bold text-white/20 py-2">{d}</div>))}</div>
+                <div className="grid grid-cols-7 gap-y-2">
+                  {allSlots.map((date, i) => {
+                    if (!date) return <div key={i} />;
+                    const dateId = formatDateId(date);
+                    const data = historyData[dateId];
+                    const hasData = data && data.dailyFocusTime > 0;
+                    const isSelected = selectedDate && formatDateId(selectedDate) === dateId;
+                    const isToday = formatDateId(new Date()) === dateId;
+                    const intensity = hasData ? Math.min(data.dailyFocusTime / (4 * 3600), 1) : 0;
+
+                    return (
+                      <div key={i} className="flex justify-center">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSelectDate(date); }}
+                          className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 relative group 
+                            ${isSelected ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110 z-10' : ''} 
+                            ${!isSelected && hasData ? 'text-white hover:bg-white/10' : ''} 
+                            ${!isSelected && !hasData ? 'text-white/20 hover:text-white/50' : ''} 
+                            ${isToday && !isSelected ? 'border border-white/20' : ''}`}
+                        >
+                          {!isSelected && hasData && <div className="absolute inset-0 bg-white rounded-full opacity-10" style={{ opacity: 0.1 + (intensity * 0.2) }} />}
+                          {!isSelected && hasData && <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-green-400 shadow-[0_0_5px_rgba(74,222,128,0.8)]" />}
+                          {date.getDate()}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 animate-fade-in">
+                {monthNames.map((m, i) => (
+                  <button key={m} onClick={(e) => { e.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), i, 1)); setViewMode('days'); }} className={`p-3 rounded-xl text-sm font-medium transition-colors ${currentMonth.getMonth() === i ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'}`}>
+                    {m.substring(0, 3)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div key="collapsed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-white/10 rounded-full text-white"><CalendarIcon size={18} /></div>
+              <div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-lg font-serif-display text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={handlePrevDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
+              <button onClick={handleNextDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronRight size={16} /></button>
+              <div className="w-px h-4 bg-white/10 mx-2"></div>
+              <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs text-white/70 hover:text-white transition-colors"><span>Expand</span><ChevronDown size={14} /></button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const [activeTab, setActiveTab] = useState('today');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [historyData, setHistoryData] = useState({});
-  const [stats, setStats] = useState({ dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: 0 });
+  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
+
+  const [profileData, setProfileData] = useState(friend || {});
 
   useEffect(() => {
     if (isOpen && friend) {
-      // FIX: Listen to 'publicProfiles' instead of 'users' to bypass security rules
       const userDocRef = doc(db, "publicProfiles", friend.uid);
-
       const unsubUser = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // stats are nested in the public profile now
-          const remoteStats = data.stats || {};
-
-          setStats({
-            dailyFocusTime: remoteStats.dailyFocusTime || 0,
-            dailyBreakTime: remoteStats.dailyBreakTime || 0,
-            dailySessions: remoteStats.dailySessions || 0,
-            currentStreak: remoteStats.currentStreak || 0
-          });
+          setProfileData(prev => ({
+            ...prev,
+            ...data,
+            stats: data.stats || {}
+          }));
         }
       });
 
-      // Note: History subcollection might still be private depending on your Firestore rules.
-      // If history doesn't load, you'd need to sync history to publicProfiles (complex) or update rules.
-      if (activeTab === 'history') {
-        const historyRef = collection(db, 'users', friend.uid, 'history');
-        const q = query(historyRef, orderBy('date', 'desc'), limit(31));
-        getDocs(q).then(snapshot => {
+      const fetchHistory = async () => {
+        try {
+          const historyRef = collection(db, 'users', friend.uid, 'history');
+          const q = query(historyRef, orderBy('date', 'desc'), limit(100));
+          const snapshot = await getDocs(q);
           const data = {};
           snapshot.forEach(doc => { data[doc.id] = doc.data(); });
           setHistoryData(data);
-        }).catch(e => console.log("History hidden by privacy rules"));
-      }
+        } catch (e) {
+          console.log("History access restricted or failed", e);
+        }
+      };
+
+      fetchHistory();
       return () => unsubUser();
     }
-  }, [isOpen, friend, activeTab]);
+  }, [isOpen, friend]);
 
-  const getEffectiveHistory = () => {
+  const getStats = () => profileData.stats || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: 0 };
+  const currentStats = getStats();
+
+  const getSelectedStats = () => {
+    const dateId = formatDateId(selectedDate);
     const todayId = formatDateId(new Date());
-    return { ...historyData, [todayId]: { ...stats, date: new Date() } };
+    if (dateId === todayId) return currentStats;
+    return historyData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0 };
   };
 
-  const getDisplayStats = () => {
-    if (activeTab === 'today') return stats;
-    if (selectedDate) {
-      const dateId = formatDateId(selectedDate);
-      return getEffectiveHistory()[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
-    }
-    return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
-  };
-
-  const finalStats = getDisplayStats();
+  const selectedStats = getSelectedStats();
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div
-            layout
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* LEFT COLUMN: FRIEND PROFILE */}
-            <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
-              <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]" />
 
-              {/* Avatar Container: Unified to w-32 h-32 to guarantee space for the glow's negative inset */}
-              <div className="w-32 h-32 mb-2 relative z-10">
-                <Avatar userData={friend} isPro={friend?.isPro} size="full" />
+          <div className="fixed inset-0 z-[101] flex items-center justify-center pointer-events-none md:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.25 }}
+              className="w-full md:max-w-3xl h-[100dvh] md:h-[85vh] bg-[#0A0A0A] border-none md:border border-white/10 rounded-none md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col pointer-events-auto relative"
+            >
+
+              {/* --- HEADER --- */}
+              <div className="flex flex-col bg-[#0F0F0F] border-b border-white/5 shrink-0 z-20 pb-4 md:pb-6">
+
+                {/* Top Row: Info & Close */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-4 md:px-8 md:pt-8">
+                  <div className="flex items-center gap-4">
+                    {/* AVATAR */}
+                    <div className="relative w-12 h-12 md:w-14 md:h-14 shrink-0">
+                      <Avatar userData={profileData} size="full" isPro={profileData?.isPro} />
+                    </div>
+
+                    <div className="flex flex-col justify-center">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl md:text-2xl font-serif-display text-white tracking-tight leading-none">
+                          {profileData?.displayName}
+                        </h2>
+
+                        {/* --- MINIMALIST FLOW BADGE --- */}
+                        {profileData?.isPro && (
+                          <img
+                            src="/protag.png"
+                            alt="Flow Member"
+                            className="h-5 w-auto object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.8)] mt-0.5"
+                            title="Flow Member"
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-white/50 font-medium">{profileData?.handle}</span>
+                        {profileData?.isOnline && (
+                          <span className={`flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full border font-medium uppercase tracking-wider ${profileData.isActive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${profileData.isActive ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                            {profileData.statusText?.split('•')[0]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/5 flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* View Switcher Pills */}
+                <div className="px-5 md:px-8">
+                  <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 relative">
+                    {['today', 'history'].map(view => (
+                      <button
+                        key={view}
+                        onClick={() => setActiveTab(view)}
+                        className={`relative flex items-center justify-center px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
+                      >
+                        {activeTab === view && (
+                          <motion.div
+                            layoutId="friendStatsPill"
+                            className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                          />
+                        )}
+                        {view}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-white leading-tight">{friend?.displayName}</h2>
+              {/* --- CONTENT AREA --- */}
+              <div className="flex-1 p-5 md:p-8 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#0A0A0A]">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'today' ? (
+                    <motion.div
+                      key="today"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                    >
+                      <FriendStatCard label="Focus Today" value={formatDetailedDuration(currentStats.dailyFocusTime || 0)} icon={Zap} isHero={true} />
+                      <FriendStatCard label="Break Time" value={formatDetailedDuration(currentStats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} />
+                      <FriendStatCard label="Sessions" value={currentStats.dailySessions || 0} icon={TrendingUp} delay={0.15} />
+                      <FriendStreakCard streak={currentStats.currentStreak || 0} />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="history"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex flex-col gap-6"
+                    >
+                      <FriendHistoryCalendar
+                        historyData={historyData}
+                        currentMonth={currentMonth}
+                        setCurrentMonth={setCurrentMonth}
+                        selectedDate={selectedDate}
+                        onSelectDate={setSelectedDate}
+                        isExpanded={isCalendarExpanded}
+                        setIsExpanded={setIsCalendarExpanded}
+                      />
 
-              {/* UPDATED: Handle Display (White, Centered, Prominent) */}
-              <p className="text-white text-base font-medium tracking-wide mb-6 opacity-90">
-                {friend?.handle || "@unknown"}
-              </p>
-
-              {/* STATUS PILL */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8">
-                <div className={`w-2 h-2 rounded-full ${friend?.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-yellow-500') : 'bg-gray-500'}`} />
-                <span className="text-[10px] font-mono text-white/80 uppercase tracking-widest font-bold">
-                  {friend?.statusText?.split('•')[0] || "Offline"}
-                </span>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 border-t border-white/10 pt-6">
+                          <h4 className="font-serif-display text-lg text-white">
+                            {!isCalendarExpanded ? "Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          <FriendStatCard label="Focus Time" value={formatDetailedDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight />
+                          <FriendStatCard label="Break Time" value={formatDetailedDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} />
+                          <FriendStatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="mt-auto pt-8 text-white/20 text-[10px] font-mono">FRIEND ID: {friend?.uid?.slice(0, 8)}...</div>
             </motion.div>
-
-            {/* RIGHT COLUMN: STATS */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
-              <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
-                <div className="flex gap-6">
-                  <button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button>
-                  <button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button>
-                </div>
-                <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
-              </div>
-
-              <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
-                {activeTab === 'history' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8">
-                    <CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} />
-                  </motion.div>
-                )}
-                <div className={`grid grid-cols-2 gap-4`}>
-                  <StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} />
-                  <StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} />
-                  <StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />
-                  {activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}
-                </div>
-              </motion.div>
-            </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </>
       )}
     </AnimatePresence>
   );
@@ -5317,7 +5545,7 @@ function MainApp() {
       {/* --- MAIN DASHBOARD (Responsive Redesign) --- */}
       <div className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
 
-        {/* --- MOBILE HEADER: Logo & Settings (Changed) --- */}
+        {/* --- MOBILE HEADER: Logo & Settings --- */}
         <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-2">
             <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
@@ -5330,10 +5558,10 @@ function MainApp() {
               <Users size={22} />
             </button>
 
-            {/* --- FIXED: Now opens UnifiedSettingsModal --- */}
+            {/* --- FIXED: Removed overflow-hidden so the ring shows --- */}
             <button
               onClick={() => setIsUnifiedModalOpen(true)}
-              className="rounded-full overflow-hidden ml-2 w-8 h-8"
+              className="relative ml-2 w-8 h-8"
             >
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
@@ -5341,15 +5569,15 @@ function MainApp() {
           </div>
         </div>
 
-        {/* --- DESKTOP HEADER: Settings & Stats (Quote Removed) --- */}
-
+        {/* --- DESKTOP HEADER: Settings & Stats --- */}
         <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-4">
 
             {/* 2. PROFILE ICON (Opens Unified Modal) */}
+            {/* --- FIXED: Removed overflow-hidden so the ring shows --- */}
             <button
               onClick={() => setIsUnifiedModalOpen(true)}
-              className="relative group rounded-full overflow-hidden w-9 h-9 transition-transform hover:scale-105 active:scale-95"
+              className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95"
             >
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>

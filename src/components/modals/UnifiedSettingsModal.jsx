@@ -10,7 +10,7 @@ import {
   getFirestore, collection, query, orderBy, getDocs, limit,
   where, doc, getDoc, writeBatch, onSnapshot
 } from "firebase/firestore";
-import Avatar from '../Avatar'; // IMPORT THE UNIFIED AVATAR
+import Avatar from '../Avatar';
 
 // --- 0. INJECTED CSS FOR THE TOGGLE ---
 const toggleStyles = `
@@ -101,11 +101,12 @@ const useDominantColor = (imageUrl) => {
   return color;
 };
 
-// --- INPUT COMPONENTS ---
+// --- SETTING INPUT COMPONENT (MOVED OUTSIDE) ---
+// This prevents re-rendering/loss of focus on every keystroke
 const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
-  <div className="flex items-center justify-between py-3 group">
-    <label className="text-white/70 text-xs md:text-sm font-medium group-hover:text-white transition-colors truncate pr-2">{label}</label>
-    <div className="relative flex items-center justify-center w-20 md:w-24 bg-white/5 rounded-xl border border-white/10 focus-within:border-white/30 transition-all hover:bg-white/10 shrink-0">
+  <div className="flex items-center justify-between py-4 px-5 group hover:bg-white/5 transition-colors">
+    <label className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{label}</label>
+    <div className="relative flex items-center justify-center w-20 bg-black/20 rounded-lg border border-white/10 focus-within:border-white/30 transition-all shrink-0">
       <input
         type="number"
         value={value}
@@ -113,9 +114,11 @@ const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
         onBlur={onBlur}
         min={min}
         max={max}
-        className="w-full bg-transparent text-white text-center font-mono text-sm py-2 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-2 pr-6"
+        className="w-full bg-transparent text-white text-center font-mono text-sm py-1.5 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-1 pr-5"
       />
-      <span className="absolute right-3 text-white/30 text-xs pointer-events-none select-none">{label.toLowerCase().includes('intervals') ? 'x' : 'm'}</span>
+      <span className="absolute right-2.5 text-white/30 text-xs pointer-events-none select-none">
+        {label.toLowerCase().includes('intervals') ? 'x' : 'm'}
+      </span>
     </div>
   </div>
 );
@@ -484,27 +487,6 @@ const UnifiedSettingsModal = ({
     { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress.' },
     { id: 'account', label: 'Account', icon: User, description: 'Profile & subscription.' }
   ];
-
-  // --- UPDATED INPUT COMPONENT (Optimized for List View) ---
-  const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
-    <div className="flex items-center justify-between py-4 px-5 group hover:bg-white/5 transition-colors">
-      <label className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{label}</label>
-      <div className="relative flex items-center justify-center w-20 bg-black/20 rounded-lg border border-white/10 focus-within:border-white/30 transition-all shrink-0">
-        <input
-          type="number"
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          min={min}
-          max={max}
-          className="w-full bg-transparent text-white text-center font-mono text-sm py-1.5 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-1 pr-5"
-        />
-        <span className="absolute right-2.5 text-white/30 text-xs pointer-events-none select-none">
-          {label.toLowerCase().includes('intervals') ? 'x' : 'm'}
-        </span>
-      </div>
-    </div>
-  );
 
   return (
     <AnimatePresence>

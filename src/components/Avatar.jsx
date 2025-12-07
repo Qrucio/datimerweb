@@ -18,8 +18,8 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
         sm: "w-6 h-6 text-[10px]",
         md: "w-10 h-10 text-xs",
         lg: "w-12 h-12 text-sm",
-        xl: "w-20 h-20 text-xl",     // For Settings Modal
-        "2xl": "w-32 h-32 text-3xl", // For Profile Modal
+        xl: "w-20 h-20 text-xl",
+        "2xl": "w-32 h-32 text-3xl",
         full: "w-full h-full"
     };
 
@@ -28,23 +28,25 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
     return (
         <div className={`relative flex-shrink-0 ${containerSize} ${className} select-none group`}>
 
-            {/* --- THE UNIFIED FLOW RING --- */}
-            {/* This is the exact design from your image: Cyan -> Blue -> Purple Gradient */}
+            {/* --- THE ICY FLOW RING --- */}
             {finalIsFlow && (
                 <>
-                    {/* 1. Outer Glow (Soft) */}
-                    <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-cyan-500 via-blue-500 to-purple-500 opacity-40 blur-md animate-pulse z-0" />
+                    {/* 1. Outer Glow (Icy: Cyan -> Sky -> White) */}
+                    <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-cyan-400 via-sky-400 to-white opacity-40 blur-md animate-pulse z-0" />
 
-                    {/* 2. The Rotating Gradient Ring */}
+                    {/* 2. The Rotating Gradient Ring (Icy Tones) */}
                     <div className="absolute -inset-[2px] rounded-full overflow-hidden z-0">
-                        <div className="w-[200%] h-[200%] absolute top-[-50%] left-[-50%] animate-[spin_4s_linear_infinite]"
-                            style={{ background: 'conic-gradient(transparent 0deg, #06b6d4 50deg, #3b82f6 100deg, #a855f7 150deg, #06b6d4 360deg)' }} />
+                        <div className="w-[200%] h-[200%] absolute top-[-50%] left-[-50%] animate-[spin_3s_linear_infinite]"
+                            style={{
+                                // Replaced purple (#a855f7) with Sky Blue (#0ea5e9) and White (#ffffff) for the icy shine
+                                background: 'conic-gradient(transparent 0deg, #0ea5e9 50deg, #22d3ee 100deg, #ffffff 160deg, #0ea5e9 360deg)'
+                            }}
+                        />
                     </div>
                 </>
             )}
 
             {/* --- AVATAR IMAGE CONTAINER --- */}
-            {/* Added a small border to separate image from the ring */}
             <div className={`relative z-10 w-full h-full rounded-full overflow-hidden bg-[#111] ${finalIsFlow ? 'border-[2px] border-[#111]' : 'border border-white/10'}`}>
                 {finalPhoto && !imageError ? (
                     <img
