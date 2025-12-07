@@ -628,54 +628,40 @@ const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate
 
 
 const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
+  // Config for the modal content
   const content = {
     notes: {
       title: "Limit Reached",
-      description: <>Free users are limited to 3 notes. Upgrade to <span className="text-yellow-400 font-bold">Pro</span> for unlimited notes, exclusive themes, and more.</>,
+      description: <>Free users are limited to 3 notes. Upgrade to <span className="text-cyan-400 font-bold">Flow</span> for unlimited notes, exclusive themes, and more.</>,
       icon: StickyNoteIcon
     },
     arcade: {
       title: "Unlock Arcade",
-      description: <>Gain access to <span className="text-yellow-400 font-bold">Pro</span> exclusive games, multiplayer modes, and global leaderboards.</>,
+      description: <>Gain access to <span className="text-cyan-400 font-bold">Flow</span> exclusive games, multiplayer modes, and global leaderboards.</>,
       icon: Gamepad2
     },
     ambience: {
       title: "Soundscape Locked",
-      description: <>You have chosen your 3 free sounds. Upgrade to <span className="text-yellow-400 font-bold">Pro</span> to unlock the full library and mix unlimited sounds.</>,
+      description: <>You have chosen your 3 free sounds. Upgrade to <span className="text-cyan-400 font-bold">Flow</span> to unlock the full library and mix unlimited sounds.</>,
       icon: CloudRain
     },
     music: {
       title: "Unlock Focus Music",
-      description: <>Curated Focus Tracks are a <span className="text-yellow-400 font-bold">Pro</span> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
+      description: <>Curated Focus Tracks are a <span className="text-cyan-400 font-bold">Flow</span> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
       icon: Music
     },
-    // --- NEW: SETTINGS (ALL FEATURES) ---
     settings: {
       title: "Unlock Everything",
       description: (
         <div className="flex flex-col gap-3 mt-1">
-          <p className="text-white/60 text-sm">Become a Pro member to remove all limits and access the complete experience.</p>
+          <p className="text-white/60 text-sm">Become a Flow member to remove all limits and access the complete experience.</p>
           <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col gap-2 text-left">
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><StickyNoteIcon size={12} /></div>
-              <span className="text-xs text-white/80">Unlimited Notes & Themes</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Gamepad2 size={12} /></div>
-              <span className="text-xs text-white/80">Full Arcade Access (Snake, Typing)</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><CloudRain size={12} /></div>
-              <span className="text-xs text-white/80">Unlock All 50+ Ambience Sounds</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Music size={12} /></div>
-              <span className="text-xs text-white/80">Premium Focus Music & Lofi</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="p-1 bg-yellow-400/10 rounded text-yellow-400"><Crown size={12} /></div>
-              <span className="text-xs text-white/80">Gold "Pro" Profile Badge</span>
-            </div>
+            {[StickyNoteIcon, Gamepad2, CloudRain, Music, Crown].map((Icon, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="p-1 bg-cyan-400/10 rounded text-cyan-400"><Icon size={12} /></div>
+                <span className="text-xs text-white/80">Flow Feature Unlocked</span>
+              </div>
+            ))}
           </div>
         </div>
       ),
@@ -692,33 +678,30 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="relative w-full max-w-sm p-8 bg-[#111] border border-yellow-500/30 rounded-3xl text-center overflow-hidden will-change-transform"
+            initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className="relative w-full max-w-sm p-8 bg-[#111] border border-cyan-500/30 rounded-3xl text-center overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-yellow-500/10 blur-[50px] pointer-events-none" />
-            <div className="relative z-10 w-16 h-16 mx-auto mb-6 rounded-full bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
+            {/* Blue Background Blur */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-cyan-500/10 blur-[50px] pointer-events-none" />
+
+            <div className="relative z-10 w-16 h-16 mx-auto mb-6 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
               <Icon size={32} />
             </div>
-            <h2 className="relative z-10 text-2xl font-serif-display text-white mb-2">{currentContent.title}</h2>
 
-            {/* CHANGED FROM <p> TO <div> TO SUPPORT RICH CONTENT */}
+            <h2 className="relative z-10 text-2xl font-serif-display text-white mb-2">{currentContent.title}</h2>
             <div className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-1">
               {currentContent.description}
             </div>
 
-            <button onClick={() => { if (onUpgrade) onUpgrade(); }} className="relative z-10 w-full py-3.5 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-yellow-500/20">Upgrade to Pro</button>
+            <button onClick={() => { if (onUpgrade) onUpgrade(); }} className="relative z-10 w-full py-3.5 bg-gradient-to-r from-cyan-400 to-blue-600 text-black font-bold text-sm uppercase tracking-widest rounded-xl hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-cyan-500/20">
+              Upgrade to Flow
+            </button>
             <button onClick={onClose} className="mt-4 text-xs text-white/30 hover:text-white uppercase tracking-widest font-bold transition-colors">Maybe Later</button>
           </motion.div>
         </motion.div>
@@ -5340,17 +5323,21 @@ function MainApp() {
             <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
           </div>
           <div className="flex items-center gap-3">
-            {/* --- ADD THIS BUTTON --- */}
             <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
               <Music size={22} />
             </button>
-            {/* ----------------------- */}
             <button onClick={() => setShowFriends(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Users size={22} />
             </button>
-            <button onClick={() => setShowAccount(true)} className="rounded-full overflow-hidden ml-2 w-8 h-8">
+
+            {/* --- FIXED: Now opens UnifiedSettingsModal --- */}
+            <button
+              onClick={() => setIsUnifiedModalOpen(true)}
+              className="rounded-full overflow-hidden ml-2 w-8 h-8"
+            >
               <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
+
           </div>
         </div>
 

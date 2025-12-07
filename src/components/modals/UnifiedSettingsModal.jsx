@@ -10,6 +10,7 @@ import {
   getFirestore, collection, query, orderBy, getDocs, limit,
   where, doc, getDoc, writeBatch, onSnapshot
 } from "firebase/firestore";
+import Avatar from '../Avatar'; // IMPORT THE UNIFIED AVATAR
 
 // --- 0. INJECTED CSS FOR THE TOGGLE ---
 const toggleStyles = `
@@ -109,7 +110,7 @@ const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
         type="number"
         value={value}
         onChange={onChange}
-        onBlur={onBlur} // Added onBlur handler
+        onBlur={onBlur}
         min={min}
         max={max}
         className="w-full bg-transparent text-white text-center font-mono text-sm py-2 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-2 pr-6"
@@ -220,14 +221,11 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
     { name: 'Graphite Cocoa', gradient: "from-[#0C0A0B] via-[#2B2324] to-[#5C4B4C]", glow: "rgba(92, 75, 76, 0.5)" },
   ], []);
 
-  const roles = useMemo(() => [
-    "Persistent Scholar", "Steady Achiever", "Focused Builder",
-    "Flow State Explorer", "Calm Operator", "Dedicated Learner",
-    "Mindful Maker", "Consistent Creator"
-  ], []);
-
+  const roles = useMemo(() => ["Persistent Scholar", "Steady Achiever", "Focused Builder", "Flow State Explorer"], []);
   const [themeIndex, setThemeIndex] = useState(0);
   const [roleIndex, setRoleIndex] = useState(0);
+  const currentTheme = themes[themeIndex];
+  const currentRole = roles[roleIndex];
 
   useEffect(() => {
     if (user?.uid) {
@@ -240,14 +238,11 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
     }
   }, [user, themes.length, roles.length]);
 
-  const currentTheme = themes[themeIndex];
-  const currentRole = roles[roleIndex];
-
   const handleRefresh = (e) => {
     e.stopPropagation();
     setRotation(prev => prev + 360);
-    setThemeIndex(prev => (prev + 1 + Math.floor(Math.random() * (themes.length - 1))) % themes.length);
-    setRoleIndex(prev => (prev + 1 + Math.floor(Math.random() * (roles.length - 1))) % roles.length);
+    setThemeIndex(prev => (prev + 1) % themes.length);
+    setRoleIndex(prev => (prev + 1) % roles.length);
   };
 
   useEffect(() => {
@@ -357,21 +352,37 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30 pointer-events-none" />
           <div className="relative z-10 h-full flex flex-col justify-between w-full">
             <div className="flex justify-between items-start gap-4 w-full shrink-0">
+
+              {/* UNIFIED AVATAR COMPONENT */}
               <div className="relative group/avatar shrink-0">
-                <div className="absolute inset-0 bg-white/20 blur-xl rounded-full opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-700" />
-                <div className="relative w-[80px] h-[80px] rounded-full bg-gradient-to-br from-white/20 to-transparent border-[2px] border-white/10 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.6)]">
-                  {user.photoURL ? (<img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />) : (<div className="w-full h-full bg-white/10 flex items-center justify-center rounded-full"><User size={36} className="text-white/40" /></div>)}
-                </div>
+                <Avatar
+                  userData={user}
+                  photoURL={user.photoURL}
+                  name={user.displayName}
+                  isPro={isPro}
+                  size="xl"
+                />
               </div>
+
+              {/* FLOW BADGE / FREE PILL */}
               <div className="flex items-center gap-2">
-                <div className={`px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md shadow-sm ${isPro ? 'bg-black/30 border-white/20 text-white' : 'bg-white/10 border-white/10 text-white/60'}`}>
-                  {isPro ? (<><Crown size={12} className="text-yellow-300 fill-yellow-300" /><span className="text-[10px] font-bold uppercase tracking-wider text-yellow-50">Pro Active</span></>) : (<span className="text-[10px] font-bold uppercase tracking-wider">Free Plan</span>)}
+                <div className={`px-2 py-1 rounded-full flex items-center gap-2 backdrop-blur-md shadow-sm transition-all ${isPro ? 'bg-transparent border-none p-0' : 'bg-white/10 border border-white/10 px-3 py-1.5 text-white/60'}`}>
+                  {isPro ? (
+                    <div className="flex items-center gap-2 bg-black/20 rounded-full pr-3 pl-1 py-1 border border-white/10 backdrop-blur-md">
+                      <img src="/protag.png" alt="Flow" className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
+                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 font-bold text-xs uppercase tracking-widest font-sans">Flow Member</span>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Free Plan</span>
+                  )}
                 </div>
                 <button onClick={handleRefresh} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/20 text-white/40 hover:text-white transition-all backdrop-blur-md border border-white/5 hover:border-white/20 flex items-center justify-center" title="Refresh Card Style">
                   <motion.div animate={{ rotate: rotation }} transition={{ type: "spring", stiffness: 200, damping: 15 }}><RefreshCw size={14} /></motion.div>
                 </button>
               </div>
             </div>
+
+            {/* BODY */}
             <div className="flex flex-col flex-1 justify-center gap-2.5 w-full my-6">
               <h2 className="text-[36px] font-bold leading-[1.02] tracking-[-0.01em] text-white drop-shadow-sm font-sans">{user.displayName?.split(' ')[0] || "User"}</h2>
               <div className="w-9 h-px bg-white/10 my-1.5" />
@@ -420,43 +431,24 @@ const UnifiedSettingsModal = ({
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
 
-  // --- UPDATED SETTING HANDLERS ---
-
-  // 1. Allow empty strings while typing
+  // --- SETTING HANDLERS ---
   const updateSetting = (key, value) => {
-    if (value === '') {
-      setSettings(prev => ({ ...prev, [key]: '' }));
-      return;
-    }
+    if (value === '') { setSettings(prev => ({ ...prev, [key]: '' })); return; }
     const val = parseInt(value, 10);
-    if (!isNaN(val)) {
-      setSettings(prev => ({ ...prev, [key]: val }));
-    }
+    if (!isNaN(val)) { setSettings(prev => ({ ...prev, [key]: val })); }
   };
 
-  // 2. Reset to default if left empty/zero on blur
   const handleBlur = (key, defaultValue) => {
     const val = settings[key];
-    if (val === '' || val === 0 || isNaN(val)) {
-      setSettings(prev => ({ ...prev, [key]: defaultValue }));
-    }
+    if (val === '' || val === 0 || isNaN(val)) { setSettings(prev => ({ ...prev, [key]: defaultValue })); }
   };
 
-  // 3. Toggle handler
   const toggleSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
 
   const contentVariants = {
     hidden: { opacity: 0, y: 5 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.2, ease: "easeOut" }
-    },
-    exit: {
-      opacity: 0,
-      y: -5,
-      transition: { duration: 0.15, ease: "easeIn" }
-    }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } },
+    exit: { opacity: 0, y: -5, transition: { duration: 0.15, ease: "easeIn" } }
   };
 
   useEffect(() => {
@@ -471,9 +463,7 @@ const UnifiedSettingsModal = ({
           const data = {};
           snapshot.forEach(doc => { data[doc.id] = doc.data(); });
           const todayId = formatDateId(new Date());
-          if (stats && stats.dailyFocusTime > 0) {
-            data[todayId] = { ...stats, date: new Date() };
-          }
+          if (stats && stats.dailyFocusTime > 0) { data[todayId] = { ...stats, date: new Date() }; }
           setHistoryData(data);
         } catch (e) { console.error("Failed to load history", e); } finally { setLoadingHistory(false); }
       };
@@ -488,97 +478,139 @@ const UnifiedSettingsModal = ({
   };
   const selectedStats = getSelectedStats();
 
-  const tabs = [{ id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow.' }, { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel.' }, { id: 'stats', label: 'Statistics', icon: BarChart2, description: 'Track progress.' }];
+  const tabs = [
+    { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow.' },
+    { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel.' },
+    { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress.' },
+    { id: 'account', label: 'Account', icon: User, description: 'Profile & subscription.' }
+  ];
+
+  // --- UPDATED INPUT COMPONENT (Optimized for List View) ---
+  const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
+    <div className="flex items-center justify-between py-4 px-5 group hover:bg-white/5 transition-colors">
+      <label className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">{label}</label>
+      <div className="relative flex items-center justify-center w-20 bg-black/20 rounded-lg border border-white/10 focus-within:border-white/30 transition-all shrink-0">
+        <input
+          type="number"
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          min={min}
+          max={max}
+          className="w-full bg-transparent text-white text-center font-mono text-sm py-1.5 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none pl-1 pr-5"
+        />
+        <span className="absolute right-2.5 text-white/30 text-xs pointer-events-none select-none">
+          {label.toLowerCase().includes('intervals') ? 'x' : 'm'}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           <style>{toggleStyles}</style>
+          {/* Backdrop */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]" />
-          <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} transition={{ type: "spring", bounce: 0, duration: 0.25 }} className="w-full max-w-5xl h-[80vh] max-h-[800px] bg-[#0A0A0A] border border-white/10 rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row pointer-events-auto relative">
-              <button onClick={onClose} className="absolute top-4 right-4 md:top-6 md:right-6 z-50 w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90"><X size={20} /></button>
 
-              {/* SIDEBAR */}
-              <div className="w-full md:w-72 bg-[#0F0F0F] border-b md:border-b-0 md:border-r border-white/5 p-4 md:p-6 flex md:flex-col shrink-0 overflow-x-auto md:overflow-visible gap-4 md:gap-0 no-scrollbar items-center md:items-stretch">
-                <div className="hidden md:flex mb-8 items-center gap-3">
+          <div className="fixed inset-0 z-[101] flex items-center justify-center pointer-events-none md:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.25 }}
+              className="w-full md:max-w-5xl h-[100dvh] md:h-[80vh] bg-[#0A0A0A] border-none md:border border-white/10 rounded-none md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row pointer-events-auto relative"
+            >
+
+              {/* === MOBILE HEADER === */}
+              <div className="md:hidden flex flex-col bg-[#0F0F0F] border-b border-white/5 shrink-0 z-20">
+                {/* Row 1: Title & Controls */}
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <h2 className="text-2xl font-serif-display text-white tracking-tight">Settings</h2>
+                  <div className="flex items-center gap-3">
+                    {/* Account Avatar */}
+                    {user && (
+                      <button
+                        onClick={() => setActiveTab('account')}
+                        className="relative w-10 h-10 flex items-center justify-center transition-all duration-300"
+                      >
+                        {activeTab === 'account' && (
+                          <motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-full z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />
+                        )}
+                        <div className="relative z-10 scale-90"><Avatar userData={user} isPro={isPro} size="sm" /></div>
+                      </button>
+                    )}
+                    {/* Close Button */}
+                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 border border-white/5 flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all z-20"><X size={20} /></button>
+                  </div>
+                </div>
+
+                {/* Row 2: Navigation Grid (RESTORED TO "PERFECT" STATE) */}
+                <div className="grid grid-cols-3 gap-2 px-4 pb-4">
+                  {tabs.filter(t => t.id !== 'account').map((tab) => {
+                    const isActive = activeTab === tab.id;
+                    const Icon = tab.icon;
+                    return (
+                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-300 ${isActive ? 'text-black' : 'text-white/60 bg-white/5'}`}>
+                        {isActive && <motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-xl z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                        <span className="relative z-10 flex items-center gap-1.5"><Icon size={15} strokeWidth={2.5} /><span className="text-xs font-bold tracking-wide">{tab.label}</span></span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* === DESKTOP SIDEBAR === */}
+              <div className="hidden md:flex w-72 bg-[#0F0F0F] border-r border-white/5 p-6 flex-col shrink-0 relative">
+                <div className="flex mb-8 items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"><Settings size={16} className="text-black" /></div>
                   <h2 className="text-xl font-serif-display text-white tracking-tight">Settings</h2>
                 </div>
-                <nav className="flex md:flex-col gap-2 flex-1 w-full">
-                  {tabs.map((tab) => {
+                <nav className="flex flex-col gap-2 flex-1 w-full">
+                  {tabs.slice(0, 3).map((tab) => {
                     const isActive = activeTab === tab.id; const Icon = tab.icon;
                     return (
-                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative p-3 md:p-4 rounded-xl md:rounded-2xl text-left transition-all duration-300 group overflow-hidden flex-shrink-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
-                        {isActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-xl md:rounded-2xl" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
-                        <div className="relative z-10 flex items-center gap-3"><Icon size={20} className={isActive ? "text-black" : "group-hover:scale-110 transition-transform"} /><div className="hidden md:block"><span className="block font-bold text-sm">{tab.label}</span><span className={`text-xs ${isActive ? 'text-black/60' : 'text-white/40'}`}>{tab.description}</span></div><span className="block md:hidden font-bold text-sm">{tab.label}</span></div>
+                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative p-4 rounded-2xl text-left transition-all duration-300 group overflow-hidden flex-shrink-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
+                        {isActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-2xl" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                        <div className="relative z-10 flex items-center gap-3"><Icon size={20} className={isActive ? "text-black" : "group-hover:scale-110 transition-transform"} /><div><span className="block font-bold text-sm">{tab.label}</span><span className={`text-xs ${isActive ? 'text-black/60' : 'text-white/40'}`}>{tab.description}</span></div></div>
                       </button>
                     );
                   })}
                 </nav>
-
-                {/* --- SIDEBAR FOOTER --- */}
                 {user && (
-                  <div className="md:mt-auto flex items-center md:flex-col gap-3 w-auto md:w-full flex-shrink-0">
+                  <div className="mt-auto flex flex-col gap-3 w-full flex-shrink-0">
                     {!isPro && (
-                      <button onClick={onOpenPro} className="w-8 h-8 md:w-full md:h-auto md:py-3 md:px-4 rounded-full md:rounded-2xl bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border border-yellow-500/30 flex items-center justify-center md:justify-between gap-3 group transition-all" title="Upgrade to Pro">
-                        <div className="flex items-center gap-3"><div className="w-8 h-8 md:w-6 md:h-6 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={14} strokeWidth={2.5} /></div><div className="hidden md:flex flex-col items-start"><span className="text-yellow-400 text-xs font-bold uppercase tracking-widest leading-none">Get Pro</span><span className="text-yellow-500/50 text-[10px] leading-none mt-1">Unlock everything</span></div></div><div className="hidden md:block text-yellow-500/50 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all"><ChevronRight size={14} /></div>
+                      <button onClick={onOpenPro} className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border border-cyan-500/30 flex items-center justify-between gap-3 group transition-all">
+                        <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={14} strokeWidth={2.5} /></div><div className="flex flex-col items-start"><span className="text-cyan-400 text-xs font-bold uppercase tracking-widest leading-none">Get Flow</span><span className="text-cyan-500/50 text-[10px] leading-none mt-1">Unlock everything</span></div></div><div className="text-cyan-500/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all"><ChevronRight size={14} /></div>
                       </button>
                     )}
-                    <button onClick={() => setActiveTab('account')} className={`flex items-center gap-3 p-2 md:p-3 rounded-2xl border transition-all text-left group w-full ${activeTab === 'account' ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}>
-                      <div className="relative">
-                        {isPro && <div className="absolute -inset-[2px] rounded-full bg-gradient-to-br from-yellow-600 via-amber-400 to-yellow-600 opacity-60 blur-[1px] animate-pulse z-0" />}
-                        {user.photoURL ? <img src={user.photoURL} alt="Profile" className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/10 object-cover relative z-10" /> : <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/10 flex items-center justify-center text-white relative z-10"><User size={18} /></div>}
-                      </div>
-                      <div className="hidden md:block overflow-hidden min-w-0 flex-1"><p className={`text-sm font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p><p className="text-white/40 text-[10px] truncate group-hover:text-white/60 transition-colors">Manage Account</p></div>
+                    <button onClick={() => setActiveTab('account')} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group w-full ${activeTab === 'account' ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}>
+                      <div className="relative"><Avatar userData={user} isPro={isPro} size="sm" /></div>
+                      <div className="overflow-hidden min-w-0 flex-1"><p className={`text-sm font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p><p className="text-white/40 text-[10px] truncate group-hover:text-white/60 transition-colors">Manage Account</p></div>
                     </button>
                   </div>
                 )}
               </div>
+              <button onClick={onClose} className="hidden md:flex absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90"><X size={20} /></button>
 
-              {/* CONTENT AREA */}
-              <div className="flex-1 p-6 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative">
+              {/* === CONTENT AREA === */}
+              <div className="flex-1 p-5 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#0A0A0A]">
                 <AnimatePresence mode="wait">
                   {activeTab === 'preferences' && (
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
                       <section>
-                        <h3 className="text-2xl font-serif-display text-white mb-3">Timer Configuration</h3>
-                        <div className="p-4 bg-white/5 border border-white/5 rounded-3xl">
-                          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                            <SettingInput
-                              label="Focus Duration"
-                              value={settings.focus}
-                              onChange={(e) => updateSetting('focus', e.target.value)}
-                              onBlur={() => handleBlur('focus', 25)}
-                              min={1} max={120}
-                            />
-                            <SettingInput
-                              label="Short Break"
-                              value={settings.shortBreak}
-                              onChange={(e) => updateSetting('shortBreak', e.target.value)}
-                              onBlur={() => handleBlur('shortBreak', 5)}
-                              min={1} max={30}
-                            />
-                            <SettingInput
-                              label="Long Break"
-                              value={settings.longBreak}
-                              onChange={(e) => updateSetting('longBreak', e.target.value)}
-                              onBlur={() => handleBlur('longBreak', 15)}
-                              min={5} max={60}
-                            />
-                            <SettingInput
-                              label="Intervals"
-                              value={settings.pomosBeforeLongBreak}
-                              onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)}
-                              onBlur={() => handleBlur('pomosBeforeLongBreak', 4)}
-                              min={1} max={10}
-                            />
-                          </div>
+                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-3">Timer Configuration</h3>
+                        {/* CHANGED: Vertical List Layout (Apple Style) */}
+                        <div className="flex flex-col bg-white/5 border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
+                          <SettingInput label="Focus Duration" value={settings.focus} onChange={(e) => updateSetting('focus', e.target.value)} onBlur={() => handleBlur('focus', 25)} min={1} max={120} />
+                          <SettingInput label="Short Break" value={settings.shortBreak} onChange={(e) => updateSetting('shortBreak', e.target.value)} onBlur={() => handleBlur('shortBreak', 5)} min={1} max={30} />
+                          <SettingInput label="Long Break" value={settings.longBreak} onChange={(e) => updateSetting('longBreak', e.target.value)} onBlur={() => handleBlur('longBreak', 15)} min={5} max={60} />
+                          <SettingInput label="Intervals" value={settings.pomosBeforeLongBreak} onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)} onBlur={() => handleBlur('pomosBeforeLongBreak', 4)} min={1} max={10} />
                         </div>
                       </section>
                       <section>
-                        <h3 className="text-2xl font-serif-display text-white mb-3">Automation</h3>
+                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-3">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <AestheticToggle label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
                           <AestheticToggle label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
@@ -589,8 +621,8 @@ const UnifiedSettingsModal = ({
 
                   {activeTab === 'appearance' && (
                     <motion.div key="appear" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                      <div><h3 className="text-2xl font-serif-display text-white mb-1">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-12">
+                      <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-1">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
                           const credit = bg.credit;
@@ -610,12 +642,12 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'stats' && (
                     <motion.div key="stats" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="max-w-3xl pb-12 flex flex-col h-full">
                       <div className="flex flex-col items-start gap-4 mb-8">
-                        <div><h3 className="text-2xl font-serif-display text-white mb-1">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
+                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-1">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
                         <div className="flex p-1 bg-white/5 rounded-full border border-white/5 relative">{['today', 'history'].map(view => (<button key={view} onClick={() => setStatsView(view)} className={`relative px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${statsView === view ? 'text-black' : 'text-white/40 hover:text-white'}`}>{statsView === view && (<motion.div layoutId="statsViewPill" className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]" transition={{ type: "spring", stiffness: 500, damping: 30 }} />)}{view}</button>))}</div>
                       </div>
                       <AnimatePresence mode="wait">
                         {statsView === 'today' ? (
-                          <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} /></motion.div>
+                          <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} /></motion.div>
                         ) : (
                           <motion.div key="view-history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="flex flex-col gap-6"><HistoryCalendar historyData={historyData} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} isExpanded={isCalendarExpanded} setIsExpanded={setIsCalendarExpanded} /><motion.div layout className="space-y-4"><div className="flex items-center gap-3 border-t border-white/10 pt-6"><h4 className="font-serif-display text-lg text-white">{!isCalendarExpanded ? "Stats Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><StatCard label="Focus Time" value={formatDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight /><StatCard label="Break Time" value={formatDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} /></div></motion.div></motion.div>
                         )}
@@ -624,7 +656,7 @@ const UnifiedSettingsModal = ({
                   )}
 
                   {activeTab === 'account' && (
-                    <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-4">
+                    <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-0 md:p-4">
                       {user ? (
                         <UserProfileCard user={user} isPro={isPro} signOut={signOut} />
                       ) : (
