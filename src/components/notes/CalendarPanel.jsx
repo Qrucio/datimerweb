@@ -137,29 +137,21 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     // Scroll to current time on initial load if today
-    React.useEffect(() => {
+    // Scroll to current time on initial load if today
+    React.useLayoutEffect(() => {
         if (isToday && scrollContainerRef.current) {
-            // Short delay to ensure layout is ready
-            const timer = setTimeout(() => {
-                if (!scrollContainerRef.current) return;
+            const now = new Date();
+            const minutes = now.getHours() * 60 + now.getMinutes();
+            const timeTop = (minutes / 60) * GRID_HEIGHT_PER_HOUR;
 
-                const now = new Date();
-                const minutes = now.getHours() * 60 + now.getMinutes();
-                const timeTop = (minutes / 60) * GRID_HEIGHT_PER_HOUR;
-                const containerHeight = scrollContainerRef.current.clientHeight;
-
-                // Center the time
+            // Calculate center offset
+            const containerHeight = scrollContainerRef.current.clientHeight;
+            if (containerHeight > 0) {
                 const scrollTarget = Math.max(0, timeTop - (containerHeight / 2));
-
-                scrollContainerRef.current.scrollTo({
-                    top: scrollTarget,
-                    behavior: 'smooth'
-                });
-            }, 300);
-
-            return () => clearTimeout(timer);
+                scrollContainerRef.current.scrollTop = scrollTarget;
+            }
         }
-    }, [isToday, dateKey]); // Added dateKey dependency to re-trigger on date change
+    }, [isToday, dateKey]);
 
     return (
         <div className="h-full flex flex-col bg-transparent relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
