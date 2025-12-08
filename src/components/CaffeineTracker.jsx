@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Coffee, Trash2, Activity, Moon, Plus, Search, ArrowLeft, Settings, ChevronUp, ChevronDown } from 'lucide-react';
 import CloseButton from './ui/CloseButton';
 import Slider from './ui/Slider';
+import { TimeInput } from './ui/TimePicker';
 
 // --- CONSTANTS ---
 const HALF_LIFE_HOURS = 5;
@@ -42,6 +43,7 @@ export default function CaffeineTracker({ isOpen, onClose }) {
     const [isSetupDone, setIsSetupDone] = useState(() => !!localStorage.getItem('zen_caffeine_setup_done'));
     const [userWeight, setUserWeight] = useState(() => localStorage.getItem('zen_user_weight') || "");
     const [bedtimeStr, setBedtimeStr] = useState(() => localStorage.getItem('zen_user_bedtime') || "23:00");
+    const [defaultSippingDuration, setDefaultSippingDuration] = useState(() => Number(localStorage.getItem('zen_user_default_sip')) || 5);
     const [now, setNow] = useState(Date.now());
 
     // Navigation: 'dashboard', 'settings', 'select-drink', 'configure-drink'
@@ -75,6 +77,7 @@ export default function CaffeineTracker({ isOpen, onClose }) {
         if (!userWeight) return;
         localStorage.setItem('zen_user_weight', userWeight);
         localStorage.setItem('zen_user_bedtime', bedtimeStr);
+        localStorage.setItem('zen_user_default_sip', defaultSippingDuration);
         localStorage.setItem('zen_caffeine_setup_done', 'true');
         setIsSetupDone(true);
     };
@@ -130,6 +133,8 @@ export default function CaffeineTracker({ isOpen, onClose }) {
                             setUserWeight={setUserWeight}
                             bedtimeStr={bedtimeStr}
                             setBedtimeStr={setBedtimeStr}
+                            defaultSippingDuration={defaultSippingDuration}
+                            setDefaultSippingDuration={setDefaultSippingDuration}
                             onComplete={handleSetupComplete}
                         />
                     ) : view === 'dashboard' ? (
@@ -151,6 +156,8 @@ export default function CaffeineTracker({ isOpen, onClose }) {
                             setUserWeight={(val) => { setUserWeight(val); localStorage.setItem('zen_user_weight', val); }}
                             bedtimeStr={bedtimeStr}
                             setBedtimeStr={(val) => { setBedtimeStr(val); localStorage.setItem('zen_user_bedtime', val); }}
+                            defaultSippingDuration={defaultSippingDuration}
+                            setDefaultSippingDuration={(val) => { setDefaultSippingDuration(val); localStorage.setItem('zen_user_default_sip', val); }}
                         />
                     ) : view === 'select-drink' ? (
                         <DrinkSelector
@@ -163,6 +170,7 @@ export default function CaffeineTracker({ isOpen, onClose }) {
                     ) : (
                         <DrinkConfigurator
                             drink={selectedDrinkTemplate}
+                            defaultSippingDuration={defaultSippingDuration}
                             onBack={() => setView('select-drink')}
                             onConfirm={addLog}
                         />
@@ -176,7 +184,7 @@ export default function CaffeineTracker({ isOpen, onClose }) {
 // =========================================
 //  1. SETUP SCREEN (Initial Calib)
 // =========================================
-const SetupScreen = ({ userWeight, setUserWeight, bedtimeStr, setBedtimeStr, onComplete }) => (
+const SetupScreen = ({ userWeight, setUserWeight, bedtimeStr, setBedtimeStr, defaultSippingDuration, setDefaultSippingDuration, onComplete }) => (
     <motion.div
         key="setup"
         initial={{ opacity: 0 }}
@@ -211,8 +219,21 @@ const SetupScreen = ({ userWeight, setUserWeight, bedtimeStr, setBedtimeStr, onC
             <div>
                 <label className="text-[10px] uppercase font-bold text-white/40 block mb-2">Sleep Schedule</label>
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                    <CustomTimeInput value={bedtimeStr} onChange={setBedtimeStr} />
+                    <TimeInput value={bedtimeStr} onChange={setBedtimeStr} />
                 </div>
+            </div>
+
+            <div>
+                <label className="text-[10px] uppercase font-bold text-white/40 block mb-2">
+                    Default Sipping Duration: <span className="text-white">{defaultSippingDuration} min</span>
+                </label>
+                <Slider
+                    value={defaultSippingDuration}
+                    max={60}
+                    step={0.5}
+                    onChange={(e) => setDefaultSippingDuration(Number(e.target.value))}
+                    color="#f59e0b"
+                />
             </div>
         </div>
 
@@ -229,7 +250,7 @@ const SetupScreen = ({ userWeight, setUserWeight, bedtimeStr, setBedtimeStr, onC
 // =========================================
 //  2. SETTINGS VIEW (New)
 // =========================================
-const SettingsView = ({ onBack, userWeight, setUserWeight, bedtimeStr, setBedtimeStr }) => (
+const SettingsView = ({ onBack, userWeight, setUserWeight, bedtimeStr, setBedtimeStr, defaultSippingDuration, setDefaultSippingDuration }) => (
     <motion.div
         key="settings"
         initial={{ opacity: 0, x: 50 }}
@@ -274,8 +295,26 @@ const SettingsView = ({ onBack, userWeight, setUserWeight, bedtimeStr, setBedtim
                         <span className="text-sm font-bold text-white">Target Bedtime</span>
                     </div>
                     <div className="flex justify-center py-4">
-                        <CustomTimePicker value={bedtimeStr} onChange={setBedtimeStr} />
+                        <TimeInput value={bedtimeStr} onChange={setBedtimeStr} />
                     </div>
+                </div>
+            </div>
+
+            {/* Default Duration Section */}
+            <div>
+                <label className="text-xs uppercase font-bold text-white/40 block mb-4">Preferences</label>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <label className="text-[10px] uppercase font-bold text-white/40 mb-3 flex items-center justify-between">
+                        <span>Default Sipping Duration</span>
+                        <span className="text-white">{defaultSippingDuration} mins</span>
+                    </label>
+                    <Slider
+                        value={defaultSippingDuration}
+                        max={60}
+                        step={0.5}
+                        onChange={(e) => setDefaultSippingDuration(Number(e.target.value))}
+                        color="#f59e0b"
+                    />
                 </div>
             </div>
         </div>
@@ -694,8 +733,8 @@ const DrinkSelector = ({ onBack, onSelect }) => {
     );
 };
 
-const DrinkConfigurator = ({ drink, onBack, onConfirm }) => {
-    const [sippingDuration, setSippingDuration] = useState(0);
+const DrinkConfigurator = ({ drink, defaultSippingDuration = 5, onBack, onConfirm }) => {
+    const [sippingDuration, setSippingDuration] = useState(defaultSippingDuration);
     const [timeMode, setTimeMode] = useState('now');
     const [presetOffset, setPresetOffset] = useState(15);
     const now = new Date();
@@ -757,6 +796,7 @@ const DrinkConfigurator = ({ drink, onBack, onConfirm }) => {
                     <Slider
                         value={sippingDuration}
                         max={120}
+                        step={0.5}
                         onChange={(e) => setSippingDuration(Number(e.target.value))}
                         color="#f59e0b" // Amber-500
                     />

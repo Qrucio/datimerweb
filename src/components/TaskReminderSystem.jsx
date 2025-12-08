@@ -58,7 +58,7 @@ const TaskReminderSystem = ({ tasks = [] }) => {
     const playReminderSound = () => {
         try {
             // Assumes file is at public/sounds/reminder.mp3
-            const audio = new Audio('/sounds/reminder.mp3');
+            const audio = new Audio('/sounds/remindnotif.mp3');
             audio.volume = 0.7;
             audio.play().catch(e => console.error("Audio play failed (interaction needed first):", e));
         } catch (e) {

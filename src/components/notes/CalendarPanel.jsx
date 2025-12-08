@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight, Clock, Bell, Trash2 } from 'lucide-react'; // Added Trash2
 import SmartNoteEditor from './SmartNoteEditor';
 import CloseButton from '../ui/CloseButton';
-import TaskReminderSystem from '../TaskReminderSystem';
+
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const GRID_HEIGHT_PER_HOUR = 60;
@@ -11,7 +11,12 @@ const GRID_HEIGHT_PER_HOUR = 60;
 const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDeleteTask, onClose }) => {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [isEditorOpen, setIsEditorOpen] = useState(false);
+
     const [editingItem, setEditingItem] = useState(null);
+    const [dragPreview, setDragPreview] = useState(null); // { top: number, timeStr: string }
+    const containerRef = React.useRef(null);
+    const scrollContainerRef = React.useRef(null);
+    const isDragging = React.useRef(false);
 
     const dateKey = selectedDate.toISOString().split('T')[0];
     const todayKey = new Date().toISOString().split('T')[0];
@@ -54,6 +59,57 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         setIsEditorOpen(false); // Close editor after delete
     };
 
+    const calculateSnap = (task, offsetY) => {
+        const [h, m] = task.startTime.split(':').map(Number);
+        const currentMinutes = h * 60 + m;
+        const minutesMoved = offsetY; // 1px = 1min
+        let newTotalMinutes = currentMinutes + minutesMoved;
+
+        // Snap to nearest 15
+        const remainder = newTotalMinutes % 15;
+        if (remainder < 7.5) newTotalMinutes -= remainder;
+        else newTotalMinutes += (15 - remainder);
+
+        // Clamp
+        newTotalMinutes = Math.max(0, Math.min(newTotalMinutes, 23 * 60 + 45));
+
+        const newH = Math.floor(newTotalMinutes / 60);
+        const newM = Math.floor(newTotalMinutes % 60);
+        const timeStr = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
+
+        return {
+            minutes: newTotalMinutes,
+            timeStr,
+            top: (newTotalMinutes / 60) * GRID_HEIGHT_PER_HOUR
+        };
+    };
+
+    const handleDrag = (task, info) => {
+        const snap = calculateSnap(task, info.offset.y);
+        setDragPreview({
+            top: snap.top,
+            timeStr: snap.timeStr
+        });
+    };
+
+    const handleDragStart = () => {
+        isDragging.current = true;
+    };
+
+    const handleDragEnd = (task, info) => {
+        const snap = calculateSnap(task, info.offset.y);
+        setDragPreview(null);
+
+        // Small delay to prevent click from firing immediately after drag
+        setTimeout(() => {
+            isDragging.current = false;
+        }, 100);
+
+        if (snap.timeStr !== task.startTime) {
+            onUpdateTask(task.id, { startTime: snap.timeStr });
+        }
+    };
+
     const openNew = (time) => {
         setEditingItem({
             date: dateKey,
@@ -63,6 +119,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     const openEdit = (item) => {
+        if (isDragging.current) return;
         setEditingItem(item);
         setIsEditorOpen(true);
     };
@@ -79,10 +136,35 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         setSelectedDate(d);
     };
 
+    // Scroll to current time on initial load if today
+    React.useEffect(() => {
+        if (isToday && scrollContainerRef.current) {
+            // Short delay to ensure layout is ready
+            const timer = setTimeout(() => {
+                if (!scrollContainerRef.current) return;
+
+                const now = new Date();
+                const minutes = now.getHours() * 60 + now.getMinutes();
+                const timeTop = (minutes / 60) * GRID_HEIGHT_PER_HOUR;
+                const containerHeight = scrollContainerRef.current.clientHeight;
+
+                // Center the time
+                const scrollTarget = Math.max(0, timeTop - (containerHeight / 2));
+
+                scrollContainerRef.current.scrollTo({
+                    top: scrollTarget,
+                    behavior: 'smooth'
+                });
+            }, 300);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isToday, dateKey]); // Added dateKey dependency to re-trigger on date change
+
     return (
         <div className="h-full flex flex-col bg-transparent relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
 
-            <TaskReminderSystem tasks={tasks} />
+
 
             <div className="flex items-center justify-between px-6 py-6 border-b border-white/5 bg-white/5 flex-shrink-0 z-10">
                 <div className="flex items-center gap-4">
@@ -98,7 +180,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                 <CloseButton onClick={onClose} />
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar relative">
                 <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
                         key={dateKey}
@@ -108,7 +190,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                         transition={{ duration: 0.2, ease: "easeOut" }}
                         className="relative"
                     >
-                        <div className="relative mt-2" style={{ height: HOURS.length * GRID_HEIGHT_PER_HOUR }}>
+                        <div ref={containerRef} className="relative mt-2" style={{ height: HOURS.length * GRID_HEIGHT_PER_HOUR }}>
                             {HOURS.map(hour => (
                                 <div key={hour} className="absolute left-0 right-0 border-t border-white/5 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
                                     <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">{hour}:00</div>
@@ -122,6 +204,16 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                 </div>
                             )}
 
+                            {/* SNAP GUIDE LINE */}
+                            {dragPreview && (
+                                <div className="absolute left-0 right-0 border-t-2 border-white z-50 pointer-events-none flex items-center" style={{ top: dragPreview.top }}>
+                                    <div className="absolute left-0 bg-white text-black text-[10px] font-bold px-1 rounded-r shadow-lg -mt-3">
+                                        {dragPreview.timeStr}
+                                    </div>
+                                    <div className="w-full h-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                                </div>
+                            )}
+
                             {timedTasks.map(task => (
                                 <motion.div
                                     key={task.id}
@@ -129,7 +221,15 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     onClick={(e) => { e.stopPropagation(); openEdit(task); }}
-                                    className="absolute left-14 right-4 rounded-lg border border-black/10 p-2 cursor-pointer overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-lg group"
+                                    drag="y"
+                                    dragConstraints={containerRef}
+                                    dragElastic={0}
+                                    dragMomentum={false}
+                                    onDragStart={handleDragStart}
+                                    onDrag={(e, info) => handleDrag(task, info)}
+                                    onDragEnd={(e, info) => handleDragEnd(task, info)}
+                                    whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
+                                    className="absolute left-14 right-4 rounded-lg border border-black/10 p-2 cursor-grab active:cursor-grabbing overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-lg group"
                                     style={{
                                         top: getTopOffset(task.startTime),
                                         height: Math.max(getHeight(task.duration || 60), 32),

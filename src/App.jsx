@@ -16,6 +16,7 @@ import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
+import TaskReminderSystem from './components/TaskReminderSystem';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -6087,6 +6088,9 @@ function MainApp() {
         onUpgrade={handleUpgradeToPro}
         source={proModalSource} // Pass the source string ('notes' or 'arcade')
       />
+
+      {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
+      <TaskReminderSystem tasks={tasks} />
     </div >
   );
 }

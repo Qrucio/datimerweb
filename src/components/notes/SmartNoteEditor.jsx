@@ -10,6 +10,7 @@ import {
     Check
 } from 'lucide-react';
 import { TimeInput } from '../ui/TimePicker';
+import CloseButton from '../ui/CloseButton';
 
 // COLORS UPDATED to match your Notes theme
 const COLORS = [
@@ -187,9 +188,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                             <h3 className="text-sm font-bold text-white uppercase tracking-widest">
                                 {initialData ? 'Edit Task' : 'New Task'}
                             </h3>
-                            <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors rounded-full hover:bg-white/5">
-                                <X size={20} />
-                            </button>
+                            <CloseButton onClick={onClose} />
                         </div>
 
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
@@ -222,7 +221,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                                 <div className="flex gap-4">
                                     {startTime && (
                                         <div className="flex-1 space-y-2">
-                                            <label className="text-xs font-bold text-white/30 uppercase tracking-widest">Duration</label>
+                                            <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center h-4">Duration</label>
                                             <select
                                                 value={duration}
                                                 onChange={(e) => setDuration(parseInt(e.target.value))}

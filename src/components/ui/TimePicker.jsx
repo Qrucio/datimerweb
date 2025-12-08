@@ -47,6 +47,19 @@ export const TimePicker = ({ value, onChange }) => {
         onChange(`${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`);
     };
 
+    const handleInputChange = (e, type) => {
+        let val = parseInt(e.target.value, 10);
+        if (isNaN(val)) return; // Allow empty? No, let's keep it simple for now, maybe just ignore non-numbers
+
+        if (type === 'hour') {
+            val = Math.max(0, Math.min(23, val));
+            update(val, minute);
+        } else {
+            val = Math.max(0, Math.min(59, val));
+            update(hour, val);
+        }
+    };
+
     return (
         <div className="flex items-center justify-center gap-4 select-none">
             {/* Hours */}
@@ -58,9 +71,14 @@ export const TimePicker = ({ value, onChange }) => {
                 >
                     <ChevronUp size={20} />
                 </button>
-                <div className="text-2xl font-bold text-white w-14 text-center tabular-nums my-1 bg-black/40 rounded-lg py-1 border border-white/5">
-                    {hour.toString().padStart(2, '0')}
-                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={hour.toString().padStart(2, '0')}
+                    onChange={(e) => handleInputChange(e, 'hour')}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-2xl font-bold text-white w-14 text-center tabular-nums my-1 bg-black/40 rounded-lg py-1 border border-white/5 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-colors"
+                />
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); update((hour - 1 + 24) % 24, minute); }}
@@ -81,9 +99,14 @@ export const TimePicker = ({ value, onChange }) => {
                 >
                     <ChevronUp size={20} />
                 </button>
-                <div className="text-2xl font-bold text-white w-14 text-center tabular-nums my-1 bg-black/40 rounded-lg py-1 border border-white/5">
-                    {minute.toString().padStart(2, '0')}
-                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={minute.toString().padStart(2, '0')}
+                    onChange={(e) => handleInputChange(e, 'minute')}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-2xl font-bold text-white w-14 text-center tabular-nums my-1 bg-black/40 rounded-lg py-1 border border-white/5 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-colors"
+                />
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); update(hour, (minute - 5 + 60) % 60); }}
