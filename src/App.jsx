@@ -15,6 +15,7 @@ import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
+import CalendarPanel from './components/notes/CalendarPanel';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -2730,6 +2731,10 @@ const ExtraTimePopup = ({ minutes, visible }) => (
 
 const NoteSystemModals = ({
   notes,
+  tasks,
+  habits,
+  onUpdateTasks,
+  onUpdateHabits,
   isLibraryOpen,
   closeLibrary,
   editingNote,
@@ -2747,6 +2752,7 @@ const NoteSystemModals = ({
   const [editorColor, setEditorColor] = useState(NOTE_COLORS[0]);
   const [editorTags, setEditorTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
+
 
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const [showSlashMenu, setShowSlashMenu] = useState(false);
@@ -3075,150 +3081,169 @@ const NoteSystemModals = ({
           className="fixed inset-0 z-[60] flex flex-col bg-black/40"
           onClick={closeLibrary}
         >
-          <div className="w-full flex flex-col items-center pt-12 md:pt-16 pb-4" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
-            <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
-              {allTags.map(tag => (
-                <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
-            <div className="max-w-5xl mx-auto" ref={containerRef}>
-              <div className="flex flex-wrap gap-6">
-
-                {/* ADD BUTTON or LOCKED BUTTON */}
-                {isLimitReached ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenPro();
-                    }}
-                  >
-                    <div className="relative z-10 flex flex-col items-center gap-2">
-                      <Lock size={32} className="text-white/30 group-hover:text-yellow-400 transition-colors" />
-                      <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-yellow-400 transition-colors font-medium">Unlock</span>
-                      {/* COUNT FOR LOCKED STATE */}
-                      <span className="text-[10px] font-mono text-white/30 font-medium">3 / 3</span>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    onMouseMove={handleGlowMove}
-                    className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const initialTags = selectedTag !== "All" ? [selectedTag] : [];
-                      setEditingNote({ tags: initialTags });
-                    }}
-                  >
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
-                    <div className="relative z-10 flex flex-col items-center gap-2">
-                      <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                      <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
-                      {/* COUNT FOR ACTIVE STATE (FREE USERS) */}
-                      {!isPro && (
-                        <span className="text-[10px] font-mono text-white/30 font-medium mt-1">
-                          {notes.length} / 3
-                        </span>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* NOTES GRID */}
-                <AnimatePresence>
-                  {filteredNotes.map((note) => (
-                    <motion.div
-                      key={note.id}
-                      layoutId={note.id}
-                      layout="position"
-                      data-note-id={note.id}
-
-                      // --- DRAG PROPS ---
-                      drag={selectedTag === "All"}
-                      dragSnapToOrigin={true}
-                      dragElastic={0.1}
-                      dragMomentum={false}
-                      onDragStart={(e) => handleDragStart(note.id, e)}
-
-                      // --- EVENT HANDLERS ---
-                      onMouseMove={handleGlowMove}
-
-                      onTap={(e) => {
-                        if (isDraggingRef.current) return;
-                        if (e.target.closest('button') || e.target.closest('[data-layout-id]')) return;
-                        handleNoteTap(e, note);
-                      }}
-
-                      onClick={(e) => e.stopPropagation()}
-
-                      // --- STYLING ---
-                      style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
-                      className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
-
-                      // --- ANIMATIONS ---
-                      initial={{ opacity: 0, scale: 0.8 }}
-
-                      animate={draggingId === note.id
-                        ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 }
-                        : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }
-                      }
-
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-
-                      // --- EXIT ANIMATION ---
-                      exit={{
-                        scale: 0,
-                        opacity: 0,
-                        transition: {
-                          duration: 0.35,
-                          ease: "backIn"
-                        }
-                      }}
-                    >
-                      {/* Mouse Glow Effect */}
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%)' }} />
-
-                      {/* Gradient Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
-
-                      {/* Note Content */}
-                      <div className="relative z-10 flex flex-col h-full pointer-events-none">
-                        {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
-                        <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
-                          <RichTextRenderer
-                            text={note.text}
-                            className="text-xs md:text-sm"
-                            onToggle={(index, status) => handleToggleLine(note, index, status)}
-                          />
-                        </div>
-                        {note.tags && note.tags.length > 0 && (
-                          <div className="mt-2 flex gap-1 flex-wrap">
-                            {note.tags.slice(0, 3).map(tag => (
-                              <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">#{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* LIQUID DELETE BUTTON */}
-                      <LiquidDeleteBtn onDelete={() => onDelete(note.id)} />
-
-                    </motion.div>
+          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden">
+            {/* LEFT: STANDARD NOTES (60%) */}
+            <div className="w-full lg:w-[60%] flex flex-col h-full relative pt-12">
+              <div className="w-full flex flex-col items-center pt-2 md:pt-6 pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
+                <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
+                  {allTags.map(tag => (
+                    <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
                   ))}
-                </AnimatePresence>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
+                <div className="max-w-5xl mx-auto" ref={containerRef}>
+                  <div className="flex flex-wrap gap-6">
+
+                    {/* ADD BUTTON or LOCKED BUTTON */}
+                    {isLimitReached ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenPro();
+                        }}
+                      >
+                        <div className="relative z-10 flex flex-col items-center gap-2">
+                          <Lock size={32} className="text-white/30 group-hover:text-yellow-400 transition-colors" />
+                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-yellow-400 transition-colors font-medium">Unlock</span>
+                          {/* COUNT FOR LOCKED STATE */}
+                          <span className="text-[10px] font-mono text-white/30 font-medium">3 / 3</span>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onMouseMove={handleGlowMove}
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const initialTags = selectedTag !== "All" ? [selectedTag] : [];
+                          setEditingNote({ tags: initialTags });
+                        }}
+                      >
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
+                        <div className="relative z-10 flex flex-col items-center gap-2">
+                          <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
+                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
+                          {/* COUNT FOR ACTIVE STATE (FREE USERS) */}
+                          {!isPro && (
+                            <span className="text-[10px] font-mono text-white/30 font-medium mt-1">
+                              {notes.length} / 3
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* NOTES GRID */}
+                    <AnimatePresence>
+                      {filteredNotes.map((note) => (
+                        <motion.div
+                          key={note.id}
+                          layoutId={note.id}
+                          layout="position"
+                          data-note-id={note.id}
+
+                          // --- DRAG PROPS ---
+                          drag={selectedTag === "All"}
+                          dragSnapToOrigin={true}
+                          dragElastic={0.1}
+                          dragMomentum={false}
+                          onDragStart={(e) => handleDragStart(note.id, e)}
+
+                          // --- EVENT HANDLERS ---
+                          onMouseMove={handleGlowMove}
+
+                          onTap={(e) => {
+                            if (isDraggingRef.current) return;
+                            if (e.target.closest('button') || e.target.closest('[data-layout-id]')) return;
+                            handleNoteTap(e, note);
+                          }}
+
+                          onClick={(e) => e.stopPropagation()}
+
+                          // --- STYLING ---
+                          style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
+                          className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
+
+                          // --- ANIMATIONS ---
+                          initial={{ opacity: 0, scale: 0.8 }}
+
+                          animate={draggingId === note.id
+                            ? { scale: 1.1, zIndex: 50, boxShadow: "0px 20px 40px rgba(0,0,0,0.6)", opacity: 1 }
+                            : { scale: 1, zIndex: 0, boxShadow: "0px 10px 15px rgba(0,0,0,0.2)", opacity: 1 }
+                          }
+
+                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+
+                          // --- EXIT ANIMATION ---
+                          exit={{
+                            scale: 0,
+                            opacity: 0,
+                            transition: {
+                              duration: 0.35,
+                              ease: "backIn"
+                            }
+                          }}
+                        >
+                          {/* Mouse Glow Effect */}
+                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.4), transparent 40%)' }} />
+
+                          {/* Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
+
+                          {/* Note Content */}
+                          <div className="relative z-10 flex flex-col h-full pointer-events-none">
+                            {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
+                            <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
+                              <RichTextRenderer
+                                text={note.text}
+                                className="text-xs md:text-sm"
+                                onToggle={(index, status) => handleToggleLine(note, index, status)}
+                              />
+                            </div>
+                            {note.tags && note.tags.length > 0 && (
+                              <div className="mt-2 flex gap-1 flex-wrap">
+                                {note.tags.slice(0, 3).map(tag => (
+                                  <span key={tag} className="text-[10px] bg-black/10 px-1.5 py-0.5 rounded-md font-medium text-black/60">#{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* LIQUID DELETE BUTTON */}
+                          <LiquidDeleteBtn onDelete={() => onDelete(note.id)} />
+
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="absolute top-6 right-6 md:top-8 md:right-12 z-50">
-            <CloseButton onClick={closeLibrary} />
+
+            {/* RIGHT: SMART NOTES (40%) */}
+            <div className="w-full lg:w-[40%] h-full flex flex-col border-t lg:border-t-0 lg:border-l border-dashed border-white/20 bg-white/0 overflow-hidden">
+              <CalendarPanel
+                tasks={tasks || []}
+                habits={habits || []}
+                notes={notes}
+                allTags={allTags}
+                onAddTask={(newTask) => onUpdateTasks([...(tasks || []), newTask])}
+                onAddHabit={(newHabit) => onUpdateHabits([...(habits || []), newHabit])}
+                onUpdateTask={(id, updates) => onUpdateTasks((tasks || []).map(t => t.id === id ? { ...t, ...updates } : t))}
+                onUpdateHabit={(id, updates) => onUpdateHabits((habits || []).map(h => h.id === id ? { ...h, ...updates } : h))}
+                onDeleteTask={(id) => onUpdateTasks((tasks || []).filter(t => t.id !== id))}
+                onDeleteHabit={(id) => onUpdateHabits((habits || []).filter(h => h.id !== id))}
+                onClose={closeLibrary}
+              />
+            </div>
           </div>
         </motion.div>
       )}
@@ -3552,6 +3577,18 @@ function MainApp() {
 
   // --- CACHE-FIRST STATE INITIALIZATION ---
   const [notes, setNotes] = useState(Storage.getNotes());
+  const [tasks, setTasks] = useState(Storage.getTasks());
+  const [habits, setHabits] = useState(Storage.getHabits());
+
+  const handleUpdateTasks = (newTasks) => {
+    setTasks(newTasks);
+    Storage.saveTasksLocally(newTasks);
+  };
+
+  const handleUpdateHabits = (newHabits) => {
+    setHabits(newHabits);
+    Storage.saveHabitsLocally(newHabits);
+  };
 
   const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
@@ -6028,6 +6065,10 @@ function MainApp() {
 
       <NoteSystemModals
         notes={notes}
+        tasks={tasks}
+        habits={habits}
+        onUpdateTasks={handleUpdateTasks}
+        onUpdateHabits={handleUpdateHabits}
         isLibraryOpen={isNoteLibraryOpen}
         closeLibrary={() => setIsNoteLibraryOpen(false)}
         editingNote={editingNote}

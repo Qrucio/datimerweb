@@ -8,7 +8,9 @@ const KEYS = {
     SETTINGS: 'zen_cache_settings', // User preferences
     TIMER: 'zen_timer_state',       // Current timer status
     PRO_CLAIM: 'zen_pro_claim',     // Offline Pro License
-    BASE_STREAK: 'zen_stats_base'   // Server-Side Streak Baseline
+    BASE_STREAK: 'zen_stats_base',  // Server-Side Streak Baseline
+    TASKS: 'zen_cache_tasks',
+    HABITS: 'zen_cache_habits'
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -299,6 +301,29 @@ export const Storage = {
     getNotes: () => {
         try {
             return JSON.parse(localStorage.getItem(KEYS.NOTES) || '[]');
+        } catch { return []; }
+    },
+
+    // --- 3.5 SMART NOTES (Tasks & Habits) ---
+    saveTasksLocally: (tasks) => {
+        localStorage.setItem(KEYS.TASKS, JSON.stringify(tasks));
+    },
+
+    getTasks: () => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(KEYS.TASKS) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
+        } catch { return []; }
+    },
+
+    saveHabitsLocally: (habits) => {
+        localStorage.setItem(KEYS.HABITS, JSON.stringify(habits));
+    },
+
+    getHabits: () => {
+        try {
+            const parsed = JSON.parse(localStorage.getItem(KEYS.HABITS) || '[]');
+            return Array.isArray(parsed) ? parsed : [];
         } catch { return []; }
     },
 
