@@ -2,6 +2,15 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Clock, RotateCcw, Flame, Calendar as CalendarIcon, Trash2 } from 'lucide-react';
 
+// --- HELPER ---
+const formatTimeDisplay = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+};
+
 // --- TASK CARD ---
 export const TaskCard = ({ task, onToggle, onUpdate, onDelete }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -65,7 +74,7 @@ export const TaskCard = ({ task, onToggle, onUpdate, onDelete }) => {
                         {task.time && (
                             <div className="flex items-center gap-1">
                                 <Clock size={10} />
-                                <span>{task.time}</span>
+                                <span>{formatTimeDisplay(task.time)}</span>
                             </div>
                         )}
                         {task.repeat && (

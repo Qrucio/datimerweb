@@ -4,6 +4,7 @@ import { Plus, Clock, Bell, Trash2, GripHorizontal } from 'lucide-react';
 import SmartNoteEditor from './SmartNoteEditor';
 import CloseButton from '../ui/CloseButton';
 import ExpandableCalendar from '../ui/ExpandableCalendar';
+import RecurrenceUpdateModal from '../modals/RecurrenceUpdateModal';
 
 // --- DATE LOGIC FIX ---
 const toDateKey = (date) => {
@@ -13,10 +14,18 @@ const toDateKey = (date) => {
     return new Date(d.getTime() - offset).toISOString().split('T')[0];
 };
 
+const formatTime12 = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
+};
+
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const GRID_HEIGHT_PER_HOUR = 60; // 1px = 1min
 
-const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDeleteTask, onClose }) => {
+const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDeleteTask, onClose, onUpdateTasks }) => {
     // --- STATE ---
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -33,6 +42,70 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     const containerRef = useRef(null);
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
+
+    // --- RESIZING STATE ---
+    const [resizingTask, setResizingTask] = useState(null);
+
+    // --- RECURRENCE LOGIC ---
+    const [recurrenceModal, setRecurrenceModal] = useState({ isOpen: false, taskId: null, updates: null, originalTask: null });
+
+    const handleRequestUpdate = (taskId, updates) => {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        // Check if recurring
+        const isRecurring = (task.repeatDays && task.repeatDays.length > 0) || (task.recurrence && task.recurrence !== 'none');
+
+        if (isRecurring) {
+            setRecurrenceModal({
+                isOpen: true,
+                taskId,
+                updates,
+                originalTask: task
+            });
+        } else {
+            onUpdateTask(taskId, updates);
+        }
+    };
+
+    const handleRecurrenceConfirm = (mode) => {
+        const { taskId, updates, originalTask } = recurrenceModal;
+        setRecurrenceModal({ isOpen: false, taskId: null, updates: null, originalTask: null });
+
+        if (mode === 'single') {
+            const exceptionDate = dateKey;
+            const updatedExceptions = [...(originalTask.exceptions || []), exceptionDate];
+
+            // Create New Task
+            const newTask = {
+                ...originalTask,
+                ...updates,
+                id: Date.now().toString(),
+                date: dateKey,
+                repeatDays: [],
+                recurrence: 'none',
+                exceptions: [],
+                isFromRecurrence: true,
+                originalTaskId: taskId
+            };
+
+            // ATOMIC UPDATE: Modify original task AND add new task simultaneously
+            if (onUpdateTasks) {
+                const newTasks = tasks.map(t =>
+                    t.id === taskId ? { ...t, exceptions: updatedExceptions } : t
+                );
+                newTasks.push(newTask);
+                onUpdateTasks(newTasks);
+            } else {
+                // Fallback (Risk of race condition)
+                onUpdateTask(taskId, { exceptions: updatedExceptions });
+                onAddTask(newTask);
+            }
+
+        } else {
+            onUpdateTask(taskId, updates);
+        }
+    };
 
     // --- DATE LOGIC ---
     const dateKey = useMemo(() => toDateKey(selectedDate), [selectedDate]);
@@ -51,8 +124,14 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
 
     const todaysTasks = useMemo(() => {
         return tasks.filter(t => {
+            // 1. GLOBAL EXCEPTION CHECK (Must be first)
+            if (t.exceptions && t.exceptions.includes(dateKey)) return false;
+
+            // 2. Specific Date Match
             if (t.date === dateKey) return true;
             if (!t.date && isToday) return true;
+
+            // 3. Recurrence Logic
             if (t.repeatDays && t.repeatDays.length > 0) {
                 const taskStart = toDateKey(new Date(t.date));
                 if (dateKey < taskStart) return false;
@@ -77,18 +156,111 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     const getTopOffset = (timeStr) => {
         if (!timeStr) return 0;
         const [h, m] = timeStr.split(':').map(Number);
-        return (h * GRID_HEIGHT_PER_HOUR) + ((m / 60) * GRID_HEIGHT_PER_HOUR);
+        return Math.round((h * GRID_HEIGHT_PER_HOUR) + ((m / 60) * GRID_HEIGHT_PER_HOUR));
     };
 
     const getHeight = (durationMin) => {
-        return (durationMin / 60) * GRID_HEIGHT_PER_HOUR;
+        return Math.round((durationMin / 60) * GRID_HEIGHT_PER_HOUR);
+    };
+
+    // --- RESIZING LOGIC ---
+    const handleResizeStart = (e, task, type) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging.current = true; // Prevent click from firing
+
+        const startY = e.clientY;
+
+        // Parse start time to minutes
+        const [h, m] = task.startTime.split(':').map(Number);
+        const startMinutes = h * 60 + m;
+        const startDuration = task.duration || 60;
+
+        setResizingTask({
+            id: task.id,
+            originalStartTime: startMinutes,
+            originalDuration: startDuration,
+            resizeType: type, // 'top' or 'bottom'
+            currentStartTimeStr: task.startTime,
+            currentDuration: startDuration
+        });
+
+        // Define listeners
+        const onMove = (moveEvent) => {
+            const deltaY = moveEvent.clientY - startY;
+            const deltaMinutes = Math.round(deltaY / (GRID_HEIGHT_PER_HOUR / 60)); // 1px = 1min
+
+            // Snap to 15
+            const snappedDeltaMinutes = Math.round(deltaMinutes / 15) * 15;
+
+            setResizingTask(prev => {
+                if (!prev) return null;
+
+                let newMinutes = prev.originalStartTime;
+                let newDuration = prev.originalDuration;
+
+                if (type === 'top') {
+                    // Changing start time means duration changes inversely
+                    newMinutes = prev.originalStartTime + snappedDeltaMinutes;
+                    newDuration = prev.originalDuration - snappedDeltaMinutes;
+                } else {
+                    // Changing end time (bottom handle) means duration changes
+                    newDuration = prev.originalDuration + snappedDeltaMinutes;
+                }
+
+                // Minimum duration 15 mins
+                if (newDuration < 15) {
+                    newDuration = 15;
+                    if (type === 'top') {
+                        newMinutes = prev.originalStartTime + prev.originalDuration - 15;
+                    }
+                }
+
+                // Clamp to day boundaries
+                if (newMinutes < 0) newMinutes = 0;
+                if (newMinutes > 24 * 60 - 15) newMinutes = 24 * 60 - 15;
+
+                const h = Math.floor(newMinutes / 60);
+                const m = Math.floor(newMinutes % 60);
+                const newTimeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+                return {
+                    ...prev,
+                    currentStartTimeStr: newTimeStr,
+                    currentDuration: newDuration
+                };
+            });
+        };
+
+        const onUp = () => {
+            setResizingTask(current => {
+                if (current) {
+                    handleRequestUpdate(current.id, {
+                        startTime: current.currentStartTimeStr,
+                        duration: current.currentDuration
+                    });
+                }
+                return null;
+            });
+
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            document.body.style.cursor = '';
+
+            // Small delay to ensure click doesn't fire
+            setTimeout(() => { isDragging.current = false; }, 100);
+        };
+
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        document.body.style.cursor = 'ns-resize';
     };
 
     // --- ORIGINAL DRAG LOGIC (Restored Exactly) ---
     const calculateSnap = (task, offsetY) => {
         const [h, m] = task.startTime.split(':').map(Number);
         const currentMinutes = h * 60 + m;
-        const minutesMoved = offsetY; // 1px = 1min logic
+        const minutesMoved = Math.round(offsetY); // Round pixel offset
         let newTotalMinutes = currentMinutes + minutesMoved;
 
         // Snap to nearest 15
@@ -106,7 +278,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         return {
             minutes: newTotalMinutes,
             timeStr,
-            top: (newTotalMinutes / 60) * GRID_HEIGHT_PER_HOUR
+            top: Math.round((newTotalMinutes / 60) * GRID_HEIGHT_PER_HOUR)
         };
     };
 
@@ -115,6 +287,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     const handleDrag = (task, info) => {
+        if (resizingTask) return;
         const snap = calculateSnap(task, info.offset.y);
         setDragPreview({
             top: snap.top,
@@ -123,6 +296,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     const handleDragEnd = (task, info) => {
+        if (resizingTask) return;
         const snap = calculateSnap(task, info.offset.y);
         setDragPreview(null);
 
@@ -130,7 +304,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         setTimeout(() => { isDragging.current = false; }, 100);
 
         if (snap.timeStr !== task.startTime) {
-            onUpdateTask(task.id, { startTime: snap.timeStr });
+            handleRequestUpdate(task.id, { startTime: snap.timeStr });
         }
     };
 
@@ -169,7 +343,12 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     return (
-        <div className="h-full flex flex-col bg-transparent relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
+        <div className="h-full flex flex-col relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
+            <RecurrenceUpdateModal
+                isOpen={recurrenceModal.isOpen}
+                onClose={() => setRecurrenceModal({ ...recurrenceModal, isOpen: false })}
+                onConfirm={handleRecurrenceConfirm}
+            />
 
             {/* HEADER (Enhanced Calendar) */}
             <div className="flex flex-col border-b border-white/5 bg-transparent flex-shrink-0 z-30">
@@ -199,7 +378,9 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                     {/* 1. BACKGROUND GRID */}
                     {HOURS.map(hour => (
                         <div key={hour} className="absolute left-0 right-0 border-t border-white/5 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
-                            <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">{hour}:00</div>
+                            <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">
+                                {((hour % 12) || 12)} {hour >= 12 ? 'PM' : 'AM'}
+                            </div>
                         </div>
                     ))}
 
@@ -231,73 +412,93 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                             exit="exit"
                             className="absolute inset-0 pointer-events-none"
                         >
-                            {timedTasks.map((task) => (
-                                <motion.div
-                                    key={task.id}
-                                    // Added layout to smooth out the snap upon release
-                                    layout
-                                    layoutId={task.id}
+                            {timedTasks.map((task) => {
+                                const isBeingResized = resizingTask && resizingTask.id === task.id;
+                                const displayStartTime = isBeingResized ? resizingTask.currentStartTimeStr : task.startTime;
+                                const displayDuration = isBeingResized ? resizingTask.currentDuration : (task.duration || 60);
 
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
+                                return (
+                                    <motion.div
+                                        key={task.id}
+                                        layout={!isBeingResized}
+                                        layoutId={task.id}
 
-                                    onClick={(e) => { e.stopPropagation(); openEdit(task); }}
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{
+                                            opacity: 1,
+                                            scale: 1,
+                                            zIndex: isBeingResized ? 50 : 1
+                                        }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
 
-                                    // RESTORED ORIGINAL DRAG PROPS
-                                    drag="y"
-                                    dragConstraints={containerRef}
-                                    dragElastic={0}
-                                    dragMomentum={false}
+                                        onClick={(e) => { e.stopPropagation(); openEdit(task); }}
 
-                                    onDragStart={handleDragStart}
-                                    onDrag={(e, info) => handleDrag(task, info)}
-                                    onDragEnd={(e, info) => handleDragEnd(task, info)}
+                                        drag={!isBeingResized ? "y" : false}
+                                        dragConstraints={containerRef}
+                                        dragElastic={0}
+                                        dragMomentum={false}
 
-                                    whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
+                                        onDragStart={handleDragStart}
+                                        onDrag={(e, info) => handleDrag(task, info)}
+                                        onDragEnd={(e, info) => handleDragEnd(task, info)}
 
-                                    className="absolute left-14 right-4 rounded-lg border border-black/10 p-2 cursor-grab active:cursor-grabbing overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-lg group pointer-events-auto"
-                                    style={{
-                                        top: getTopOffset(task.startTime),
-                                        height: Math.max(getHeight(task.duration || 60), 32),
-                                        backgroundColor: task.color || '#ffeb3b',
-                                        zIndex: 1
-                                    }}
-                                >
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                                        className="absolute top-1 right-1 p-1 text-black/40 hover:text-red-600 hover:bg-white/50 rounded-md opacity-0 group-hover:opacity-100 transition-all z-20"
+                                        whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
+
+                                        className={`absolute left-14 right-4 rounded-lg border border-black/10 p-2 overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-sm group pointer-events-auto ${!isBeingResized ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                        style={{
+                                            top: getTopOffset(displayStartTime),
+                                            height: Math.max(getHeight(displayDuration) - 2, 30),
+                                            backgroundColor: task.color || '#ffeb3b',
+                                            boxShadow: isBeingResized ? "0 20px 25px -5px rgba(0, 0, 0, 0.5)" : undefined,
+                                            scale: isBeingResized ? 1.02 : 1
+                                        }}
                                     >
-                                        <Trash2 size={12} />
-                                    </button>
+                                        {/* Top Resize Handle - 6px hit zone */}
+                                        <div
+                                            className="absolute top-0 left-0 right-0 h-[6px] cursor-ns-resize z-50 bg-transparent"
+                                            onPointerDownCapture={(e) => handleResizeStart(e, task, 'top')}
+                                        />
 
-                                    <div className="flex items-center justify-between pr-4">
-                                        <div className="text-xs font-bold text-black/90 truncate">{task.title}</div>
-                                        {task.reminder && task.reminder !== 'none' && (
-                                            <Bell size={10} className="text-black/50 ml-1 shrink-0" fill="currentColor" />
-                                        )}
-                                    </div>
-                                    <div className="text-[10px] text-black/70 flex items-center gap-1 font-medium mt-0.5">
-                                        <Clock size={10} />
-                                        {task.startTime} - {new Date(new Date(`2000-01-01T${task.startTime}`).getTime() + (task.duration || 60) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                    </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+                                            className="absolute top-1 right-1 p-1 text-black/40 hover:text-red-600 hover:bg-white/50 rounded-md opacity-0 group-hover:opacity-100 transition-all z-[60]"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
 
-                                    {/* Bottom Handle Visual (Optional, helps indicate drag) */}
-                                    <div className="absolute bottom-0 left-0 right-0 h-2 flex justify-center opacity-0 group-hover:opacity-50">
-                                        <GripHorizontal size={10} className="text-black/30" />
-                                    </div>
-                                </motion.div>
-                            ))}
+                                        <div className="flex items-center justify-between pr-4 pointer-events-none">
+                                            <div className="text-xs font-bold text-black/90 truncate">{task.title}</div>
+                                            {task.reminder && task.reminder !== 'none' && (
+                                                <Bell size={10} className="text-black/50 ml-1 shrink-0" fill="currentColor" />
+                                            )}
+                                        </div>
+                                        <div className="text-[10px] text-black/70 flex items-center gap-1 font-medium mt-0.5 pointer-events-none">
+                                            <Clock size={10} />
+                                            {formatTime12(displayStartTime)} - {formatTime12(new Date(new Date(`2000-01-01T${displayStartTime}`).getTime() + (displayDuration) * 60000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}
+                                        </div>
+
+                                        {/* Bottom Resize Handle - 6px hit zone */}
+                                        <div
+                                            className="absolute bottom-0 left-0 right-0 h-[6px] cursor-ns-resize z-50 flex justify-center bg-transparent"
+                                            onPointerDownCapture={(e) => handleResizeStart(e, task, 'bottom')}
+                                        />
+                                    </motion.div>
+                                );
+                            })}
                         </motion.div>
                     </AnimatePresence>
 
                     {/* SNAP GUIDE LINE */}
                     {dragPreview && (
-                        <div className="absolute left-0 right-0 border-t-2 border-white z-50 pointer-events-none flex items-center" style={{ top: dragPreview.top }}>
-                            <div className="absolute left-0 bg-white text-black text-[10px] font-bold px-1 rounded-r shadow-lg -mt-3">
-                                {dragPreview.timeStr}
+                        <div className="absolute left-0 right-0 z-[60] pointer-events-none" style={{ top: dragPreview.top, transform: 'translateY(-50%)' }}>
+                            {/* Text Label: Strictly confined to left, with Background Pill */}
+                            <div className="absolute left-0 w-12 flex justify-end pr-2 -mt-2.5">
+                                <span className="text-[10px] font-bold text-[#ffeb3b] font-mono bg-[#000000]/80 backdrop-blur-md px-1.5 py-0.5 rounded-sm shadow-sm border border-[#ffeb3b]/20">
+                                    {formatTime12(dragPreview.timeStr)}
+                                </span>
                             </div>
-                            <div className="w-full h-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                            {/* Line: Starts at left-12 to match grid */}
+                            <div className="absolute left-12 right-0 h-[1px] bg-[#ffeb3b] shadow-[0_0_6px_rgba(255,235,59,0.8)] opacity-80" />
                         </div>
                     )}
 
@@ -318,7 +519,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                 notes={notes}
                 allTags={allTags}
                 onSave={(data) => {
-                    if (editingItem?.id) onUpdateTask(data.id, data);
+                    if (editingItem?.id) handleRequestUpdate(data.id, data);
                     else onAddTask(data);
                     setIsEditorOpen(false);
                 }}

@@ -3076,10 +3076,10 @@ const NoteSystemModals = ({
       {isLibraryOpen && (
         <motion.div
           initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
-          animate={{ opacity: 1, backdropFilter: "blur(16px)" }}
+          animate={{ opacity: 1, backdropFilter: "blur(40px)" }}
           exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[60] flex flex-col bg-black/40"
+          className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
           onClick={closeLibrary}
         >
           <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden">
@@ -3236,6 +3236,7 @@ const NoteSystemModals = ({
                 habits={habits || []}
                 notes={notes}
                 allTags={allTags}
+                onUpdateTasks={onUpdateTasks}
                 onAddTask={(newTask) => onUpdateTasks([...(tasks || []), newTask])}
                 onAddHabit={(newHabit) => onUpdateHabits([...(habits || []), newHabit])}
                 onUpdateTask={(id, updates) => onUpdateTasks((tasks || []).map(t => t.id === id ? { ...t, ...updates } : t))}

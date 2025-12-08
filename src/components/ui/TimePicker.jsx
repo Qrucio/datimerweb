@@ -43,17 +43,44 @@ export const TimePicker = ({ value, onChange }) => {
     const hour = parseInt(hStr, 10);
     const minute = parseInt(mStr, 10);
 
+    const isPm = hour >= 12;
+    const displayHour = hour % 12 || 12;
+
     const update = (newH, newM) => {
         onChange(`${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`);
     };
 
+    // Helper to converting 12h + AM/PM back to 24h
+    const setTime = (newDisplayHour, newIsPm, newMinute) => {
+        let h = newDisplayHour;
+        if (h === 12) h = 0; // 12 -> 0 basis
+        if (newIsPm) h += 12; // Add 12 for PM
+        update(h, newMinute);
+    };
+
+    const handleHourChange = (newDisplayH) => {
+        // Cycle 1 -> 12 -> 1
+        let val = newDisplayH;
+        if (val > 12) val = 1;
+        if (val < 1) val = 12;
+        setTime(val, isPm, minute);
+    };
+
+    const toggleAmPm = () => {
+        const newHour = (hour + 12) % 24;
+        update(newHour, minute);
+    };
+
     const handleInputChange = (e, type) => {
         let val = parseInt(e.target.value, 10);
-        if (isNaN(val)) return; // Allow empty? No, let's keep it simple for now, maybe just ignore non-numbers
+        if (isNaN(val)) return;
 
         if (type === 'hour') {
-            val = Math.max(0, Math.min(23, val));
-            update(val, minute);
+            // If user types logic: type 12 -> 12. type 1 -> 1.
+            // We assume user types 1-12 logic.
+            // Clamp 1-12
+            val = Math.max(1, Math.min(12, val));
+            setTime(val, isPm, minute);
         } else {
             val = Math.max(0, Math.min(59, val));
             update(hour, val);
@@ -61,12 +88,12 @@ export const TimePicker = ({ value, onChange }) => {
     };
 
     return (
-        <div className="flex items-center justify-center gap-4 select-none">
+        <div className="flex items-center justify-center gap-2 select-none">
             {/* Hours */}
             <div className="flex flex-col items-center">
                 <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); update((hour + 1) % 24, minute); }}
+                    onClick={(e) => { e.stopPropagation(); handleHourChange(displayHour + 1); }}
                     className="p-1 hover:text-white text-white/40 transition-colors"
                 >
                     <ChevronUp size={20} />
@@ -74,14 +101,14 @@ export const TimePicker = ({ value, onChange }) => {
                 <input
                     type="text"
                     inputMode="numeric"
-                    value={hour.toString().padStart(2, '0')}
+                    value={displayHour.toString().padStart(2, '0')}
                     onChange={(e) => handleInputChange(e, 'hour')}
                     onClick={(e) => e.stopPropagation()}
                     className="text-2xl font-bold text-white w-14 text-center tabular-nums my-1 bg-black/40 rounded-lg py-1 border border-white/5 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-colors"
                 />
                 <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); update((hour - 1 + 24) % 24, minute); }}
+                    onClick={(e) => { e.stopPropagation(); handleHourChange(displayHour - 1); }}
                     className="p-1 hover:text-white text-white/40 transition-colors"
                 >
                     <ChevronDown size={20} />
@@ -113,6 +140,25 @@ export const TimePicker = ({ value, onChange }) => {
                     className="p-1 hover:text-white text-white/40 transition-colors"
                 >
                     <ChevronDown size={20} />
+                </button>
+            </div>
+
+            {/* AM/PM Toggle */}
+            <div className="flex flex-col items-center justify-center ml-2 h-full pb-2">
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (isPm) toggleAmPm(); }}
+                    className={`text-xs font-bold px-2 py-1 rounded-md transition-colors ${!isPm ? 'bg-white text-black shadow-lg' : 'text-white/30 hover:text-white'}`}
+                >
+                    AM
+                </button>
+                <div className="h-1" />
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (!isPm) toggleAmPm(); }}
+                    className={`text-xs font-bold px-2 py-1 rounded-md transition-colors ${isPm ? 'bg-white text-black shadow-lg' : 'text-white/30 hover:text-white'}`}
+                >
+                    PM
                 </button>
             </div>
         </div>
