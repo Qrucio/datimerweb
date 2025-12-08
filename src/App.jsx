@@ -1239,7 +1239,15 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
     }
   }, [isOpen, friend]);
 
-  const getStats = () => profileData.stats || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: 0 };
+  const getStats = () => {
+    const s = profileData.stats || {};
+    return {
+      dailyFocusTime: profileData.todayFocusTime ?? s.dailyFocusTime ?? 0,
+      dailyBreakTime: s.dailyBreakTime ?? 0,
+      dailySessions: s.dailySessions ?? 0,
+      currentStreak: profileData.streak ?? s.currentStreak ?? 0
+    };
+  };
   const currentStats = getStats();
 
   const getSelectedStats = () => {
@@ -3485,6 +3493,7 @@ const DEFAULT_STATS = {
 
 function MainApp() {
   const [userHandle, setUserHandle] = useState("");
+  const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
   const [user, setUser] = useState(null);
   const [onboardingStep, setOnboardingStep] = useState(() => {
@@ -3908,7 +3917,6 @@ function MainApp() {
     };
   }, []);
   // --- SOCIAL STATE ---
-  const [showLoginBtn, setShowLoginBtn] = useState(true); // Added missing state
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
   const [friendUids, setFriendUids] = useState([]); // Just the IDs for listening
@@ -4138,10 +4146,22 @@ function MainApp() {
   const syncTimerState = async (newState) => {
     if (!user) return;
 
+    // --- HYBRID PIGGYBACK STRATEGY ---
+    // Read the latest local stats directly from storage (avoids React Staleness)
+    // We attach this to the public presence doc so friends can see "Today's Focus"
+    // WITHOUT requiring a separate DB write.
+    const currentStats = Storage.getTodayStats();
+
     const payload = {
       timerState: {
         ...newState,
         lastUpdated: Date.now()
+      },
+      // Piggyback stats here:
+      todayStats: {
+        focusTime: currentStats.dailyFocusTime || 0,
+        breakTime: currentStats.dailyBreakTime || 0,
+        sessions: currentStats.dailySessions || 0
       }
     };
 
@@ -4149,9 +4169,9 @@ function MainApp() {
 
     try {
       // ONLY update Public Profile Status (Online/Offline/Focusing)
-      // We DO NOT send stats here.
       await setDoc(doc(db, "publicProfiles", user.uid), {
-        timerState: payload.timerState
+        timerState: payload.timerState,
+        stats: payload.todayStats // Flattened for easy access by friends
       }, { merge: true });
 
     } catch (e) {
@@ -4587,7 +4607,10 @@ function MainApp() {
             displayName: data.displayName,
             photoURL: data.photoURL,
             handle: data.handle, // Return the handle
-            isPro: data.isPro
+            isPro: data.isPro,
+            streak: data.streak || 0,
+            todayFocusTime: data.todayFocusTime || 0,
+            timerState: data.timerState // Include timer state if useful
           });
         }
       });
@@ -4600,12 +4623,17 @@ function MainApp() {
 
   // --- End Social Logic ---
 
+  // --- UPDATED SYNC EFFECT (FIXED) ---
   useEffect(() => {
     if (user) {
       const userDocRef = doc(db, "users", user.uid);
       const unsub = onSnapshot(userDocRef, (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data();
+
+          // --- FIX 1: DEFINE MISSING VARIABLES HERE ---
+          const serverNotes = data.notes || [];
+          const localNotes = Storage.getNotes() || [];
 
           // --- BASIC USER INFO ---
           setUserHandle(data.handle || "");
@@ -4615,175 +4643,114 @@ function MainApp() {
           setIsPro(userIsPro);
 
           // 2. Renew the Offline Lease (Updates timestamp to Now)
-          Storage.saveProStatus(userIsPro);
 
-          const prefs = data.preferences || {};
-          setUnlockedAmbiences(prefs.unlockedAmbiences || []);
-          setAmbienceSetupDone(prefs.ambienceSetupDone || false);
-          // --- 1. SMART NOTES SYNC (Hit List Strategy) ---
-          if (data.notes) {
-            const serverNotes = data.notes || [];
-            const localNotes = Storage.getNotes();
+          // Load Trash Ledgers
+          const serverTrash = data.trash || {};
+          const localTrash = Storage.getTrash();
 
-            // Load Trash Ledgers
-            const serverTrash = data.trash || {};
-            const localTrash = Storage.getTrash();
-
-            // A. MERGE TRASH (Union)
-            // If an ID is in either trash, it's in the master trash.
-            // We take the NEWER timestamp if it exists in both.
-            const mergedTrash = { ...serverTrash, ...localTrash };
-            Object.keys(localTrash).forEach(id => {
-              if (serverTrash[id] && serverTrash[id] > localTrash[id]) {
-                mergedTrash[id] = serverTrash[id];
-              }
-            });
-
-            // B. MERGE NOTES
-            const mergedNotesMap = new Map();
-            serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
-
-            localNotes.forEach(localNote => {
-              const serverNote = mergedNotesMap.get(localNote.id);
-              // Standard conflict resolution: Newer update wins
-              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
-                mergedNotesMap.set(localNote.id, localNote);
-              }
-            });
-
-            // C. EXECUTE THE HIT LIST (Kill Zombies)
-            Object.keys(mergedTrash).forEach(deletedId => {
-              const note = mergedNotesMap.get(deletedId);
-              if (note) {
-                const deleteTime = mergedTrash[deletedId];
-                const noteTime = note.updatedAt || 0;
-
-                // If deletion happened AFTER the last note update -> DELETE IT
-                if (deleteTime > noteTime) {
-                  mergedNotesMap.delete(deletedId);
-                } else {
-                  // Edge Case: Note was updated AFTER it was deleted (User restored it?)
-                  // Remove from trash so it stays alive
-                  delete mergedTrash[deletedId];
-                }
-              }
-            });
-
-            // D. GARBAGE COLLECTION (Clean the Hit List)
-            // Remove trash entries older than 30 days so the map doesn't grow forever
-            const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-            const now = Date.now();
-            Object.keys(mergedTrash).forEach(id => {
-              if (now - mergedTrash[id] > THIRTY_DAYS_MS) {
-                delete mergedTrash[id];
-              }
-            });
-
-            const finalNotes = Array.from(mergedNotesMap.values());
-
-            // E. SAVE EVERYTHING
-            // Only update state if something changed to avoid re-renders
-            if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
-              setNotes(finalNotes);
-              Storage.saveNotesLocally(finalNotes);
+          // A. MERGE TRASH (Union)
+          const mergedTrash = { ...serverTrash, ...localTrash };
+          Object.keys(localTrash).forEach(id => {
+            if (serverTrash[id] && serverTrash[id] > localTrash[id]) {
+              mergedTrash[id] = serverTrash[id];
             }
-            Storage.saveTrashLocally(mergedTrash);
+          });
+
+          // B. MERGE NOTES
+          const mergedNotesMap = new Map();
+          serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
+
+          localNotes.forEach(localNote => {
+            const serverNote = mergedNotesMap.get(localNote.id);
+            if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
+              mergedNotesMap.set(localNote.id, localNote);
+            }
+          });
+
+          // C. EXECUTE THE HIT LIST (Kill Zombies)
+          Object.keys(mergedTrash).forEach(deletedId => {
+            const note = mergedNotesMap.get(deletedId);
+            if (note) {
+              const deleteTime = mergedTrash[deletedId];
+              const noteTime = note.updatedAt || 0;
+              if (deleteTime > noteTime) {
+                mergedNotesMap.delete(deletedId);
+              } else {
+                delete mergedTrash[deletedId];
+              }
+            }
+          });
+
+          // D. GARBAGE COLLECTION
+          const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          Object.keys(mergedTrash).forEach(id => {
+            if (now - mergedTrash[id] > THIRTY_DAYS_MS) {
+              delete mergedTrash[id];
+            }
+          });
+
+          const finalNotes = Array.from(mergedNotesMap.values());
+
+          // E. SAVE EVERYTHING
+          if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
+            setNotes(finalNotes);
+            Storage.saveNotesLocally(finalNotes);
           }
+          Storage.saveTrashLocally(mergedTrash);
 
           // --- 2. SMART SETTINGS SYNC ---
           if (data.settings) {
             const remoteSettings = data.settings;
             const localSettings = Storage.getSettings(DEFAULT_SETTINGS);
-
-            // LOGIC: Only accept Cloud Settings if they are NEWER than Local.
-            // If timestamps are missing (legacy data), we assume Cloud is newer just to be safe,
-            // unless we just wrote to local storage.
             const remoteTime = remoteSettings.updatedAt || 0;
             const localTime = localSettings.updatedAt || 0;
 
             if (remoteTime > localTime) {
-              // Cloud is newer. Update everything.
               const merged = { ...DEFAULT_SETTINGS, ...remoteSettings };
               setSettings(merged);
               Storage.saveSettingsLocally(merged);
               prevSettings.current = merged;
             }
-            // ELSE: Local is newer (e.g. changed while offline). 
-            // Ignore the stale cloud data. The 'auto-save' effect will eventually 
-            // push our local version to the cloud when internet returns.
           }
 
-          // --- 3. SMART TIMER SYNC ---
-          // if (data.timerState) {
-          //   const remote = data.timerState;
-          //   // Prevent echo: Only update if server is newer than our last write
-          //   if (remote.lastUpdated > lastRemoteUpdate.current) {
-          //     lastRemoteUpdate.current = remote.lastUpdated;
-          //     setMode(remote.mode);
-
-          //     if (remote.isActive) {
-          //       const now = Date.now();
-          //       const target = remote.targetEndTime;
-          //       const remaining = Math.max(0, Math.ceil((target - now) / 1000));
-
-          //       if (remaining > 0) {
-          //         setTimeLeft(remaining);
-          //         setIsActive(true);
-          //         endTimeRef.current = target;
-          //       } else {
-          //         setIsActive(false);
-          //         setTimeLeft(0);
-          //         endTimeRef.current = null;
-          //       }
-          //     } else {
-          //       setIsActive(false);
-          //       setTimeLeft(remote.timeLeft);
-          //       endTimeRef.current = null;
-          //     }
-          //   }
-          // }
-
-          // --- 4. STATS LOGIC (OFFLINE-FIRST FIX) ---
+          // --- 4. STATS LOGIC ---
           const serverStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
-
-          // A. Fetch Local Ledger ("The Truth" for today)
           const localStats = JSON.parse(localStorage.getItem('zen_stats_current') || '{}');
           const todayId = formatDateId(new Date());
-
           let finalStats = { ...serverStats };
 
-          // B. Override Server Daily Counters if Local Data exists for TODAY
-          // This prevents the server from resetting your live progress
           if (localStats.date === todayId) {
             finalStats.dailyFocusTime = localStats.dailyFocusTime || 0;
             finalStats.dailyBreakTime = localStats.dailyBreakTime || 0;
             finalStats.dailySessions = localStats.dailySessions || 0;
           }
 
-          // C. Handle Date Rollover (Visual Only)
           const today = new Date();
           let lastActiveDate = finalStats.lastActiveDate
             ? (finalStats.lastActiveDate.toDate ? finalStats.lastActiveDate.toDate() : new Date(finalStats.lastActiveDate))
             : null;
 
-          // If the server data is from "Yesterday" (or older)...
           if (lastActiveDate && !isSameDay(lastActiveDate, today)) {
-            // ...AND we don't have new local data for "Today"...
             if (localStats.date !== todayId) {
-              // ...THEN we visually reset the counters to 0.
               finalStats.dailyFocusTime = 0;
               finalStats.dailyBreakTime = 0;
               finalStats.dailySessions = 0;
-              // Note: We do NOT reset streak here. We wait for the first "Save" of the day to validate streak.
             }
           }
 
           setStats(finalStats);
           localStorage.setItem('zen_cache_stats', JSON.stringify(finalStats));
-        }
 
+          // --- 5. OPTIMIZED STREAK ---
+          if (data.streak !== undefined) {
+            Storage.syncServerStreak(data.streak || 0, data.lastActive || 0);
+          }
+        }
         setDataLoaded(true);
       });
+
+      // --- FIX 2: Correct closing of IF block and RETURN ---
       return () => unsub();
     }
   }, [user]);
@@ -5008,6 +4975,25 @@ function MainApp() {
   };
 
 
+
+
+  // --- SYNC WORKER (Smart Rollover) ---
+  useEffect(() => {
+    if (!user) return;
+
+    // Trigger sync ONLY when:
+    // 1. App mounts (handled by dependency on 'stats.date' implicitly or separate auth check)
+    // 2. The date changes (Rollover at midnight)
+    // This satisfies "batchwrite next day" without constant polling.
+    const attemptSync = async () => {
+      if (Storage.hasPendingData()) {
+        console.log("[App] Rollover/Load detected. Syncing pending stats...");
+        await Storage.syncPendingData(db, user);
+      }
+    };
+
+    attemptSync();
+  }, [user, stats.date]); // Runs on mount + when date flips
 
   // --- TIMER INTERVAL & TRANSITION LOGIC (Ghost-Proof) ---
   useEffect(() => {
@@ -5336,7 +5322,18 @@ function MainApp() {
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
         await setDoc(doc(db, "users", user.uid), payload, { merge: true });
-        await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
+
+        // --- PIGGYBACK STATS (Live Updates) ---
+        const todayStats = Storage.getTodayStats();
+        const fullHistory = Storage.getFullHistory();
+        const currentStreak = Storage.calculateStreak(fullHistory);
+
+        await setDoc(doc(db, "publicProfiles", user.uid), {
+          timerState: payload.timerState,
+          lastActive: Date.now(),
+          todayFocusTime: todayStats.dailyFocusTime || 0,
+          streak: currentStreak
+        }, { merge: true });
       }
 
     } else {
@@ -5359,7 +5356,18 @@ function MainApp() {
         lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
         await setDoc(doc(db, "users", user.uid), payload, { merge: true });
-        await setDoc(doc(db, "publicProfiles", user.uid), { timerState: payload.timerState }, { merge: true });
+
+        // --- PIGGYBACK STATS (Live Updates) ---
+        const todayStats = Storage.getTodayStats();
+        const fullHistory = Storage.getFullHistory();
+        const currentStreak = Storage.calculateStreak(fullHistory);
+
+        await setDoc(doc(db, "publicProfiles", user.uid), {
+          timerState: payload.timerState,
+          lastActive: Date.now(),
+          todayFocusTime: todayStats.dailyFocusTime || 0,
+          streak: currentStreak
+        }, { merge: true });
       }
     }
   };

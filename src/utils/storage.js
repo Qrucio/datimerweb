@@ -4,10 +4,11 @@ const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
     HISTORY: 'zen_stats_history',   // Data waiting to be uploaded
     NOTES: 'zen_cache_notes',
-    TRASH: 'zen_cache_trash',       // <--- NEW: The Hit List (Deleted Note IDs)
+    TRASH: 'zen_cache_trash',       // The Hit List (Deleted Note IDs)
     SETTINGS: 'zen_cache_settings', // User preferences
     TIMER: 'zen_timer_state',       // Current timer status
-    PRO_CLAIM: 'zen_pro_claim'      // Offline Pro License
+    PRO_CLAIM: 'zen_pro_claim',     // Offline Pro License
+    BASE_STREAK: 'zen_stats_base'   // Server-Side Streak Baseline
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -23,6 +24,13 @@ const getDateId = (date = new Date()) => {
 
 export const Storage = {
     // --- 1. STATS MANAGEMENT (The "Ledger") ---
+
+    // Simple getter for UI/Piggybacking
+    getTodayStats: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+        } catch { return {}; }
+    },
 
     // Call this every second in your timer loop.
     updateLocalStats: (elapsedSeconds, mode) => {
@@ -77,27 +85,48 @@ export const Storage = {
 
     // --- 2. THE SYNC WORKER (The "Bank Run") ---
 
+    hasPendingData: () => {
+        try {
+            const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
+            const current = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+            // Also check if current is stale
+            const isStale = current.date && current.date !== getDateId();
+            return history.length > 0 || isStale;
+        } catch { return false; }
+    },
+
     syncPendingData: async (db, user) => {
-        if (!user) return;
+        if (!user) return false;
+
+        const today = getDateId();
 
         // 1. Check current slot for stale data (e.g. user opened app next day)
         const current = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
-        if (current.date && current.date !== getDateId()) {
+
+        // STRICT GUARD: If stats are for TODAY, DO NOT TOUCH THEM.
+        if (current.date === today) {
+            // This is active data. Leave it alone.
+        }
+        else if (current.date && current.date !== today) {
+            // It's definitely NOT today. It's old. Move it using the explicit logic.
+            console.log("[Sync] Detected stale data from", current.date);
             Storage.queueDayForSync(current);
             localStorage.removeItem(KEYS.STATS);
         }
 
         // 2. Load Queue
         const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
-        if (history.length === 0) return;
+        if (history.length === 0) return true; // Nothing to sync is a success
 
         console.log(`[Sync] Found ${history.length} items to upload...`);
 
         try {
             // CONSOLIDATE DUPLICATES (Optimization)
-            // Combine multiple small entries for the same date into one big payload
             const consolidated = history.reduce((acc, item) => {
                 const date = item.date;
+                // EXTRA GUARD: Never upload "Today" from history if it somehow got there
+                if (date === today) return acc;
+
                 if (!acc[date]) {
                     acc[date] = { ...item };
                 } else {
@@ -109,11 +138,11 @@ export const Storage = {
             }, {});
 
             const batch = writeBatch(db);
+            let hasWrites = false;
 
             Object.values(consolidated).forEach(dayStat => {
+                hasWrites = true;
                 const historyRef = doc(db, "users", user.uid, "history", dayStat.date);
-
-                // CRITICAL FIX: Use 'increment' to add to server totals instead of overwriting
                 batch.set(historyRef, {
                     date: dayStat.date,
                     dailyFocusTime: increment(dayStat.dailyFocusTime || 0),
@@ -123,15 +152,143 @@ export const Storage = {
                 }, { merge: true });
             });
 
-            await batch.commit();
+            if (hasWrites) {
+                await batch.commit();
+                console.log("[Sync] Upload successful!");
+            } else {
+                console.log("[Sync] No valid past-days to upload.");
+            }
 
             // Clear queue only on success
             localStorage.removeItem(KEYS.HISTORY);
-            console.log("[Sync] Upload successful!");
+            return true;
 
         } catch (error) {
             console.error("[Sync] Failed:", error);
+            return false;
         }
+    },
+
+    // --- 2.5 SYNC DOWN (The "Withdrawal") ---
+    // Kept for manual sync if needed, but not used on load anymore.
+    mergeHistory: (remoteHistory) => {
+        try {
+            if (!remoteHistory || remoteHistory.length === 0) return;
+
+            const localHistory = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
+            const historyMap = new Map();
+
+            localHistory.forEach(item => historyMap.set(item.date, item));
+            remoteHistory.forEach(item => {
+                if (item.date === getDateId()) return;
+                historyMap.set(item.date, item);
+            });
+
+            const merged = Array.from(historyMap.values());
+            localStorage.setItem(KEYS.HISTORY, JSON.stringify(merged));
+            return merged;
+        } catch (e) {
+            console.error("Failed to merge history", e);
+            return [];
+        }
+    },
+
+    getFullHistory: () => {
+        try {
+            const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
+            const today = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+
+            if (today.date && (today.dailyFocusTime > 0 || today.dailySessions > 0)) {
+                return [...history, today];
+            }
+            return history;
+        } catch { return []; }
+    },
+
+    syncServerStreak: (streak, lastActive) => {
+        if (streak === undefined || lastActive === undefined) return;
+        localStorage.setItem(KEYS.BASE_STREAK, JSON.stringify({
+            streak: streak,
+            lastActive: lastActive,
+            syncedAt: Date.now()
+        }));
+    },
+
+    calculateStreak: (fullHistory) => {
+        // 1. Load Server Baseline
+        const base = JSON.parse(localStorage.getItem(KEYS.BASE_STREAK) || '{}');
+        const baseStreak = base.streak || 0;
+        const baseLastActive = base.lastActive ? new Date(base.lastActive) : null;
+
+        if (!fullHistory || fullHistory.length === 0) {
+            // No local history? Check if Server Baseline is still valid for Today/Yesterday
+            if (baseLastActive && baseStreak > 0) {
+                const today = getDateId();
+                const yesterdayDate = new Date();
+                yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+                const baseId = getDateId(baseLastActive);
+                if (baseId === today || baseId === getDateId(yesterdayDate)) {
+                    return baseStreak;
+                }
+            }
+            return 0;
+        }
+
+        // 2. Sort Local History by Date Descending
+        const sorted = [...fullHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // 3. Check overlap with Today/Yesterday
+        const today = getDateId();
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterday = getDateId(yesterdayDate);
+
+        if (sorted.length === 0) return 0;
+        const lastEntry = sorted[0];
+
+        // If the last entry is older than yesterday, streak is broken.
+        if (lastEntry.date !== today && lastEntry.date !== yesterday) {
+            return 0; // Streak broken
+        }
+
+        // 4. Count backwards (Local Chain)
+        let streak = 1;
+        let currentDate = new Date(lastEntry.date);
+
+        for (let i = 1; i < sorted.length; i++) {
+            const entry = sorted[i];
+            const entryDate = new Date(entry.date);
+
+            // Expected previous day
+            const expectedDate = new Date(currentDate);
+            expectedDate.setDate(expectedDate.getDate() - 1);
+
+            // Compare strings to avoid time issues
+            if (getDateId(entryDate) === getDateId(expectedDate)) {
+                streak++;
+                currentDate = expectedDate; // Move cursor back
+            } else {
+                break; // Gap found
+            }
+        }
+
+        // 5. Check Connection to Server Baseline
+        // If we ran out of local history, does the end of our chain connect to the server baseline?
+        if (baseLastActive && baseStreak > 0) {
+            const lastLocalDate = currentDate; // The oldest date in our continuous chain
+            const oneDayBeforeLocal = new Date(lastLocalDate);
+            oneDayBeforeLocal.setDate(oneDayBeforeLocal.getDate() - 1);
+
+            const baseId = getDateId(baseLastActive);
+            const connectId = getDateId(oneDayBeforeLocal);
+
+            if (baseId === connectId) {
+                streak += baseStreak;
+            }
+        }
+
+        return streak;
     },
 
     // --- 3. NOTES ---
