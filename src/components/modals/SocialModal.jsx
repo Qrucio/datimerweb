@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Ban, Bell, Loader2, UserPlus, Check, UserMinus, Pin } from 'lucide-react';
 import Avatar from '../Avatar'; // Import the Avatar we just created
+import CloseButton from '../ui/CloseButton';
 
 // --- LIQUID BUTTON (Helper) ---
 const LiquidButton = ({ icon: Icon, label = "Sure?", onConfirm, variant = "danger", size = "sm", disabled = false }) => {
@@ -102,7 +103,7 @@ const SocialModal = ({ isOpen, onClose, user, friends, friendRequests, onSendReq
                             <div className="flex gap-2">
                                 <button onClick={() => setView(view === 'blocked' ? 'list' : 'blocked')} className={`p-2 rounded-full transition-colors ${view === 'blocked' ? 'bg-red-500/10 text-red-400' : 'bg-white/5 text-white/50 hover:text-white'}`} title="Blocked Users"> <Ban size={20} /> </button>
                                 <button onClick={() => setView(view === 'requests' ? 'list' : 'requests')} className={`relative p-2 rounded-full transition-colors ${view === 'requests' ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'}`}> <Bell size={20} /> {friendRequests.length > 0 && view !== 'requests' && <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-[#111]" />} </button>
-                                <button onClick={onClose} className="w-9 h-9 flex items-center justify-center p-1 bg-white/5 rounded-full text-white/50 hover:text-white active:text-white/70 hover:bg-white/10 transition-colors"><X size={20} /></button>
+                                <CloseButton onClick={onClose} />
                             </div>
                         </div>
 

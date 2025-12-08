@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, X, Trophy } from 'lucide-react';
+import { RotateCcw, Trophy } from 'lucide-react';
+import CloseButton from '../ui/CloseButton';
 import confetti from 'canvas-confetti';
 import { TYPING_WORDS } from '../../utils/words'; // Adjust path if needed
 
@@ -274,9 +275,7 @@ const TypingGame = ({ onExit, timeLeft: sessionTimeLeft }) => {
                         {formatTime(sessionTimeLeft)}
                     </div>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="absolute top-0 right-0 pointer-events-auto p-3 rounded-full text-white/30 hover:text-white hover:bg-white/10 transition-colors">
-                    <X size={32} />
-                </button>
+                <CloseButton onClick={(e) => { e.stopPropagation(); onExit(); }} className="absolute top-5 right-5 pointer-events-auto" />
             </div>
 
             {gameState !== "finished" ? (

@@ -5,11 +5,12 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import CloseButton from './components/ui/CloseButton';
 import { Storage } from './utils/storage';
 import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
 import OnboardingFlow from './components/OnboardingFlow';
 import SocialModal from './components/modals/SocialModal';
-import MusicModal, { ModernSlider } from './components/modals/MusicModal'; // Import ModernSlider if you need it in MiniPlayer
+import MusicModal from './components/modals/MusicModal';
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
@@ -2116,65 +2117,7 @@ const LiquidDeleteBtn = ({ onDelete }) => {
   );
 };
 
-const LiquidCloseBtn = ({ onClose }) => {
-  const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
 
-  // Auto-reset if not confirmed within 3 seconds
-  useEffect(() => {
-    let timer;
-    if (status === 'confirming') {
-      timer = setTimeout(() => setStatus('idle'), 3000);
-    }
-    return () => clearTimeout(timer);
-  }, [status]);
-
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (status === 'idle') {
-      setStatus('confirming');
-    } else {
-      onClose();
-    }
-  };
-
-  return (
-    <motion.button
-      layout
-      onClick={handleClick}
-      initial={false}
-      animate={status === 'confirming'
-        ? { width: 80, height: 32, borderRadius: 16, backgroundColor: "#b91c1c" } // Darker Red (Red-700) on confirm
-        : { width: 32, height: 32, borderRadius: 16, backgroundColor: "#ef4444" } // Bright Red (Red-500) on idle
-      }
-      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-      className="absolute top-2 right-2 border border-white/10 flex items-center justify-center overflow-hidden z-[100] shadow-lg group/btn"
-    >
-      <AnimatePresence mode="popLayout">
-        {status === 'idle' ? (
-          <motion.div
-            key="icon"
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="flex items-center justify-center"
-          >
-            <X size={14} className="text-white font-bold" strokeWidth={3} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="text"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex items-center gap-1"
-          >
-            <span className="text-[10px] font-bold text-white uppercase tracking-wider">Close?</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-};
 
 const LiquidResetBtn = ({ onReset, disabled }) => {
   const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
@@ -2724,12 +2667,7 @@ const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSele
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Poison.</span>
                     </motion.h2>
                   </div>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 flex items-center justify-center text-white/50 hover:text-white transition-all group"
-                  >
-                    <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                  </button>
+                  <CloseButton onClick={() => setIsOpen(false)} />
                 </div>
 
                 {/* Cards Grid - INCREASED PADDING TO FIX CLIPPING */}
@@ -3272,7 +3210,7 @@ const NoteSystemModals = ({
             </div>
           </div>
           <div className="absolute top-6 right-6 md:top-8 md:right-12 z-50">
-            <button onClick={closeLibrary} className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"><X size={24} /></button>
+            <CloseButton onClick={closeLibrary} />
           </div>
         </motion.div>
       )}
@@ -3452,9 +3390,7 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                       <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
                       <p className="text-white/40 text-sm">Non-distracting games that help you recharge without getting bored.</p>
                     </div>
-                    <button onClick={() => setIsOpen(false)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all">
-                      <X size={24} />
-                    </button>
+                    <CloseButton onClick={() => setIsOpen(false)} />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full px-4 pb-10">
@@ -3531,7 +3467,7 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
                 allow="autoplay; encrypted-media;"
               />
             </div>
-            <LiquidCloseBtn onClose={onToggle} />
+            <CloseButton onClick={onToggle} className="absolute -top-3 -right-3 shadow-lg bg-black border border-white/20" />
           </div>
         </motion.div>
       )}
@@ -3972,6 +3908,7 @@ function MainApp() {
     };
   }, []);
   // --- SOCIAL STATE ---
+  const [showLoginBtn, setShowLoginBtn] = useState(true); // Added missing state
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
   const [friendUids, setFriendUids] = useState([]); // Just the IDs for listening

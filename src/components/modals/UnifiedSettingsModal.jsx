@@ -11,50 +11,43 @@ import {
   where, doc, getDoc, writeBatch, onSnapshot
 } from "firebase/firestore";
 import Avatar from '../Avatar';
+import CloseButton from '../ui/CloseButton';
+import ToggleRow from '../ui/ToggleRow';
 
-// --- 0. INJECTED CSS FOR THE TOGGLE ---
 const toggleStyles = `
-  .checkbox {
-    display: none;
-  }
-
-  .slider {
-    width: 40px;
-    height: 20px;
-    background-color: rgba(255, 255, 255, 0.15);
-    border-radius: 20px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    border: 2px solid transparent;
-    transition: .3s;
-    box-shadow: 0 0 10px 0 rgb(0, 0, 0, 0.25) inset;
+  .toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     cursor: pointer;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   }
-
-  .slider::before {
-    content: '';
-    display: block;
-    width: 100%;
-    height: 100%;
-    background-color: #fff;
-    transform: translateX(-20px);
-    border-radius: 20px;
-    transition: .3s;
-    box-shadow: 0 0 10px 3px rgb(0, 0, 0, 0.25);
+  .toggle-switch.on {
+    background-color: rgba(52, 199, 89, 0.3);
+    border-color: rgba(52, 199, 89, 0.4);
+    box-shadow: 0 0 15px rgba(52, 199, 89, 0.2), inset 0 0 10px rgba(52, 199, 89, 0.1);
   }
-
-  .checkbox:checked ~ .slider::before {
-    transform: translateX(20px);
-    box-shadow: 0 0 10px 3px rgb(0, 0, 0, 0.25);
+  .toggle-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.8) 100%);
+    border-radius: 50%;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   }
-
-  .checkbox:checked ~ .slider {
-    background-color: #34C759;
-  }
-
-  .checkbox:active ~ .slider::before {
-    transform: translate(0);
+  .toggle-switch.on .toggle-knob {
+    transform: translateX(18px);
+    background: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   }
 `;
 
@@ -123,20 +116,7 @@ const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
   </div>
 );
 
-const AestheticToggle = ({ label, description, checked, onChange, icon: Icon }) => (
-  <div onClick={() => onChange(!checked)} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl group hover:bg-white/10 transition-all cursor-pointer select-none active:scale-[0.99]">
-    <div className="flex items-center gap-4 pr-4 overflow-hidden">
-      <div className={`p-2 rounded-xl transition-colors duration-300 shrink-0 ${checked ? 'bg-white text-black' : 'bg-white/5 text-white/40'}`}>
-        <Icon size={18} strokeWidth={checked ? 2.5 : 2} />
-      </div>
-      <div className="min-w-0">
-        <h4 className={`text-sm font-bold transition-colors duration-300 truncate ${checked ? 'text-white' : 'text-white/60'}`}>{label}</h4>
-        {description && <p className="text-white/30 text-[10px] leading-tight mt-0.5 truncate">{description}</p>}
-      </div>
-    </div>
-    <div className="relative"><input type="checkbox" className="checkbox" checked={checked} readOnly /><div className="slider"></div></div>
-  </div>
-);
+
 
 const StatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlight = false }) => (
   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.3 }} className={`relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden group ${isHero ? 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10 col-span-2' : 'bg-black/20 border border-white/5 hover:border-white/10 transition-colors'} ${highlight ? 'ring-1 ring-white/20 bg-white/5' : ''}`}>
@@ -524,7 +504,7 @@ const UnifiedSettingsModal = ({
                       </button>
                     )}
                     {/* Close Button */}
-                    <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/10 border border-white/5 flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all z-20"><X size={20} /></button>
+                    <CloseButton onClick={onClose} />
                   </div>
                 </div>
 
@@ -574,7 +554,7 @@ const UnifiedSettingsModal = ({
                   </div>
                 )}
               </div>
-              <button onClick={onClose} className="hidden md:flex absolute top-6 right-6 z-50 w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 active:scale-90"><X size={20} /></button>
+              <CloseButton onClick={onClose} className="hidden md:flex absolute top-6 right-6" />
 
               {/* === CONTENT AREA === */}
               <div className="flex-1 p-5 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#0A0A0A]">
@@ -594,8 +574,8 @@ const UnifiedSettingsModal = ({
                       <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-3">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
-                          <AestheticToggle label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
-                          <AestheticToggle label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
+                          <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
+                          <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
                         </div>
                       </section>
                     </motion.div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import CloseButton from '../ui/CloseButton';
 
 // --- HELPER HOOK (Moved here) ---
 function useInterval(callback, delay) {
@@ -121,7 +121,7 @@ const SnakeGame = ({ onExit, timeLeft }) => {
                     <div className="flex items-baseline gap-2"> <span className="text-xs font-bold text-white/40 tracking-widest uppercase">Score</span> <span className="text-2xl font-mono text-white font-bold">{score}</span> </div>
                     <div className="flex items-baseline gap-2"> <span className="text-[10px] font-bold text-white/30 tracking-widest uppercase">Best</span> <span className="text-sm font-mono text-yellow-500">{highScore}</span> </div>
                 </div>
-                <button onClick={onExit} className="pointer-events-auto p-3 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-all group"> <X size={24} className="group-hover:rotate-90 transition-transform duration-300" /> </button>
+                <CloseButton onClick={onExit} className="pointer-events-auto" />
             </div>
 
             <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">

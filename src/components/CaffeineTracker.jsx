@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Coffee, Trash2, Activity, Moon, Plus, Search, ArrowLeft, Settings, ChevronUp, ChevronDown } from 'lucide-react';
+import { Coffee, Trash2, Activity, Moon, Plus, Search, ArrowLeft, Settings, ChevronUp, ChevronDown } from 'lucide-react';
+import CloseButton from './ui/CloseButton';
+import Slider from './ui/Slider';
 
 // --- CONSTANTS ---
 const HALF_LIFE_HOURS = 5;
@@ -305,9 +307,7 @@ const Dashboard = ({ onClose, logs, currentLevel, bedtimeStr, now, getRemainingM
                     <button onClick={onSettingsClick} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors">
                         <Settings size={20} />
                     </button>
-                    <button onClick={onClose} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors">
-                        <X size={20} />
-                    </button>
+                    <CloseButton onClick={onClose} />
                 </div>
             </div>
 
@@ -754,7 +754,12 @@ const DrinkConfigurator = ({ drink, onBack, onConfirm }) => {
                         <span>Sipping Duration</span>
                         <span className="text-white">{sippingDuration === 0 ? 'Instant' : `${sippingDuration} mins`}</span>
                     </label>
-                    <input type="range" min="0" max="120" step="5" value={sippingDuration} onChange={(e) => setSippingDuration(Number(e.target.value))} className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+                    <Slider
+                        value={sippingDuration}
+                        max={120}
+                        onChange={(e) => setSippingDuration(Number(e.target.value))}
+                        color="#f59e0b" // Amber-500
+                    />
                 </div>
             </div>
             <div className="p-6 pt-2 shrink-0">
