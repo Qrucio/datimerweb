@@ -17,12 +17,14 @@ export const TaskCard = ({ task, onToggle, onUpdate, onDelete }) => {
 
     return (
         <motion.div
-            layout
+            layout="position" // Changing from 'layout' to 'layout="position"' helps prevent size distortion
+            initial={{ opacity: 0, scale: 0.95 }} // Add explicit entrance
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
             className={`group relative p-3 rounded-xl border transition-all duration-200 ${task.isDone
-                    ? 'bg-white/5 border-white/5 opacity-60'
-                    : 'bg-[#1a1a1a] border-white/10 hover:border-white/20 hover:shadow-lg hover:shadow-black/20'
+                ? 'bg-white/5 border-white/5 opacity-60'
+                : 'bg-[#1a1a1a] border-white/10 hover:border-white/20 hover:shadow-lg hover:shadow-black/20'
                 }`}
         >
             <div className="flex items-start gap-3">
@@ -30,8 +32,8 @@ export const TaskCard = ({ task, onToggle, onUpdate, onDelete }) => {
                 <button
                     onClick={() => onToggle(task.id)}
                     className={`mt-1 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${task.isDone
-                            ? 'bg-green-500 border-green-500 text-black'
-                            : 'border-white/30 hover:border-white/60 text-transparent'
+                        ? 'bg-green-500 border-green-500 text-black'
+                        : 'border-white/30 hover:border-white/60 text-transparent'
                         }`}
                 >
                     <Check size={12} strokeWidth={4} />
@@ -161,8 +163,8 @@ export const HabitCard = ({ habit, onCheck, onUpdate, onDelete }) => {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => onCheck(habit.id)}
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-all ${isDoneToday
-                            ? 'bg-green-500 text-black shadow-green-500/20'
-                            : 'bg-white/10 text-white/30 hover:bg-white/20 hover:text-white'
+                        ? 'bg-green-500 text-black shadow-green-500/20'
+                        : 'bg-white/10 text-white/30 hover:bg-white/20 hover:text-white'
                         }`}
                 >
                     <Check size={20} strokeWidth={3} />

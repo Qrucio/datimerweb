@@ -1,30 +1,67 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, ChevronLeft, ChevronRight, Clock, Bell, Trash2 } from 'lucide-react'; // Added Trash2
+import { Plus, Clock, Bell, Trash2, GripHorizontal } from 'lucide-react';
 import SmartNoteEditor from './SmartNoteEditor';
 import CloseButton from '../ui/CloseButton';
+import ExpandableCalendar from '../ui/ExpandableCalendar';
 
+// --- DATE LOGIC FIX ---
+const toDateKey = (date) => {
+    if (!date) return '';
+    const d = typeof date === 'string' ? new Date(date) : date;
+    const offset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - offset).toISOString().split('T')[0];
+};
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
-const GRID_HEIGHT_PER_HOUR = 60;
+const GRID_HEIGHT_PER_HOUR = 60; // 1px = 1min
 
 const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDeleteTask, onClose }) => {
+    // --- STATE ---
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [isCalendarExpanded, setIsCalendarExpanded] = useState(false);
+
+    // Animation Direction
+    const [direction, setDirection] = useState(0);
+    const previousDate = useRef(toDateKey(new Date()));
+
     const [isEditorOpen, setIsEditorOpen] = useState(false);
-
     const [editingItem, setEditingItem] = useState(null);
-    const [dragPreview, setDragPreview] = useState(null); // { top: number, timeStr: string }
-    const containerRef = React.useRef(null);
-    const scrollContainerRef = React.useRef(null);
-    const isDragging = React.useRef(false);
+    const [dragPreview, setDragPreview] = useState(null);
 
-    const dateKey = selectedDate.toISOString().split('T')[0];
-    const todayKey = new Date().toISOString().split('T')[0];
+    const containerRef = useRef(null);
+    const scrollContainerRef = useRef(null);
+    const isDragging = useRef(false);
+
+    // --- DATE LOGIC ---
+    const dateKey = useMemo(() => toDateKey(selectedDate), [selectedDate]);
+    const todayKey = useMemo(() => toDateKey(new Date()), []);
     const isToday = dateKey === todayKey;
 
+    // Handle Direction Change
+    useEffect(() => {
+        const prev = previousDate.current;
+        const curr = dateKey;
+        if (curr > prev) setDirection(1);
+        else if (curr < prev) setDirection(-1);
+        else setDirection(0);
+        previousDate.current = curr;
+    }, [dateKey]);
+
     const todaysTasks = useMemo(() => {
-        return tasks.filter(t => t.date === dateKey || (!t.date && isToday));
-    }, [tasks, dateKey, isToday]);
+        return tasks.filter(t => {
+            if (t.date === dateKey) return true;
+            if (!t.date && isToday) return true;
+            if (t.repeatDays && t.repeatDays.length > 0) {
+                const taskStart = toDateKey(new Date(t.date));
+                if (dateKey < taskStart) return false;
+                const currentDayIndex = new Date(selectedDate).getDay();
+                if (t.repeatDays.includes(currentDayIndex)) return true;
+            }
+            return false;
+        });
+    }, [tasks, dateKey, isToday, selectedDate]);
 
     const { timedTasks } = useMemo(() => {
         const timed = [];
@@ -36,6 +73,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         return { timedTasks: timed, allDayTasks: allDay };
     }, [todaysTasks]);
 
+    // --- HELPERS ---
     const getTopOffset = (timeStr) => {
         if (!timeStr) return 0;
         const [h, m] = timeStr.split(':').map(Number);
@@ -46,23 +84,11 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         return (durationMin / 60) * GRID_HEIGHT_PER_HOUR;
     };
 
-    const handleSave = (data) => {
-        if (editingItem && editingItem.id) {
-            onUpdateTask(data.id, data);
-        } else {
-            onAddTask(data);
-        }
-    };
-
-    const handleDelete = (id) => {
-        onDeleteTask(id);
-        setIsEditorOpen(false); // Close editor after delete
-    };
-
+    // --- ORIGINAL DRAG LOGIC (Restored Exactly) ---
     const calculateSnap = (task, offsetY) => {
         const [h, m] = task.startTime.split(':').map(Number);
         const currentMinutes = h * 60 + m;
-        const minutesMoved = offsetY; // 1px = 1min
+        const minutesMoved = offsetY; // 1px = 1min logic
         let newTotalMinutes = currentMinutes + minutesMoved;
 
         // Snap to nearest 15
@@ -84,6 +110,10 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         };
     };
 
+    const handleDragStart = () => {
+        isDragging.current = true;
+    };
+
     const handleDrag = (task, info) => {
         const snap = calculateSnap(task, info.offset.y);
         setDragPreview({
@@ -92,18 +122,12 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         });
     };
 
-    const handleDragStart = () => {
-        isDragging.current = true;
-    };
-
     const handleDragEnd = (task, info) => {
         const snap = calculateSnap(task, info.offset.y);
         setDragPreview(null);
 
         // Small delay to prevent click from firing immediately after drag
-        setTimeout(() => {
-            isDragging.current = false;
-        }, 100);
+        setTimeout(() => { isDragging.current = false; }, 100);
 
         if (snap.timeStr !== task.startTime) {
             onUpdateTask(task.id, { startTime: snap.timeStr });
@@ -111,10 +135,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     };
 
     const openNew = (time) => {
-        setEditingItem({
-            date: dateKey,
-            startTime: time || '',
-        });
+        setEditingItem({ date: dateKey, startTime: time || '' });
         setIsEditorOpen(true);
     };
 
@@ -124,104 +145,118 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         setIsEditorOpen(true);
     };
 
-    const handlePrevDay = () => {
-        const d = new Date(selectedDate);
-        d.setDate(d.getDate() - 1);
-        setSelectedDate(d);
-    };
-
-    const handleNextDay = () => {
-        const d = new Date(selectedDate);
-        d.setDate(d.getDate() + 1);
-        setSelectedDate(d);
-    };
-
-    // Scroll to current time on initial load if today
-    // Scroll to current time on initial load if today
-    React.useLayoutEffect(() => {
+    // --- AUTO SCROLL ---
+    useEffect(() => {
         if (isToday && scrollContainerRef.current) {
             const now = new Date();
             const minutes = now.getHours() * 60 + now.getMinutes();
             const timeTop = (minutes / 60) * GRID_HEIGHT_PER_HOUR;
-
-            // Calculate center offset
             const containerHeight = scrollContainerRef.current.clientHeight;
             if (containerHeight > 0) {
-                const scrollTarget = Math.max(0, timeTop - (containerHeight / 2));
-                scrollContainerRef.current.scrollTop = scrollTarget;
+                scrollContainerRef.current.scrollTo({
+                    top: Math.max(0, timeTop - (containerHeight / 2)),
+                    behavior: 'smooth'
+                });
             }
         }
     }, [isToday, dateKey]);
 
+    // --- ANIMATION VARIANTS (Improved) ---
+    const slideVariants = {
+        enter: (dir) => ({ x: dir * 50, opacity: 0 }),
+        center: { x: 0, opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
+        exit: (dir) => ({ x: dir * -50, opacity: 0, transition: { duration: 0.15, ease: "easeIn" } })
+    };
+
     return (
         <div className="h-full flex flex-col bg-transparent relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
 
-
-
-            <div className="flex items-center justify-between px-6 py-6 border-b border-white/5 bg-white/5 flex-shrink-0 z-10">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-black/20 rounded-lg p-1 border border-white/5">
-                        <button onClick={handlePrevDay} className="p-1 hover:bg-white/10 rounded text-white/70 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
-                        <button onClick={() => setSelectedDate(new Date())} className={`px-3 py-0.5 text-xs font-bold uppercase tracking-wide rounded transition-colors ${isToday ? 'bg-white text-black' : 'text-white/50 hover:bg-white/10 hover:text-white'}`}>Today</button>
-                        <button onClick={handleNextDay} className="p-1 hover:bg-white/10 rounded text-white/70 hover:text-white transition-colors"><ChevronRight size={16} /></button>
-                    </div>
-                    <h2 className="text-lg font-bold text-white tracking-wide min-w-[140px]">
-                        {selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </h2>
+            {/* HEADER (Enhanced Calendar) */}
+            <div className="flex flex-col border-b border-white/5 bg-transparent flex-shrink-0 z-30">
+                <div className="p-4 pb-0 flex justify-end">
+                    <CloseButton onClick={onClose} />
                 </div>
-                <CloseButton onClick={onClose} />
+                <div className="px-4 pb-4">
+                    <ExpandableCalendar
+                        selectedDate={selectedDate}
+                        onSelectDate={(d) => {
+                            const clean = new Date(d);
+                            clean.setHours(0, 0, 0, 0);
+                            setSelectedDate(clean);
+                        }}
+                        currentMonth={currentMonth}
+                        setCurrentMonth={setCurrentMonth}
+                        isExpanded={isCalendarExpanded}
+                        setIsExpanded={setIsCalendarExpanded}
+                        data={tasks.reduce((acc, t) => { if (t.date) acc[t.date] = true; return acc; }, {})}
+                    />
+                </div>
             </div>
 
             <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar relative">
-                <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.div
-                        key={dateKey}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="relative"
-                    >
-                        <div ref={containerRef} className="relative mt-2" style={{ height: HOURS.length * GRID_HEIGHT_PER_HOUR }}>
-                            {HOURS.map(hour => (
-                                <div key={hour} className="absolute left-0 right-0 border-t border-white/5 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
-                                    <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">{hour}:00</div>
-                                    <div className="flex-1 pointer-events-auto hover:bg-white/[0.02] cursor-pointer border-l border-white/5" onClick={() => openNew(`${hour.toString().padStart(2, '0')}:00`)} />
-                                </div>
-                            ))}
+                <div ref={containerRef} className="relative mt-2" style={{ height: HOURS.length * GRID_HEIGHT_PER_HOUR }}>
 
-                            {isToday && (
-                                <div className="absolute left-12 right-0 border-t border-red-500 z-10 pointer-events-none" style={{ top: getTopOffset(`${new Date().getHours()}:${new Date().getMinutes()}`) }}>
-                                    <div className="absolute -left-1.5 -top-1 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                                </div>
-                            )}
+                    {/* 1. BACKGROUND GRID */}
+                    {HOURS.map(hour => (
+                        <div key={hour} className="absolute left-0 right-0 border-t border-white/5 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
+                            <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">{hour}:00</div>
+                        </div>
+                    ))}
 
-                            {/* SNAP GUIDE LINE */}
-                            {dragPreview && (
-                                <div className="absolute left-0 right-0 border-t-2 border-white z-50 pointer-events-none flex items-center" style={{ top: dragPreview.top }}>
-                                    <div className="absolute left-0 bg-white text-black text-[10px] font-bold px-1 rounded-r shadow-lg -mt-3">
-                                        {dragPreview.timeStr}
-                                    </div>
-                                    <div className="w-full h-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
-                                </div>
-                            )}
+                    {/* 2. CLICK ZONES */}
+                    {HOURS.map(hour => (
+                        <div
+                            key={`click-${hour}`}
+                            className="absolute left-12 right-0 pointer-events-auto hover:bg-white/[0.02] cursor-pointer border-l border-white/5"
+                            style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}
+                            onClick={() => openNew(`${hour.toString().padStart(2, '0')}:00`)}
+                        />
+                    ))}
 
-                            {timedTasks.map(task => (
+                    {/* 3. NOW INDICATOR */}
+                    {isToday && (
+                        <div className="absolute left-12 right-0 border-t border-red-500 z-10 pointer-events-none" style={{ top: getTopOffset(`${new Date().getHours()}:${new Date().getMinutes()}`) }}>
+                            <div className="absolute -left-1.5 -top-1 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                        </div>
+                    )}
+
+                    {/* 4. TASKS */}
+                    <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+                        <motion.div
+                            key={dateKey}
+                            custom={direction}
+                            variants={slideVariants}
+                            initial="enter"
+                            animate="center"
+                            exit="exit"
+                            className="absolute inset-0 pointer-events-none"
+                        >
+                            {timedTasks.map((task) => (
                                 <motion.div
                                     key={task.id}
+                                    // Added layout to smooth out the snap upon release
+                                    layout
                                     layoutId={task.id}
+
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+
                                     onClick={(e) => { e.stopPropagation(); openEdit(task); }}
+
+                                    // RESTORED ORIGINAL DRAG PROPS
                                     drag="y"
                                     dragConstraints={containerRef}
                                     dragElastic={0}
                                     dragMomentum={false}
+
                                     onDragStart={handleDragStart}
                                     onDrag={(e, info) => handleDrag(task, info)}
                                     onDragEnd={(e, info) => handleDragEnd(task, info)}
+
                                     whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
-                                    className="absolute left-14 right-4 rounded-lg border border-black/10 p-2 cursor-grab active:cursor-grabbing overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-lg group"
+
+                                    className="absolute left-14 right-4 rounded-lg border border-black/10 p-2 cursor-grab active:cursor-grabbing overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-lg group pointer-events-auto"
                                     style={{
                                         top: getTopOffset(task.startTime),
                                         height: Math.max(getHeight(task.duration || 60), 32),
@@ -229,19 +264,14 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                         zIndex: 1
                                     }}
                                 >
-                                    {/* DELETE BUTTON (VISIBLE ON HOVER) */}
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onDeleteTask(task.id);
-                                        }}
+                                        onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
                                         className="absolute top-1 right-1 p-1 text-black/40 hover:text-red-600 hover:bg-white/50 rounded-md opacity-0 group-hover:opacity-100 transition-all z-20"
-                                        title="Delete"
                                     >
                                         <Trash2 size={12} />
                                     </button>
 
-                                    <div className="flex items-center justify-between pr-4"> {/* Added padding for delete button space */}
+                                    <div className="flex items-center justify-between pr-4">
                                         <div className="text-xs font-bold text-black/90 truncate">{task.title}</div>
                                         {task.reminder && task.reminder !== 'none' && (
                                             <Bell size={10} className="text-black/50 ml-1 shrink-0" fill="currentColor" />
@@ -251,14 +281,27 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                         <Clock size={10} />
                                         {task.startTime} - {new Date(new Date(`2000-01-01T${task.startTime}`).getTime() + (task.duration || 60) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                     </div>
-                                    {task.linkedNoteId && (
-                                        <div className="absolute bottom-1.5 right-1.5 opacity-60 group-hover:opacity-100 bg-black/20 p-0.5 rounded-full"><div className="w-1.5 h-1.5 bg-black rounded-full" /></div>
-                                    )}
+
+                                    {/* Bottom Handle Visual (Optional, helps indicate drag) */}
+                                    <div className="absolute bottom-0 left-0 right-0 h-2 flex justify-center opacity-0 group-hover:opacity-50">
+                                        <GripHorizontal size={10} className="text-black/30" />
+                                    </div>
                                 </motion.div>
                             ))}
+                        </motion.div>
+                    </AnimatePresence>
+
+                    {/* SNAP GUIDE LINE */}
+                    {dragPreview && (
+                        <div className="absolute left-0 right-0 border-t-2 border-white z-50 pointer-events-none flex items-center" style={{ top: dragPreview.top }}>
+                            <div className="absolute left-0 bg-white text-black text-[10px] font-bold px-1 rounded-r shadow-lg -mt-3">
+                                {dragPreview.timeStr}
+                            </div>
+                            <div className="w-full h-[1px] bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
                         </div>
-                    </motion.div>
-                </AnimatePresence>
+                    )}
+
+                </div>
             </div>
 
             <div className="absolute bottom-6 right-6 z-30">
@@ -274,8 +317,12 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                 initialData={editingItem}
                 notes={notes}
                 allTags={allTags}
-                onSave={handleSave}
-                onDelete={handleDelete} // Passes the logic down
+                onSave={(data) => {
+                    if (editingItem?.id) onUpdateTask(data.id, data);
+                    else onAddTask(data);
+                    setIsEditorOpen(false);
+                }}
+                onDelete={onDeleteTask}
             />
         </div>
     );

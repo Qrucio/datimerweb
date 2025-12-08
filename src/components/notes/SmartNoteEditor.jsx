@@ -59,7 +59,8 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                 setLinkedNoteId(initialData.linkedNoteId || '');
                 setTags(initialData.tags || []);
                 setColor(initialData.color || COLORS[0]);
-                setRecurrence(initialData.recurrence || 'none');
+                // Handle repeatDays if present, otherwise fallback to recurrence string or 'none'
+                setRecurrence(initialData.repeatDays || initialData.recurrence || 'none');
             } else {
                 setTitle('');
                 setType('task');
@@ -104,7 +105,9 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
             linkedNoteId,
             tags,
             color,
-            recurrence,
+            // Save as repeatDays if it's an array, otherwise recurrence string (legacy support)
+            recurrence: Array.isArray(recurrence) ? 'custom' : recurrence,
+            repeatDays: Array.isArray(recurrence) ? recurrence : [],
             createdAt: initialData?.createdAt || Date.now(),
             isDone: initialData?.isDone || false,
         };
@@ -236,15 +239,44 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
 
                                     <div className="flex-1 space-y-2">
                                         <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center gap-1"><Repeat size={12} /> Repeat</label>
-                                        <select
-                                            value={recurrence}
-                                            onChange={(e) => setRecurrence(e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/20 appearance-none cursor-pointer"
-                                        >
-                                            {RECURRENCE_OPTIONS.map(opt => (
-                                                <option key={opt.id} value={opt.id} className="bg-[#222]">{opt.label}</option>
-                                            ))}
-                                        </select>
+                                        <div className="flex gap-1 justify-between bg-white/5 border border-white/10 rounded-xl p-2 min-h-[46px] items-center">
+                                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
+                                                const isSelected = (recurrence === 'custom' && tags.length === -1) ||
+                                                    (Array.isArray(initialData?.repeatDays) && initialData.repeatDays.includes(i)) ||
+                                                    (Array.isArray(recurrence) && recurrence.includes(i));
+
+                                                // We'll use a local state for this in the full component, 
+                                                // but for this snippet replacement we need to see how 'recurrence' state is managed.
+                                                // The original code used 'recurrence' string. We need to update state management in the component start first.
+                                                // Let's assume we will update the state definition next.
+                                                return null;
+                                            })}
+                                            {/* Re-implementing properly below with correct logic */}
+                                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
+                                                const isSelected = Array.isArray(recurrence) && recurrence.includes(i);
+                                                return (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => {
+                                                            let newRecurrence;
+                                                            if (!Array.isArray(recurrence)) {
+                                                                newRecurrence = [i];
+                                                            } else {
+                                                                if (recurrence.includes(i)) {
+                                                                    newRecurrence = recurrence.filter(d => d !== i);
+                                                                } else {
+                                                                    newRecurrence = [...recurrence, i];
+                                                                }
+                                                            }
+                                                            setRecurrence(newRecurrence.length > 0 ? newRecurrence : 'none');
+                                                        }}
+                                                        className={`w-8 h-8 rounded-full text-[10px] font-bold transition-all flex items-center justify-center ${isSelected ? 'bg-white text-black scale-110 shadow-lg' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
+                                                    >
+                                                        {day}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
 
