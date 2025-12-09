@@ -17,6 +17,7 @@ import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
+import { FlowTag } from './components/ui/FlowTag';
 
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
@@ -1425,8 +1426,7 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
 
                         {/* --- MINIMALIST FLOW BADGE --- */}
                         {profileData?.isPro && (
-                          <img
-                            src="/protag.png"
+                          <FlowTag
                             alt="Flow Member"
                             className="h-5 w-auto object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.8)] mt-0.5"
                             title="Flow Member"

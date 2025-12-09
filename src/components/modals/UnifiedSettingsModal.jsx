@@ -13,6 +13,7 @@ import {
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
+import { FlowTag } from '../ui/FlowTag';
 
 const toggleStyles = `
   .toggle-switch {
@@ -352,7 +353,7 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
                 <div className={`px-2 py-1 rounded-full flex items-center gap-2 backdrop-blur-md shadow-sm transition-all ${isPro ? 'bg-transparent border-none p-0' : 'bg-white/10 border border-white/10 px-3 py-1.5 text-white/60'}`}>
                   {isPro ? (
                     <div className="flex items-center gap-2 bg-black/20 rounded-full pr-3 pl-1 py-1 border border-white/10 backdrop-blur-md">
-                      <img src="/protag.png" alt="Flow" className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
+                      <FlowTag className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" alt="Flow" />
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 font-bold text-xs uppercase tracking-widest font-sans">Flow Member</span>
                     </div>
                   ) : (
