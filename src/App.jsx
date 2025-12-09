@@ -764,22 +764,22 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
   const content = {
     notes: {
       title: "Limit Reached",
-      description: <>Free users are limited to 3 notes. Upgrade to <span className="text-cyan-400 font-bold">Flow</span> for unlimited notes, exclusive themes, and more.</>,
+      description: <>Free users are limited to 3 notes. Upgrade to <FlowTag className="inline-block h-3 w-auto mx-1" /> for unlimited notes, exclusive themes, and more.</>,
       icon: StickyNoteIcon
     },
     arcade: {
       title: "Unlock Arcade",
-      description: <>Gain access to <span className="text-cyan-400 font-bold">Flow</span> exclusive games, multiplayer modes, and global leaderboards.</>,
+      description: <>Gain access to <FlowTag className="inline-block h-3 w-auto mx-1" /> exclusive games, multiplayer modes, and global leaderboards.</>,
       icon: Gamepad2
     },
     ambience: {
       title: "Soundscape Locked",
-      description: <>You have chosen your 3 free sounds. Upgrade to <span className="text-cyan-400 font-bold">Flow</span> to unlock the full library and mix unlimited sounds.</>,
+      description: <>You have chosen your 3 free sounds. Upgrade to <FlowTag className="inline-block h-3 w-auto mx-1" /> to unlock the full library and mix unlimited sounds.</>,
       icon: CloudRain
     },
     music: {
       title: "Unlock Focus Music",
-      description: <>Curated Focus Tracks are a <span className="text-cyan-400 font-bold">Flow</span> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
+      description: <>Curated Focus Tracks are a <FlowTag className="inline-block h-3 w-auto mx-1" /> feature. Upgrade to access high-fidelity binaural beats and lofi streams.</>,
       icon: Music
     },
     settings: {
@@ -788,9 +788,9 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
         <div className="flex flex-col gap-3 mt-1">
           <p className="text-white/60 text-sm">Become a Flow member to remove all limits and access the complete experience.</p>
           <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex flex-col gap-2 text-left">
-            {[StickyNoteIcon, Gamepad2, CloudRain, Music, Crown].map((Icon, i) => (
+            {[StickyNoteIcon, Gamepad2, CloudRain, Music, FlowTag].map((Icon, i) => (
               <div key={i} className="flex items-center gap-3">
-                <div className="p-1 bg-cyan-400/10 rounded text-cyan-400"><Icon size={12} /></div>
+                {Icon === FlowTag ? <div className="p-0"><FlowTag className="h-5 w-auto" /></div> : <div className="p-1 bg-cyan-400/10 rounded text-cyan-400"><Icon size={12} /></div>}
                 <span className="text-xs text-white/80">Flow Feature Unlocked</span>
               </div>
             ))}
@@ -842,52 +842,6 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
     document.body
   );
 };
-
-// --- ADD THIS FUNCTION ---
-const handleUpgradeToPro = async () => {
-  if (!user) return;
-
-  // Simulate a Pro Upgrade for testing
-  try {
-    // 1. Update Private User Doc
-    await setDoc(doc(db, "users", user.uid), {
-      subscription: { plan: 'pro', status: 'active', since: Date.now() }
-    }, { merge: true });
-
-    // 2. Update Public Profile (so friends see the gold ring)
-    await setDoc(doc(db, "publicProfiles", user.uid), {
-      isPro: true
-    }, { merge: true });
-
-    // 3. Update Local State
-    setIsPro(true);
-    setProModalSource(null); // Close the modal
-
-    // (Optional) Trigger the celebration modal manually if needed
-    // but the useEffect watching 'isPro' should handle it.
-
-  } catch (e) {
-    console.error("Upgrade simulation failed:", e);
-  }
-};
-
-const handleSaveAmbienceSelection = async (selectedIds) => {
-  if (!user) return;
-  try {
-    await setDoc(doc(db, "users", user.uid), {
-      preferences: {
-        unlockedAmbiences: selectedIds,
-        ambienceSetupDone: true
-      }
-    }, { merge: true });
-
-    setUnlockedAmbiences(selectedIds);
-    setAmbienceSetupDone(true);
-  } catch (e) {
-    console.error("Failed to save ambience selection", e);
-  }
-};
-
 
 const AccountModal = ({
   isOpen,
@@ -1147,7 +1101,7 @@ const AccountModal = ({
                 )}
               </div>
 
-              {isPro && (<div className="mb-6 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><Sparkles size={10} /> PRO MEMBER</div>)}
+              {isPro && (<div className="mb-6 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><FlowTag className="h-4 w-auto" /> FLOW MEMBER</div>)}
               <div className="w-full space-y-3 mt-auto"><button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group"><LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out</button><div className="pt-2"><button onClick={onDeleteRequest} className="text-[10px] text-red-900 hover:text-red-600 underline decoration-red-900/30 hover:decoration-red-600 transition-colors font-mono uppercase tracking-widest cursor-pointer opacity-60 hover:opacity-100">Delete Account</button></div></div>
             </motion.div>
 
@@ -1375,10 +1329,10 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const getStats = () => {
     const s = profileData.stats || {};
     return {
-      dailyFocusTime: profileData.todayFocusTime ?? s.dailyFocusTime ?? 0,
+      dailyFocusTime: s.dailyFocusTime ?? profileData.todayFocusTime ?? 0,
       dailyBreakTime: s.dailyBreakTime ?? 0,
       dailySessions: s.dailySessions ?? 0,
-      currentStreak: profileData.streak ?? s.currentStreak ?? 0
+      currentStreak: s.currentStreak ?? profileData.streak ?? 0
     };
   };
   const currentStats = getStats();
@@ -3233,15 +3187,15 @@ const NoteSystemModals = ({
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-yellow-500/50 hover:bg-yellow-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenPro();
                         }}
                       >
                         <div className="relative z-10 flex flex-col items-center gap-2">
-                          <Lock size={32} className="text-white/30 group-hover:text-yellow-400 transition-colors" />
-                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-yellow-400 transition-colors font-medium">Unlock</span>
+                          <Lock size={32} className="text-white/30 group-hover:text-cyan-400 transition-colors" />
+                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-cyan-400 transition-colors font-medium">Unlock</span>
                           {/* COUNT FOR LOCKED STATE */}
                           <span className="text-[10px] font-mono text-white/30 font-medium">3 / 3</span>
                         </div>
@@ -4323,6 +4277,8 @@ function MainApp() {
     // We attach this to the public presence doc so friends can see "Today's Focus"
     // WITHOUT requiring a separate DB write.
     const currentStats = Storage.getTodayStats();
+    const fullHistory = Storage.getFullHistory();
+    const currentStreak = Storage.calculateStreak(fullHistory);
 
     const payload = {
       timerState: {
@@ -4331,10 +4287,11 @@ function MainApp() {
       },
       // Piggyback stats here:
       todayStats: {
-        focusTime: currentStats.dailyFocusTime || 0,
-        breakTime: currentStats.dailyBreakTime || 0,
-        sessions: currentStats.dailySessions || 0
-      }
+        dailyFocusTime: currentStats.dailyFocusTime || 0,
+        dailyBreakTime: currentStats.dailyBreakTime || 0,
+        dailySessions: currentStats.dailySessions || 0
+      },
+      streak: currentStreak
     };
 
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
@@ -4343,7 +4300,9 @@ function MainApp() {
       // ONLY update Public Profile Status (Online/Offline/Focusing)
       await setDoc(doc(db, "publicProfiles", user.uid), {
         timerState: payload.timerState,
-        stats: payload.todayStats // Flattened for easy access by friends
+        stats: payload.todayStats, // Flattened for easy access by friends
+        streak: payload.streak,
+        todayFocusTime: payload.todayStats.dailyFocusTime // Backwards compatibility for root readers
       }, { merge: true });
 
     } catch (e) {
@@ -5550,6 +5509,48 @@ function MainApp() {
     }
   };
 
+  const handleUpgradeToPro = async () => {
+    if (!user) return;
+
+    // Simulate a Flow Upgrade for testing
+    try {
+      // 1. Update Private User Doc
+      // Keeping plan: 'pro' for backward compatibility, but in UI we call it Flow
+      await setDoc(doc(db, "users", user.uid), {
+        subscription: { plan: 'pro', status: 'active', since: Date.now() }
+      }, { merge: true });
+
+      // 2. Update Public Profile (so friends see the cyan ring)
+      await setDoc(doc(db, "publicProfiles", user.uid), {
+        isPro: true
+      }, { merge: true });
+
+      // 3. Update Local State
+      setIsPro(true);
+      setProModalSource(null); // Close the modal
+
+    } catch (e) {
+      console.error("Upgrade simulation failed:", e);
+    }
+  };
+
+  const handleSaveAmbienceSelection = async (selectedIds) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        preferences: {
+          unlockedAmbiences: selectedIds,
+          ambienceSetupDone: true
+        }
+      }, { merge: true });
+
+      setUnlockedAmbiences(selectedIds);
+      setAmbienceSetupDone(true);
+    } catch (e) {
+      console.error("Failed to save ambience selection", e);
+    }
+  };
+
   const handleBackgroundChange = (bgSrc) => {
     // 1. Prepare New Settings with Timestamp
     // We must stamp this so the app knows this is the "Latest Version"
@@ -6163,6 +6164,7 @@ function MainApp() {
         ambienceState={ambienceState}
         onToggleAmbience={toggleAmbience}
         onAmbienceVolume={changeAmbienceVolume}
+        onStopAllAmbience={stopAllAmbience}
         isLofiPlaying={isLofiPlaying}
         onToggleLofi={toggleLofi}
 
@@ -6172,7 +6174,6 @@ function MainApp() {
         ambienceSetupDone={ambienceSetupDone}
         onSaveAmbienceSelection={handleSaveAmbienceSelection}
         onOpenPro={() => setProModalSource('ambience')}
-        onStopAllAmbience={stopAllAmbience}
       // -----------------
       />
       {/* --------------------- */}
