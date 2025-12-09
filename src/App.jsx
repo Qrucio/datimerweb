@@ -23,6 +23,18 @@ const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
 import CaffeineTracker from './components/CaffeineTracker';
 
+const ELON_MSG = [
+  "Break skipped. Mars awaits.",
+  "No break. Go hardcore.",
+  "Skipped. Production hell.",
+  "Break denied. Build the future.",
+  "Skipped. 100 hour work weeks.",
+  "No rest. Be extremely hardcore.",
+  "Break skipped. Accelerate.",
+  "Denied. Physics doesn't compromise.",
+  "Skipped. History is written now."
+];
+
 const getExtensionId = () => {
   const userAgent = navigator.userAgent.toLowerCase();
   if (userAgent.indexOf("firefox") > -1) return FIREFOX_ID;
@@ -520,9 +532,8 @@ const BendingDivider = ({ activeSide, isDimmed }) => {
   );
 };
 
-// --- SMART MESSAGE COMPONENT (FIXED) ---
-// --- SMART MESSAGE COMPONENT (UPDATED) ---
-const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }) => {
+// --- SMART MESSAGE COMPONENT ---
+const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, overrideMessage }) => {
   const [displayText, setDisplayText] = useState("");
   const [key, setKey] = useState("init");
 
@@ -538,6 +549,16 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }
 
   useEffect(() => {
     const updateMessage = () => {
+      // 1. Priority: Override Message (e.g., "Break Skipped")
+      if (overrideMessage) {
+        setDisplayText(overrideMessage);
+        setKey(prev => {
+          const newKey = `override-${overrideMessage}`;
+          return prev === newKey ? prev : newKey;
+        });
+        return;
+      }
+
       const now = new Date();
       const currentTimeStr = formatTime(now);
 
@@ -565,12 +586,12 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }
     updateMessage();
     const interval = setInterval(updateMessage, 1000);
     return () => clearInterval(interval);
-  }, [isActive, targetEndTime, mode]);
+  }, [isActive, targetEndTime, mode, overrideMessage]);
 
   // VISIBILITY LOGIC:
-  // If in Focus Mode (Timer running + Focus Tab), obey user activity (hide if inactive).
-  // Otherwise (Break tabs or Timer stopped), always show (opacity 1).
-  const isVisible = focusMode ? isUserActive : true;
+  // If we have an override message (Break Skipped), ALWAYS show it.
+  // Otherwise, fallback to Focus Mode logic (hide if inactive).
+  const isVisible = overrideMessage || (focusMode ? isUserActive : true);
 
   return (
     <div className={`flex justify-center transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
@@ -587,7 +608,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }
           initial={{ x: '-100%', opacity: 0 }}
           animate={{ x: '150%', opacity: 0.4 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 pointer-events-none z-0"
+          className={`absolute inset-0 w-full h-full bg-gradient-to-r from-transparent ${overrideMessage ? 'via-purple-500' : 'via-white'} to-transparent -skew-x-12 pointer-events-none z-0`}
         />
 
         <AnimatePresence mode="popLayout" initial={false}>
@@ -601,8 +622,8 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }
               bounce: 0,
               duration: 0.5
             }}
-            className="relative z-10 text-sm font-medium tracking-wide text-center whitespace-nowrap block font-clock text-white"
-            style={{ textShadow: "0 0 20px rgba(255,255,255,0.2)" }}
+            className={`relative z-10 text-sm font-medium tracking-wide text-center whitespace-nowrap block font-clock ${overrideMessage ? 'text-purple-200' : 'text-white'}`}
+            style={{ textShadow: overrideMessage ? "0 0 20px rgba(168, 85, 247, 0.5)" : "0 0 20px rgba(255,255,255,0.2)" }}
           >
             {displayText}
           </motion.span>
@@ -1313,6 +1334,8 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [historyData, setHistoryData] = useState({});
   const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
+
+
 
   const [profileData, setProfileData] = useState(friend || {});
 
@@ -3641,6 +3664,8 @@ function MainApp() {
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
+  // FIX: Force timer restart when mode stays same (Focus -> Focus)
+  const [timerResetKey, setTimerResetKey] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
@@ -3740,6 +3765,7 @@ function MainApp() {
     return 'default';
   });
   const [extraFocusPopup, setExtraFocusPopup] = useState({ visible: false, minutes: 0 });
+  const [smartMessageOverride, setSmartMessageOverride] = useState(null);
   const skipStatsRef = useRef({ attempted: 0, skipped: 0 });
 
   // Restore Elon stats on mount
@@ -5223,11 +5249,11 @@ function MainApp() {
 
             // 1. DETERMINE INTENDED NEXT MODE
             let intendedNextMode = 'shortBreak';
-            let intendedTimeLeft = settings.shortBreak * 60;
+            let intendedTimeLeft = (Number(settings.shortBreak) || 5) * 60;
 
-            if (pomoCount + 1 >= settings.pomosBeforeLongBreak) {
+            if (pomoCount + 1 >= (Number(settings.pomosBeforeLongBreak) || 4)) {
               intendedNextMode = 'longBreak';
-              intendedTimeLeft = settings.longBreak * 60;
+              intendedTimeLeft = (Number(settings.longBreak) || 15) * 60;
             }
 
             // 2. ELON MUSK LOGIC (Skip Break Check)
@@ -5251,15 +5277,18 @@ function MainApp() {
               // ELON MODE: SKIP BREAK
               // We go straight back to FOCUS
               nextMode = 'focus';
-              nextTimeLeft = settings.focus * 60;
-              if (settings.autoStartWork) nextIsActive = true;
-              // Even if autoStartWork is off, Elon implies intensity, maybe force it?
-              // Let's stick to settings or force true:
-              nextIsActive = true; // Elon forces the next session
+              nextTimeLeft = (Number(settings.focus) || 25) * 60;
 
-              // Trigger Popup
-              setExtraFocusPopup({ visible: true, minutes: Math.floor(intendedTimeLeft / 60) });
-              setTimeout(() => setExtraFocusPopup({ visible: false, minutes: 0 }), 5000);
+              // Respect User Setting for Auto-Start
+              nextIsActive = settings.autoStartWork;
+
+              // NEW: Show Smart Pill Message (Purple Shimmer)
+              const msg = ELON_MSG[Math.floor(Math.random() * ELON_MSG.length)];
+              setSmartMessageOverride(msg);
+              new Audio('/sounds/breakskipped.mp3').play().catch(e => console.error("Break skipped sound failed", e));
+              setTimeout(() => {
+                setSmartMessageOverride(null);
+              }, 60000); // Show for 1 minute
 
             } else {
               // NORMAL BEHAVIOR
@@ -5273,7 +5302,7 @@ function MainApp() {
             setPomoCount(prev => prev + 1);
             nextMode = 'focus';
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
-            nextTimeLeft = settings.focus * 60;
+            nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
 
           } else if (mode === 'longBreak') {
@@ -5281,7 +5310,7 @@ function MainApp() {
             setPomoCount(0);
             nextMode = 'focus';
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
-            nextTimeLeft = settings.focus * 60;
+            nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
           }
 
@@ -5299,6 +5328,9 @@ function MainApp() {
             timeLeft: nextTimeLeft,
             lastUpdated: Date.now()
           });
+
+          // CRITICAL FIX: Force useEffect to re-run even if mode/isActive are unchanged
+          setTimerResetKey(prev => prev + 1);
         }
       }, 100); // 100ms resolution is fine for checking updates
     } else {
@@ -5308,7 +5340,7 @@ function MainApp() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, mode, settings, pomoCount, devMode, strictMode]);
+  }, [isActive, mode, settings, pomoCount, devMode, strictMode, timerResetKey]);
 
   useEffect(() => {
     if (isActive && endTimeRef.current) {
@@ -5825,6 +5857,7 @@ function MainApp() {
                 mode={mode}
                 isUserActive={isUserActive}
                 focusMode={focusMode}
+                overrideMessage={smartMessageOverride}
               />
             </div>
 
@@ -6211,6 +6244,8 @@ function MainApp() {
 
       {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
       <TaskReminderSystem tasks={tasks} />
+
+
     </div >
   );
 }

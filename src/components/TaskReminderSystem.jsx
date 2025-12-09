@@ -1,24 +1,27 @@
 import React, { useEffect, useRef } from 'react';
 
-const CHECK_INTERVAL_MS = 2000; // Reduced to 2s for debugging
-
 const TaskReminderSystem = ({ tasks = [] }) => {
-    // We use a ref to track which task IDs we've already alerted for this session
-    // to prevent the sound from looping constantly during the target minute.
+    // Track alerted task-reminder pairs to prevent double firing
     const alertedTaskIds = useRef(new Set());
+    const timeoutRef = useRef(null);
 
     useEffect(() => {
-        const checkReminders = () => {
+        const scheduleNextCheck = () => {
+            // 1. Clear existing timeout
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+
             const now = new Date();
             const currentMs = now.getTime();
+            let allFutureReminders = [];
 
-            console.log(`[ReminderSystem] Checking at ${now.toLocaleTimeString()}. Total tasks: ${tasks.length}`);
-
+            // 2. Gather ALL pending future reminders
             tasks.forEach(task => {
-                // 1. Basic Validation
                 if (task.isDone || !task.date || !task.startTime) return;
 
-                // 2. Normalize Reminders (Array support)
+                // Normalize Reminders
                 let taskReminders = [];
                 if (task.reminders && Array.isArray(task.reminders)) {
                     taskReminders = task.reminders;
@@ -28,87 +31,107 @@ const TaskReminderSystem = ({ tasks = [] }) => {
 
                 if (taskReminders.length === 0) return;
 
-                // 3. Robust Date Parsing
-                // Expected: task.date = "YYYY-MM-DD", task.startTime = "HH:MM"
+                // Parse Date
                 let taskDate;
                 try {
                     const [year, month, day] = task.date.split('-').map(Number);
                     const [hours, mins] = task.startTime.split(':').map(Number);
 
                     if (!year || !month || !day || isNaN(hours) || isNaN(mins)) {
-                        // Fallback to string parsing if split fails
                         const fallbackString = `${task.date}T${task.startTime}`;
                         taskDate = new Date(fallbackString);
                     } else {
-                        // Start counting months from 0
                         taskDate = new Date(year, month - 1, day, hours, mins, 0);
                     }
                 } catch (e) {
-                    console.error(`[ReminderSystem] Date parse error for "${task.title}"`, e);
                     return;
                 }
 
-                if (isNaN(taskDate.getTime())) {
-                    console.log(`[ReminderSystem] Invalid date for "${task.title}"`);
-                    return;
-                }
+                if (isNaN(taskDate.getTime())) return;
 
-                // 4. Check Each Reminder
+                // Calculate Trigger Times
                 taskReminders.forEach(reminderVal => {
                     const reminderMinutes = parseInt(reminderVal, 10);
                     if (isNaN(reminderMinutes)) return;
 
                     const reminderOffsetMs = reminderMinutes * 60 * 1000;
                     const triggerTimeMs = taskDate.getTime() - reminderOffsetMs;
-
-                    // 1-minute window (0ms to 60000ms past trigger)
-                    const timeDiff = currentMs - triggerTimeMs;
-
-                    // Unique ID for this specific reminder instance to prevent duplicate alerting
                     const alertId = `${task.id}-${reminderMinutes}`;
 
-                    if (timeDiff >= 0 && timeDiff < 60000) {
-                        if (!alertedTaskIds.current.has(alertId)) {
-                            console.log(`[ReminderSystem] TRIGGERING SOUND for "${task.title}" (${reminderMinutes}m before)`);
-                            playReminderSound();
-                            alertedTaskIds.current.add(alertId);
+                    // Only consider if not already alerted AND in the future (or very recent past)
+                    if (!alertedTaskIds.current.has(alertId)) {
+                        // If it's in the past but within last 1 minute, fire immediately
+                        if (triggerTimeMs <= currentMs && (currentMs - triggerTimeMs) < 60000) {
+                            fireReminder(task, reminderMinutes, alertId);
+                        }
+                        // If it's strictly in the future, add to schedule candidates
+                        else if (triggerTimeMs > currentMs) {
+                            allFutureReminders.push({
+                                triggerTimeMs,
+                                task,
+                                reminderMinutes,
+                                alertId
+                            });
                         }
                     }
                 });
             });
+
+            // 3. Find the Earliest Next Reminder
+            if (allFutureReminders.length === 0) {
+                // console.log("[ReminderSystem] No future reminders pending.");
+                return;
+            }
+
+            allFutureReminders.sort((a, b) => a.triggerTimeMs - b.triggerTimeMs);
+            const nextEvent = allFutureReminders[0];
+            const delay = Math.max(0, nextEvent.triggerTimeMs - currentMs);
+
+            // console.log(`[ReminderSystem] Next reminder for "${nextEvent.task.title}" in ${(delay / 1000).toFixed(1)}s`);
+
+            // 4. Set Single Timeout
+            timeoutRef.current = setTimeout(() => {
+                fireReminder(nextEvent.task, nextEvent.reminderMinutes, nextEvent.alertId);
+                // Recursively check for the NEXT one after this finishes
+                scheduleNextCheck();
+            }, delay);
         };
 
-        const interval = setInterval(checkReminders, CHECK_INTERVAL_MS);
+        const fireReminder = (task, minutes, alertId) => {
+            console.log(`[ReminderSystem] 🔔 ALARM: "${task.title}" (${minutes}m warning)`);
+            playReminderSound();
+            alertedTaskIds.current.add(alertId);
+        };
 
-        // Initial check immediately
-        checkReminders();
+        // Run scheduling whenever tasks change or tab visibility changes
+        scheduleNextCheck();
 
-        return () => clearInterval(interval);
-    }, [tasks]);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                // console.log("[ReminderSystem] Tab awake. Re-syncing schedule...");
+                scheduleNextCheck();
+            }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [tasks]); // Re-schedule if tasks list changes
 
     const playReminderSound = () => {
         try {
-            console.log("[ReminderSystem] Attempting to play sound...");
-            // Assumes file is at public/sounds/remindnotif.mp3
             const audio = new Audio('/sounds/remindnotif.mp3');
             audio.volume = 1.0;
-            const playPromise = audio.play();
-
-            if (playPromise !== undefined) {
-                playPromise
-                    .then(() => {
-                        console.log("[ReminderSystem] Audio playback started successfully.");
-                    })
-                    .catch(e => {
-                        console.error("[ReminderSystem] Audio playback failed:", e);
-                    });
-            }
+            audio.play().catch(e => console.error("[ReminderSystem] Play failed:", e));
         } catch (e) {
             console.error("[ReminderSystem] Sound error:", e);
         }
     };
 
-    return null; // Headless component (no UI)
+    return null;
 };
 
 export default TaskReminderSystem;
