@@ -576,6 +576,25 @@ const UnifiedSettingsModal = ({
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
                           <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
+
+                          <div className="pt-4 border-t border-white/5 mt-4">
+                            <button
+                              onClick={() => {
+                                const audio = new Audio('/sounds/remindnotif.mp3');
+                                audio.volume = 1.0;
+                                audio.play().catch(e => console.error("Test sound failed", e));
+                              }}
+                              className="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl w-full text-left transition-colors group"
+                            >
+                              <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 group-hover:text-indigo-300 group-hover:bg-indigo-500/20 transition-colors">
+                                <Sparkles size={18} />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-white group-hover:text-indigo-200 transition-colors">Test Reminder Sound</span>
+                                <span className="text-xs text-white/50">Click to play the notification sound</span>
+                              </div>
+                            </button>
+                          </div>
                         </div>
                       </section>
                     </motion.div>

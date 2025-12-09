@@ -4,13 +4,16 @@ import {
     X,
     Calendar,
     Repeat,
+    Clock,
     Link as LinkIcon,
     ChevronDown,
     Hash,
-    Check
+    Check,
+    Bell
 } from 'lucide-react';
 import { TimeInput } from '../ui/TimePicker';
 import CloseButton from '../ui/CloseButton';
+import LiquidDeleteBtn from '../ui/LiquidDeleteBtn';
 
 // COLORS UPDATED to match your Notes theme
 const COLORS = [
@@ -30,18 +33,26 @@ const RECURRENCE_OPTIONS = [
     { id: 'weekdays', label: 'Weekdays (Mon-Fri)' },
 ];
 
-const DURATION_PRESETS = [15, 30, 45, 60, 90, 120];
+const REMINDER_OPTIONS = [
+    { value: 0, label: 'At start' },
+    { value: 5, label: '-5 min' },
+    { value: 10, label: '-10 min' },
+    { value: 15, label: '-15 min' },
+    { value: 30, label: '-30 min' },
+    { value: 60, label: '-1 hour' },
+];
 
 const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = [], allTags = [], onSave, onDelete }) => {
     const [title, setTitle] = useState('');
     const [type, setType] = useState('task');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [startTime, setStartTime] = useState('');
-    const [duration, setDuration] = useState(30);
+    const [endTime, setEndTime] = useState('');
     const [linkedNoteId, setLinkedNoteId] = useState('');
     const [tags, setTags] = useState([]);
     const [color, setColor] = useState(COLORS[0]);
     const [recurrence, setRecurrence] = useState('none');
+    const [reminders, setReminders] = useState([]);
 
     const [tagInput, setTagInput] = useState('');
     const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -55,22 +66,38 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                 setType('task');
                 setDate(initialData.date || new Date().toISOString().split('T')[0]);
                 setStartTime(initialData.startTime || '');
-                setDuration(initialData.duration || 30);
+
+                // Calculate End Time from Duration
+                // Calculate End Time from Duration OR Default to +30m
+                if (initialData.startTime) {
+                    const [h, m] = initialData.startTime.split(':').map(Number);
+                    // Use provided duration or DEFAULT 30 mins
+                    const duration = initialData.duration || 30;
+                    const totalMin = h * 60 + m + duration;
+                    const endH = Math.floor(totalMin / 60) % 24;
+                    const endM = totalMin % 60;
+                    setEndTime(`${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`);
+                } else {
+                    setEndTime('');
+                }
+
                 setLinkedNoteId(initialData.linkedNoteId || '');
                 setTags(initialData.tags || []);
                 setColor(initialData.color || COLORS[0]);
                 // Handle repeatDays if present, otherwise fallback to recurrence string or 'none'
                 setRecurrence(initialData.repeatDays || initialData.recurrence || 'none');
+                setReminders(initialData.reminders || (initialData.reminder && initialData.reminder !== 'none' ? [initialData.reminder] : []));
             } else {
                 setTitle('');
                 setType('task');
                 setDate(initialDate || new Date().toISOString().split('T')[0]);
                 setStartTime('');
-                setDuration(30);
+                setEndTime('');
                 setLinkedNoteId('');
                 setTags([]);
                 setColor(COLORS[0]);
                 setRecurrence('none');
+                setReminders([]);
             }
             setTagInput('');
             setShowTagSuggestions(false);
@@ -95,19 +122,33 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
     const handleSave = () => {
         if (!title.trim()) return;
 
+        // Calculate Duration
+        let calculatedDuration = 30; // Default
+        if (startTime && endTime) {
+            const [sh, sm] = startTime.split(':').map(Number);
+            const [eh, em] = endTime.split(':').map(Number);
+            const startTotal = sh * 60 + sm;
+            let endTotal = eh * 60 + em;
+            if (endTotal < startTotal) endTotal += 24 * 60; // Assume next day overlap
+            calculatedDuration = endTotal - startTotal;
+        }
+
         const data = {
             id: initialData?.id || Date.now().toString(),
             title,
             type: 'task',
             date,
             startTime,
-            duration: parseInt(duration),
+            duration: calculatedDuration,
             linkedNoteId,
             tags,
             color,
             // Save as repeatDays if it's an array, otherwise recurrence string (legacy support)
+            // Save as repeatDays if it's an array, otherwise recurrence string (legacy support)
             recurrence: Array.isArray(recurrence) ? 'custom' : recurrence,
             repeatDays: Array.isArray(recurrence) ? recurrence : [],
+            reminders: reminders,
+            reminder: reminders.length > 0 ? reminders[0] : 'none', // Backward compat
             createdAt: initialData?.createdAt || Date.now(),
             isDone: initialData?.isDone || false,
         };
@@ -191,7 +232,21 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                             <h3 className="text-sm font-bold text-white uppercase tracking-widest">
                                 {initialData ? 'Edit Task' : 'New Task'}
                             </h3>
-                            <CloseButton onClick={onClose} />
+                            <div className="flex items-center gap-4">
+                                {initialData && onDelete && (
+                                    <LiquidDeleteBtn
+                                        size={40}
+                                        className="bg-white/5 text-white"
+                                        darkMode={true}
+                                        onDelete={() => {
+                                            if (initialData?.id) {
+                                                onDelete(initialData.id);
+                                                onClose();
+                                            }
+                                        }} />
+                                )}
+                                <CloseButton onClick={onClose} />
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
@@ -204,75 +259,134 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                             />
 
                             <div className="grid grid-cols-1 gap-6">
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-white/30 uppercase tracking-widest">
-                                        <Calendar size={12} /> Schedule
+
+                                <div className="space-y-4">
+                                    {/* ROW 1: TIME (Start + End) */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center gap-1">
+                                            <Clock size={12} /> Time
+                                        </label>
+                                        <div className="flex gap-4 items-center">
+                                            <div className="flex-1">
+                                                <TimeInput value={startTime} onChange={(val) => {
+                                                    // Capture OLD start time to calculate duration
+                                                    const oldStart = startTime;
+                                                    setStartTime(val);
+
+                                                    if (val) {
+                                                        const [h, m] = val.split(':').map(Number);
+                                                        const startMin = h * 60 + m;
+
+                                                        if (!endTime) {
+                                                            // Case 1: No End Time -> Default +30 min
+                                                            const endMin = startMin + 30;
+                                                            const eh = Math.floor(endMin / 60) % 24;
+                                                            const em = endMin % 60;
+                                                            setEndTime(`${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`);
+                                                        } else if (oldStart) {
+                                                            // Case 2: Has End Time & Old Start -> Preserve Duration
+                                                            const [oh, om] = oldStart.split(':').map(Number);
+                                                            const [eh, em] = endTime.split(':').map(Number);
+
+                                                            let oldStartMin = oh * 60 + om;
+                                                            let oldEndMin = eh * 60 + em;
+
+                                                            // Handle crossing midnight for duration calc
+                                                            if (oldEndMin < oldStartMin) oldEndMin += 24 * 60;
+
+                                                            const duration = oldEndMin - oldStartMin;
+
+                                                            let newEndMin = startMin + duration;
+                                                            const newEh = Math.floor(newEndMin / 60) % 24;
+                                                            const newEm = newEndMin % 60;
+                                                            setEndTime(`${newEh.toString().padStart(2, '0')}:${newEm.toString().padStart(2, '0')}`);
+                                                        }
+                                                    }
+                                                }} placeholder="Start" />
+                                            </div>
+                                            <span className="text-white/20 font-bold">-</span>
+                                            <div className="flex-1">
+                                                <TimeInput value={endTime} onChange={setEndTime} placeholder="End" />
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    {/* ROW 2: SCHEDULE (Date + Repeat) */}
                                     <div className="flex gap-4">
-                                        <input
-                                            type="date"
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/20 focus:bg-white/10 transition-colors"
-                                        />
-                                        <div className="flex-1 relative">
-                                            <TimeInput value={startTime} onChange={setStartTime} />
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-xs font-bold text-white/30 uppercase tracking-widest">
+                                                <Calendar size={12} /> Schedule
+                                            </div>
+                                            <input
+                                                type="date"
+                                                value={date}
+                                                onChange={(e) => setDate(e.target.value)}
+                                                className="w-40 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/20 focus:bg-white/10 transition-colors"
+                                            />
+                                        </div>
+
+                                        {/* Repeat Days */}
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-2 text-xs font-bold text-white/30 uppercase tracking-widest">
+                                                <Repeat size={12} /> Repeat
+                                            </div>
+                                            <div className="flex gap-1 justify-between bg-white/5 border border-white/10 rounded-xl p-2 items-center h-[46px]">
+                                                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
+                                                    const isSelected = Array.isArray(recurrence) && recurrence.includes(i);
+                                                    return (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => {
+                                                                let newRecurrence;
+                                                                if (!Array.isArray(recurrence)) {
+                                                                    newRecurrence = [i];
+                                                                } else {
+                                                                    if (recurrence.includes(i)) {
+                                                                        newRecurrence = recurrence.filter(d => d !== i);
+                                                                    } else {
+                                                                        newRecurrence = [...recurrence, i];
+                                                                    }
+                                                                }
+                                                                setRecurrence(newRecurrence.length > 0 ? newRecurrence : 'none');
+                                                            }}
+                                                            style={isSelected ? { backgroundColor: color, color: '#000', borderColor: color } : {}}
+                                                            className={`w-8 h-8 rounded-full text-[10px] font-bold transition-all flex items-center justify-center ${isSelected ? 'scale-110 shadow-lg' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
+                                                        >
+                                                            {day}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="flex gap-4">
-                                    {startTime && (
-                                        <div className="flex-1 space-y-2">
-                                            <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center h-4">Duration</label>
-                                            <select
-                                                value={duration}
-                                                onChange={(e) => setDuration(parseInt(e.target.value))}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/20 appearance-none cursor-pointer"
-                                            >
-                                                {DURATION_PRESETS.map(m => (
-                                                    <option key={m} value={m} className="bg-[#222]">{m} min</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-
-                                    <div className="flex-1 space-y-2">
-                                        <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center gap-1"><Repeat size={12} /> Repeat</label>
-                                        <div className="flex gap-1 justify-between bg-white/5 border border-white/10 rounded-xl p-2 min-h-[46px] items-center">
-                                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
-                                                const isSelected = (recurrence === 'custom' && tags.length === -1) ||
-                                                    (Array.isArray(initialData?.repeatDays) && initialData.repeatDays.includes(i)) ||
-                                                    (Array.isArray(recurrence) && recurrence.includes(i));
-
-                                                // We'll use a local state for this in the full component, 
-                                                // but for this snippet replacement we need to see how 'recurrence' state is managed.
-                                                // The original code used 'recurrence' string. We need to update state management in the component start first.
-                                                // Let's assume we will update the state definition next.
-                                                return null;
-                                            })}
-                                            {/* Re-implementing properly below with correct logic */}
-                                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => {
-                                                const isSelected = Array.isArray(recurrence) && recurrence.includes(i);
+                                    {/* ROW 3: REMINDERS */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-white/30 uppercase tracking-widest flex items-center gap-1">
+                                            <Bell size={12} /> Reminders
+                                        </label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {REMINDER_OPTIONS.map((opt) => {
+                                                const isSelected = reminders.includes(opt.value) || reminders.includes(String(opt.value));
                                                 return (
                                                     <button
-                                                        key={i}
+                                                        key={opt.value}
                                                         onClick={() => {
-                                                            let newRecurrence;
-                                                            if (!Array.isArray(recurrence)) {
-                                                                newRecurrence = [i];
+                                                            const val = opt.value;
+                                                            // Toggle
+                                                            if (isSelected) {
+                                                                setReminders(reminders.filter(r => r !== val && r !== String(val)));
                                                             } else {
-                                                                if (recurrence.includes(i)) {
-                                                                    newRecurrence = recurrence.filter(d => d !== i);
-                                                                } else {
-                                                                    newRecurrence = [...recurrence, i];
-                                                                }
+                                                                setReminders([...reminders, val]);
                                                             }
-                                                            setRecurrence(newRecurrence.length > 0 ? newRecurrence : 'none');
                                                         }}
-                                                        className={`w-8 h-8 rounded-full text-[10px] font-bold transition-all flex items-center justify-center ${isSelected ? 'bg-white text-black scale-110 shadow-lg' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
+                                                        style={isSelected ? { backgroundColor: color, color: '#000', borderColor: color, boxShadow: `0 4px 12px ${color}40` } : {}}
+                                                        className={`px-2 py-1.5 rounded-lg text-xs font-medium border transition-all ${isSelected
+                                                            ? 'shadow-lg'
+                                                            : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'
+                                                            }`}
                                                     >
-                                                        {day}
+                                                        {opt.label}
                                                     </button>
                                                 );
                                             })}
@@ -408,10 +522,10 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                                 </div>
                             </div>
 
-                            <div className="p-6 pt-0">
+                            <div className="p-6 pt-0 flex gap-4 items-center">
                                 <button
                                     onClick={handleSave}
-                                    className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+                                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
                                     style={{ backgroundColor: color, color: '#000' }}
                                 >
                                     <Check size={18} />
@@ -422,8 +536,9 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
 
                     </motion.div>
                 </motion.div>
-            )}
-        </AnimatePresence>
+            )
+            }
+        </AnimatePresence >
     );
 };
 

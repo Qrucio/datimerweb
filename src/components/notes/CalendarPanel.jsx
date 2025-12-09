@@ -5,6 +5,7 @@ import SmartNoteEditor from './SmartNoteEditor';
 import CloseButton from '../ui/CloseButton';
 import ExpandableCalendar from '../ui/ExpandableCalendar';
 import RecurrenceUpdateModal from '../modals/RecurrenceUpdateModal';
+import LiquidDeleteBtn from '../ui/LiquidDeleteBtn';
 
 // --- DATE LOGIC FIX ---
 const toDateKey = (date) => {
@@ -377,8 +378,8 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
 
                     {/* 1. BACKGROUND GRID */}
                     {HOURS.map(hour => (
-                        <div key={hour} className="absolute left-0 right-0 border-t border-white/5 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
-                            <div className="w-12 text-[10px] text-white/30 text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">
+                        <div key={hour} className="absolute left-0 right-0 border-t border-white/20 flex group pointer-events-none" style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}>
+                            <div className="w-12 text-[10px] text-white text-right pr-2 -mt-1.5 group-hover:text-white/50 font-mono">
                                 {((hour % 12) || 12)} {hour >= 12 ? 'PM' : 'AM'}
                             </div>
                         </div>
@@ -388,7 +389,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                     {HOURS.map(hour => (
                         <div
                             key={`click-${hour}`}
-                            className="absolute left-12 right-0 pointer-events-auto hover:bg-white/[0.02] cursor-pointer border-l border-white/5"
+                            className="absolute left-12 right-0 pointer-events-auto hover:bg-white/[0.02] cursor-pointer border-l border-white/20"
                             style={{ top: hour * GRID_HEIGHT_PER_HOUR, height: GRID_HEIGHT_PER_HOUR }}
                             onClick={() => openNew(`${hour.toString().padStart(2, '0')}:00`)}
                         />
@@ -444,7 +445,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
 
                                         whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
 
-                                        className={`absolute left-14 right-4 rounded-lg border border-black/10 p-2 overflow-hidden hover:brightness-110 hover:z-20 transition-all shadow-sm group pointer-events-auto ${!isBeingResized ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                        className={`absolute left-14 right-4 rounded-lg border border-black/10 p-2 overflow-visible hover:brightness-110 hover:z-20 transition-all shadow-sm group pointer-events-auto ${!isBeingResized ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                         style={{
                                             top: getTopOffset(displayStartTime),
                                             height: Math.max(getHeight(displayDuration) - 2, 30),
@@ -453,18 +454,20 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                             scale: isBeingResized ? 1.02 : 1
                                         }}
                                     >
-                                        {/* Top Resize Handle - 6px hit zone */}
+                                        {/* Resize Handle - Top */}
                                         <div
                                             className="absolute top-0 left-0 right-0 h-[6px] cursor-ns-resize z-50 bg-transparent"
                                             onPointerDownCapture={(e) => handleResizeStart(e, task, 'top')}
                                         />
 
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                                            className="absolute top-1 right-1 p-1 text-black/40 hover:text-red-600 hover:bg-white/50 rounded-md opacity-0 group-hover:opacity-100 transition-all z-[60]"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
+                                        {/* DELETE BUTTON (Liquid) */}
+                                        <div className="absolute top-1 right-1 z-[60]">
+                                            <LiquidDeleteBtn
+                                                size={24}
+                                                className="bg-black/5 text-black border-black/5"
+                                                onDelete={() => onDeleteTask(task.id)}
+                                            />
+                                        </div>
 
                                         <div className="flex items-center justify-between pr-4 pointer-events-none">
                                             <div className="text-xs font-bold text-black/90 truncate">{task.title}</div>
@@ -472,10 +475,12 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                                 <Bell size={10} className="text-black/50 ml-1 shrink-0" fill="currentColor" />
                                             )}
                                         </div>
-                                        <div className="text-[10px] text-black/70 flex items-center gap-1 font-medium mt-0.5 pointer-events-none">
-                                            <Clock size={10} />
-                                            {formatTime12(displayStartTime)} - {formatTime12(new Date(new Date(`2000-01-01T${displayStartTime}`).getTime() + (displayDuration) * 60000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}
-                                        </div>
+                                        {displayDuration >= 30 && (
+                                            <div className="text-[10px] text-black/70 flex items-center gap-1 font-medium mt-0.5 pointer-events-none">
+                                                <Clock size={10} />
+                                                {formatTime12(displayStartTime)} - {formatTime12(new Date(new Date(`2000-01-01T${displayStartTime}`).getTime() + (displayDuration) * 60000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }))}
+                                            </div>
+                                        )}
 
                                         {/* Bottom Resize Handle - 6px hit zone */}
                                         <div

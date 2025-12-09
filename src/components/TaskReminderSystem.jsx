@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 
-const CHECK_INTERVAL_MS = 10000; // Check every 10 seconds
+const CHECK_INTERVAL_MS = 2000; // Reduced to 2s for debugging
 
 const TaskReminderSystem = ({ tasks = [] }) => {
     // We use a ref to track which task IDs we've already alerted for this session
@@ -12,57 +12,99 @@ const TaskReminderSystem = ({ tasks = [] }) => {
             const now = new Date();
             const currentMs = now.getTime();
 
+            console.log(`[ReminderSystem] Checking at ${now.toLocaleTimeString()}. Total tasks: ${tasks.length}`);
+
             tasks.forEach(task => {
-                // Skip if no reminder, done, or invalid time
-                if (!task.reminder || task.reminder === 'none' || task.isDone || !task.date || !task.startTime) return;
+                // 1. Basic Validation
+                if (task.isDone || !task.date || !task.startTime) return;
 
-                // 1. Construct Task Date Object
-                const taskDateTimeString = `${task.date}T${task.startTime}`;
-                const taskDate = new Date(taskDateTimeString);
+                // 2. Normalize Reminders (Array support)
+                let taskReminders = [];
+                if (task.reminders && Array.isArray(task.reminders)) {
+                    taskReminders = task.reminders;
+                } else if (task.reminder && task.reminder !== 'none') {
+                    taskReminders = [task.reminder];
+                }
 
-                if (isNaN(taskDate.getTime())) return;
+                if (taskReminders.length === 0) return;
 
-                // 2. Calculate Trigger Time
-                // task.reminder is in minutes (e.g., 5, 10, 0)
-                const reminderOffsetMs = parseInt(task.reminder) * 60 * 1000;
-                const triggerTimeMs = taskDate.getTime() - reminderOffsetMs;
+                // 3. Robust Date Parsing
+                // Expected: task.date = "YYYY-MM-DD", task.startTime = "HH:MM"
+                let taskDate;
+                try {
+                    const [year, month, day] = task.date.split('-').map(Number);
+                    const [hours, mins] = task.startTime.split(':').map(Number);
 
-                // 3. Check if we are within a 1-minute window of the trigger time
-                const timeDiff = currentMs - triggerTimeMs;
+                    if (!year || !month || !day || isNaN(hours) || isNaN(mins)) {
+                        // Fallback to string parsing if split fails
+                        const fallbackString = `${task.date}T${task.startTime}`;
+                        taskDate = new Date(fallbackString);
+                    } else {
+                        // Start counting months from 0
+                        taskDate = new Date(year, month - 1, day, hours, mins, 0);
+                    }
+                } catch (e) {
+                    console.error(`[ReminderSystem] Date parse error for "${task.title}"`, e);
+                    return;
+                }
 
-                // Logic: If the time is NOW (within last 60 seconds) and we haven't alerted yet
-                if (timeDiff >= 0 && timeDiff < 60000) {
-                    if (!alertedTaskIds.current.has(task.id)) {
-                        playReminderSound();
-                        alertedTaskIds.current.add(task.id);
+                if (isNaN(taskDate.getTime())) {
+                    console.log(`[ReminderSystem] Invalid date for "${task.title}"`);
+                    return;
+                }
 
-                        // Optional: Browser Notification
-                        if (Notification.permission === "granted") {
-                            new Notification("Task Reminder", { body: task.title });
+                // 4. Check Each Reminder
+                taskReminders.forEach(reminderVal => {
+                    const reminderMinutes = parseInt(reminderVal, 10);
+                    if (isNaN(reminderMinutes)) return;
+
+                    const reminderOffsetMs = reminderMinutes * 60 * 1000;
+                    const triggerTimeMs = taskDate.getTime() - reminderOffsetMs;
+
+                    // 1-minute window (0ms to 60000ms past trigger)
+                    const timeDiff = currentMs - triggerTimeMs;
+
+                    // Unique ID for this specific reminder instance to prevent duplicate alerting
+                    const alertId = `${task.id}-${reminderMinutes}`;
+
+                    if (timeDiff >= 0 && timeDiff < 60000) {
+                        if (!alertedTaskIds.current.has(alertId)) {
+                            console.log(`[ReminderSystem] TRIGGERING SOUND for "${task.title}" (${reminderMinutes}m before)`);
+                            playReminderSound();
+                            alertedTaskIds.current.add(alertId);
                         }
                     }
-                }
+                });
             });
         };
 
         const interval = setInterval(checkReminders, CHECK_INTERVAL_MS);
 
-        // Browser Notification Permission Request
-        if (Notification.permission === "default") {
-            Notification.requestPermission();
-        }
+        // Initial check immediately
+        checkReminders();
 
         return () => clearInterval(interval);
     }, [tasks]);
 
     const playReminderSound = () => {
         try {
-            // Assumes file is at public/sounds/reminder.mp3
+            console.log("[ReminderSystem] Attempting to play sound...");
+            // Assumes file is at public/sounds/remindnotif.mp3
             const audio = new Audio('/sounds/remindnotif.mp3');
-            audio.volume = 0.7;
-            audio.play().catch(e => console.error("Audio play failed (interaction needed first):", e));
+            audio.volume = 1.0;
+            const playPromise = audio.play();
+
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        console.log("[ReminderSystem] Audio playback started successfully.");
+                    })
+                    .catch(e => {
+                        console.error("[ReminderSystem] Audio playback failed:", e);
+                    });
+            }
         } catch (e) {
-            console.error("Sound error:", e);
+            console.error("[ReminderSystem] Sound error:", e);
         }
     };
 
