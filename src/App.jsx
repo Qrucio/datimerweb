@@ -18,6 +18,7 @@ import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
 
+
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
 import CaffeineTracker from './components/CaffeineTracker';
@@ -378,6 +379,20 @@ const GlobalStyles = () => (
     .logo-spin-active {
       animation: logo-spin 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    .text-shimmer {
+      background: linear-gradient(135deg, #ffffff 0%, #5E5E5E 50%, #ffffff 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      background-size: 200% 100%;
+      animation: shimmer 5s linear infinite;
+    }
   `}</style>
 );
 
@@ -501,6 +516,98 @@ const BendingDivider = ({ activeSide, isDimmed }) => {
           strokeOpacity="0.5"
         />
       </svg>
+    </div>
+  );
+};
+
+// --- SMART MESSAGE COMPONENT (FIXED) ---
+// --- SMART MESSAGE COMPONENT (UPDATED) ---
+const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode }) => {
+  const [displayText, setDisplayText] = useState("");
+  const [key, setKey] = useState("init");
+
+  // Helper to format time strings (e.g., "10:30 AM")
+  const formatTime = (dateObj) => {
+    let hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  useEffect(() => {
+    const updateMessage = () => {
+      const now = new Date();
+      const currentTimeStr = formatTime(now);
+
+      if (isActive && targetEndTime) {
+        // Active State: "10:30 AM | Ends at 11:00 AM"
+        const endStr = formatTime(new Date(targetEndTime));
+        const message = `${currentTimeStr} | Ends at ${endStr}`;
+
+        setDisplayText(message);
+        // Update key when the minute changes (either current or end time) to trigger shimmer
+        setKey(prev => {
+          const newKey = `active-${message}`;
+          return prev === newKey ? prev : newKey;
+        });
+      } else {
+        // Idle State: Just current time
+        setDisplayText(currentTimeStr);
+        setKey(prev => {
+          const newKey = `idle-${currentTimeStr}`;
+          return prev === newKey ? prev : newKey;
+        });
+      }
+    };
+
+    updateMessage();
+    const interval = setInterval(updateMessage, 1000);
+    return () => clearInterval(interval);
+  }, [isActive, targetEndTime, mode]);
+
+  // VISIBILITY LOGIC:
+  // If in Focus Mode (Timer running + Focus Tab), obey user activity (hide if inactive).
+  // Otherwise (Break tabs or Timer stopped), always show (opacity 1).
+  const isVisible = focusMode ? isUserActive : true;
+
+  return (
+    <div className={`flex justify-center transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+      <motion.div
+        layout
+        transition={{
+          layout: { duration: 0.4, type: "spring", bounce: 0, damping: 25, stiffness: 300 }
+        }}
+        className="relative bg-black/60 backdrop-blur-xl px-6 py-2.5 rounded-full border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden min-w-[100px]"
+      >
+        {/* Shimmer Effect Overlay */}
+        <motion.div
+          key={key + '-shimmer'}
+          initial={{ x: '-100%', opacity: 0 }}
+          animate={{ x: '150%', opacity: 0.4 }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 pointer-events-none z-0"
+        />
+
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={key}
+            initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -15, filter: "blur(8px)" }}
+            transition={{
+              type: "spring",
+              bounce: 0,
+              duration: 0.5
+            }}
+            className="relative z-10 text-sm font-medium tracking-wide text-center whitespace-nowrap block font-clock text-white"
+            style={{ textShadow: "0 0 20px rgba(255,255,255,0.2)" }}
+          >
+            {displayText}
+          </motion.span>
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 };
@@ -5708,6 +5815,18 @@ function MainApp() {
 
         <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
+
+            {/* --- MESSAGE BOX --- */}
+            <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-10">
+              <SmartMessage
+                isActive={isActive}
+                timeLeft={timeLeft} // Pass timeLeft to trigger updates
+                targetEndTime={endTimeRef.current}
+                mode={mode}
+                isUserActive={isUserActive}
+                focusMode={focusMode}
+              />
+            </div>
 
             {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
             <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
