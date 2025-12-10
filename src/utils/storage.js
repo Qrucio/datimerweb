@@ -1,4 +1,4 @@
-import { doc, writeBatch, Timestamp, increment } from "firebase/firestore";
+import { doc, writeBatch, Timestamp, increment, setDoc } from "firebase/firestore";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
@@ -10,7 +10,10 @@ const KEYS = {
     PRO_CLAIM: 'zen_pro_claim',     // Offline Pro License
     BASE_STREAK: 'zen_stats_base',  // Server-Side Streak Baseline
     TASKS: 'zen_cache_tasks',
-    HABITS: 'zen_cache_habits'
+    HABITS: 'zen_cache_habits',
+    WALLET: 'zen_cache_wallet',
+    INVENTORY: 'zen_cache_inventory',
+    SUBSCRIPTION: 'zen_cache_subscription',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -297,6 +300,10 @@ export const Storage = {
             const now = Date.now();
             const lastVerified = claim.lastVerified || 0;
 
+            if (claim.expiresAt && now > claim.expiresAt) {
+                return false;
+            }
+
             if (now - lastVerified > GRACE_PERIOD_MS) {
                 return false; // Expired
             }
@@ -309,5 +316,134 @@ export const Storage = {
             isPro: isPro,
             lastVerified: Date.now()
         }));
+    },
+
+    activateProTime: (hours) => {
+        // Local Only Fallback
+        const duration = hours * 60 * 60 * 1000;
+        const claim = {
+            isPro: true,
+            lastVerified: Date.now(),
+            expiresAt: Date.now() + duration
+        };
+        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify(claim));
+    },
+
+    activateProSubscription: async (db, user, hours) => {
+        const duration = hours * 60 * 60 * 1000;
+        const expiresAt = Date.now() + duration;
+
+        // 1. Local Update (Immediate UI feedback)
+        const claim = {
+            isPro: true,
+            lastVerified: Date.now(),
+            expiresAt: expiresAt
+        };
+        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify(claim));
+
+        // 2. Server Update (Use flowPass to bypass subscription rules)
+        if (user) {
+            try {
+                // Update Private User Doc
+                await setDoc(doc(db, "users", user.uid), {
+                    flowPass: {
+                        active: true,
+                        expiresAt: expiresAt,
+                        activatedAt: Date.now()
+                    }
+                }, { merge: true });
+
+                // Update Public Profile (Use isBoosted to bypass isPro rules)
+                await setDoc(doc(db, "publicProfiles", user.uid), {
+                    isBoosted: true
+                }, { merge: true });
+            } catch (e) {
+                console.error("Failed to sync sub", e);
+            }
+        }
+    },
+
+    getWallet: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}');
+        } catch { return { balance: 0 }; }
+    },
+
+    updateWallet: (amountToAdd) => {
+        const wallet = Storage.getWallet();
+        wallet.balance = (wallet.balance || 0) + amountToAdd;
+        localStorage.setItem(KEYS.WALLET, JSON.stringify(wallet));
+        return wallet;
+    },
+
+    getInventory: () => {
+        try {
+            const data = JSON.parse(localStorage.getItem(KEYS.INVENTORY));
+            // Force array type check
+            return Array.isArray(data) ? data : [];
+        } catch {
+            return [];
+        }
+    },
+
+    addToInventory: (item) => {
+        const inv = Storage.getInventory();
+        const newItem = { ...item, instanceId: Date.now().toString() };
+        inv.push(newItem);
+        localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inv));
+        return inv;
+    },
+
+    removeFromInventory: (instanceId) => {
+        const inv = Storage.getInventory();
+        const newInv = inv.filter(i => i.instanceId !== instanceId);
+        localStorage.setItem(KEYS.INVENTORY, JSON.stringify(newInv));
+        return newInv;
+    },
+
+    // --- 9. SUBSCRIPTION MANAGEMENT ---
+    getSubscription: () => {
+        try {
+            const sub = JSON.parse(localStorage.getItem(KEYS.SUBSCRIPTION) || '{}');
+            if (sub.expiresAt && Date.now() > sub.expiresAt) {
+                return null; // Expired
+            }
+            return sub;
+        } catch { return null; }
+    },
+
+    applySubscription: (type, durationMs) => {
+        const subscription = {
+            plan: type,
+            expiresAt: Date.now() + durationMs,
+            activatedAt: Date.now()
+        };
+        localStorage.setItem(KEYS.SUBSCRIPTION, JSON.stringify(subscription));
+        return subscription;
+    },
+
+    // --- 10. SYNC HELPERS (Wallet & Inventory) ---
+    setWallet: (walletData) => {
+        localStorage.setItem(KEYS.WALLET, JSON.stringify(walletData));
+    },
+
+    setInventory: (inventoryData) => {
+        localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inventoryData));
+    },
+
+    syncWalletInventory: async (db, user) => {
+        if (!user) return;
+        try {
+            const wallet = Storage.getWallet();
+            const inventory = Storage.getInventory();
+
+            await setDoc(doc(db, "users", user.uid), {
+                wallet: wallet,
+                inventory: inventory,
+                lastUpdated: Timestamp.now()
+            }, { merge: true });
+        } catch (e) {
+            console.error("Failed to sync wallet/inventory", e);
+        }
     }
 };

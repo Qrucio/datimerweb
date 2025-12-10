@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
@@ -11,6 +11,8 @@ import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
 import OnboardingFlow from './components/OnboardingFlow';
 import SocialModal from './components/modals/SocialModal';
 import MusicModal from './components/modals/MusicModal';
+import VaultModal from './components/modals/VaultModal';
+
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
@@ -18,6 +20,8 @@ import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
 import { FlowTag } from './components/ui/FlowTag';
+import WalletIndicator from './components/gamification/WalletIndicator';
+
 
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
@@ -843,286 +847,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
   );
 };
 
-const AccountModal = ({
-  isOpen,
-  onClose,
-  user,
-  stats,
-  onSignOut,
-  isPro,
-  onDeleteRequest,
-  currentHandle // <--- Destructured new prop
-}) => {
-  const [activeTab, setActiveTab] = useState('today');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [historyData, setHistoryData] = useState({});
 
-  // --- HANDLE EDITING STATE ---
-  const [isEditingHandle, setIsEditingHandle] = useState(false);
-  const [newHandle, setNewHandle] = useState("");
-  const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'checking', 'available', 'taken'
-  const [handleSuggestions, setHandleSuggestions] = useState([]);
-  const [handleError, setHandleError] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [daysRemaining, setDaysRemaining] = useState(0);
-
-  // Initialize Handle State
-  useEffect(() => {
-    if (user && isOpen) {
-      // LOGIC FIX: Use the currentHandle prop passed from MainApp
-      const current = currentHandle || "";
-      setNewHandle(current.replace(/^@/, ''));
-      checkCooldown();
-    }
-  }, [user, isOpen, currentHandle]);
-
-  // Load History
-  useEffect(() => {
-    if (isOpen && activeTab === 'history' && user) {
-      const historyRef = collection(db, 'users', user.uid, 'history');
-      const q = query(historyRef, orderBy('date', 'desc'));
-      getDocs(q).then(snapshot => {
-        const data = {};
-        snapshot.forEach(doc => { data[doc.id] = doc.data(); });
-        setHistoryData(data);
-      });
-    }
-  }, [isOpen, activeTab, currentMonth, user]);
-
-  // --- LIVE CHECK AVAILABILITY ---
-  useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (isEditingHandle && newHandle.length >= 3) {
-        // Ignore if it matches current handle (case insensitive)
-        const currentStr = currentHandle || "";
-        const cleanCurrent = currentStr.replace(/^@/, '');
-
-        if (newHandle.toLowerCase() === cleanCurrent.toLowerCase()) {
-          setHandleStatus("available");
-          return;
-        }
-
-        setHandleStatus("checking");
-        const fullHandle = `@${newHandle}`;
-
-        // Query DB
-        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          setHandleStatus("available");
-        } else {
-          // Double check it's not the user themselves (redundant safety)
-          if (snap.docs[0].id === user.uid) {
-            setHandleStatus("available");
-          } else {
-            setHandleStatus("taken");
-            // Generate suggestions
-            const base = newHandle.replace(/[^a-zA-Z0-9_]/g, '');
-            const s1 = `${base}_${Math.floor(Math.random() * 99)}`;
-            const s2 = `${base}${new Date().getFullYear()}`;
-            const s3 = `its_${base}`;
-            setHandleSuggestions([s1, s2, s3]);
-          }
-        }
-      } else if (newHandle.length > 0 && newHandle.length < 3) {
-        setHandleStatus("idle"); // Too short to check
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [newHandle, isEditingHandle, user, currentHandle]);
-
-  // --- COOLDOWN CHECKER ---
-  const checkCooldown = async () => {
-    if (!user) return;
-    const DEV_IDS = ['cmxtLQPCqkfhkhNQZ04ZlXjCPbV2', 'QHlFAC3H34fiIVT2LaWlAoOrjmH2'];
-    if (DEV_IDS.includes(user.uid)) {
-      setDaysRemaining(0);
-      return;
-    }
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (userSnap.exists()) {
-      const lastChange = userSnap.data().lastHandleChange || 0;
-      const now = Date.now();
-      const diffTime = Math.abs(now - lastChange);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays < 14) {
-        setDaysRemaining(14 - diffDays);
-      } else {
-        setDaysRemaining(0);
-      }
-    }
-  };
-
-  const handleSaveHandle = async () => {
-    if (handleStatus !== 'available') return;
-    if (newHandle.length < 3) return setHandleError("Too short.");
-    if (daysRemaining > 0) return setHandleError(`Wait ${daysRemaining} days.`);
-
-    setIsSaving(true);
-    setHandleError(null);
-    const fullHandle = `@${newHandle}`;
-
-    try {
-      const batch = writeBatch(db);
-      const publicRef = doc(db, "publicProfiles", user.uid);
-      batch.set(publicRef, {
-        uid: user.uid,
-        displayName: user.displayName || "User",
-        photoURL: user.photoURL || null,
-        handle: fullHandle,
-        handle_lowercase: fullHandle.toLowerCase()
-      }, { merge: true });
-
-      const privateRef = doc(db, "users", user.uid);
-      batch.set(privateRef, {
-        handle: fullHandle,
-        lastHandleChange: Date.now()
-      }, { merge: true });
-
-      await batch.commit();
-
-      setIsEditingHandle(false);
-      setDaysRemaining(14);
-
-    } catch (err) {
-      console.error("HANDLE SAVE ERROR:", err);
-      setHandleError("Error saving.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const onHandleChange = (e) => {
-    const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-    setNewHandle(val);
-    setHandleError(null);
-    if (val.length > 0) setHandleStatus("checking");
-  };
-
-  const getEffectiveHistory = () => {
-    const todayId = formatDateId(new Date());
-    return { ...historyData, [todayId]: { ...stats, date: new Date() } };
-  };
-
-  const getDisplayStats = () => {
-    if (activeTab === 'today') return stats;
-    if (selectedDate) {
-      const dateId = formatDateId(selectedDate);
-      return getEffectiveHistory()[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
-    }
-    return { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0, currentStreak: '-' };
-  };
-
-  const finalStats = getDisplayStats();
-
-  // Dynamic Styles for Input
-  const getInputContainerStyle = () => {
-    if (handleStatus === 'available') return 'border-green-500/50 bg-green-500/5';
-    if (handleStatus === 'taken') return 'border-red-500/50 bg-red-500/5';
-    return 'border-white/20 bg-black/40';
-  };
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
-          <motion.div
-            layout
-            initial={{ scale: 0.95, opacity: 0, y: 10 }} // Reduced motion
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ duration: 0.25, ease: "easeOut" }} // Smoother/Lighter
-            className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-full md:max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[85vh] will-change-transform"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* ... (Keep the content inside exactly the same) ... */}
-            {/* LEFT COLUMN */}
-            <motion.div layout className="w-full md:w-[320px] border-b md:border-b-0 md:border-r border-white/10 bg-white/5 p-8 flex flex-col items-center justify-center text-center relative">
-              {/* ... Content ... */}
-              {/* Just ensure you copy the inner content from your existing file */}
-              <button onClick={onClose} className="absolute top-4 left-4 md:hidden text-white/50 hover:text-white"><X size={20} /></button>
-              <div className="w-24 h-24 md:w-32 md:h-32 mb-2 relative z-10">
-                <Avatar userData={user} isPro={isPro} size="full" />
-              </div>
-              {/* ... rest of AccountModal content ... */}
-              <h2 className="text-2xl font-bold text-white leading-tight">{user?.displayName || "Guest User"}</h2>
-
-              {/* ... (Copy the rest of your AccountModal render logic here) ... */}
-              <div className="mb-6 w-full flex flex-col items-center min-h-[24px] justify-center relative z-20">
-                {/* ... Handle logic ... */}
-                {isEditingHandle ? (
-                  // ... input code ...
-                  <div className="flex flex-col items-center gap-2 animate-fade-in-up w-full">
-                    {/* ... */}
-                    {/* Shortened for brevity - keep your existing JSX here */}
-                    <div className={`flex items-center justify-between rounded-xl pl-4 pr-2 py-1 transition-all duration-300 relative w-full max-w-[220px] border ${getInputContainerStyle()}`}>
-                      {/* ... inputs ... */}
-                      <div className="flex items-center flex-1 min-w-0">
-                        <span className="text-white/40 select-none mr-0.5 text-sm">@</span>
-                        <input type="text" value={newHandle} onChange={onHandleChange} placeholder="username" onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setIsEditingHandle(false); setHandleError(null); setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : ""); } else if (e.key === 'Enter') { e.preventDefault(); handleSaveHandle(); } }} className="bg-transparent border-none outline-none text-sm font-medium text-white placeholder-white/20 w-full py-1" autoFocus maxLength={15} />
-                      </div>
-                      {/* ... buttons ... */}
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button onClick={() => { setIsEditingHandle(false); setHandleError(null); setHandleStatus('idle'); setNewHandle(currentHandle ? currentHandle.replace(/^@/, '') : ""); }} className="p-1 rounded-full text-white/30 hover:bg-white/10 hover:text-white transition-colors"><X size={16} /></button>
-                        <button onClick={handleSaveHandle} disabled={isSaving || handleStatus !== 'available'} className={`p-1 rounded-full transition-colors ${(isSaving || handleStatus !== 'available') ? 'text-white/20 cursor-not-allowed' : 'text-white hover:bg-white/20'}`}>{isSaving || handleStatus === 'checking' ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}</button>
-                      </div>
-                    </div>
-                    {/* ... suggestions ... */}
-                    <div className="min-h-[16px] w-full flex flex-col items-center">
-                      {handleStatus === 'taken' && (
-                        <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center gap-2">
-                          <span className="text-[10px] text-red-400 font-medium">Handle taken. Suggestions:</span>
-                          <div className="flex flex-wrap justify-center gap-2">
-                            {handleSuggestions.map(s => (<button key={s} onClick={() => { setNewHandle(s); setHandleStatus("available"); }} className="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-[10px] text-white/70 hover:text-white transition-colors border border-white/5">{s}</button>))}
-                          </div>
-                        </motion.div>
-                      )}
-                      {handleError && <span className="text-[10px] text-red-400 font-medium whitespace-nowrap">{handleError}</span>}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative group flex items-center justify-center">
-                    <p className="text-white text-base font-medium tracking-wide">{currentHandle || "@no_handle"}</p>
-                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2">
-                      <button onClick={() => setIsEditingHandle(true)} disabled={daysRemaining > 0} className={`opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full ${daysRemaining > 0 ? 'cursor-not-allowed text-white/5' : 'hover:bg-white/10 text-white/50 hover:text-white'}`}>{daysRemaining > 0 ? <Lock size={12} /> : <Pencil size={12} />}</button>
-                      {daysRemaining > 0 && (<div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-[#111] border border-white/10 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20"><p className="text-[10px] text-white/50 whitespace-nowrap">Change in {daysRemaining} days</p></div>)}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {isPro && (<div className="mb-6 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><FlowTag className="h-4 w-auto" /> FLOW MEMBER</div>)}
-              <div className="w-full space-y-3 mt-auto"><button onClick={onSignOut} className="w-full py-3 rounded-xl border border-red-500/30 text-red-400 bg-red-500/5 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/50 transition-all text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 group"><LogOut size={14} className="group-hover:-translate-x-1 transition-transform" /> Sign Out</button><div className="pt-2"><button onClick={onDeleteRequest} className="text-[10px] text-red-900 hover:text-red-600 underline decoration-red-900/30 hover:decoration-red-600 transition-colors font-mono uppercase tracking-widest cursor-pointer opacity-60 hover:opacity-100">Delete Account</button></div></div>
-            </motion.div>
-
-            {/* RIGHT COLUMN */}
-            <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
-              <div className="p-6 border-b border-white/10 flex justify-between items-center flex-shrink-0">
-                <div className="flex gap-6"><button onClick={() => setActiveTab('today')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'today' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>Today</button><button onClick={() => setActiveTab('history')} className={`text-sm font-medium transition-colors border-b-2 pb-0.5 ${activeTab === 'history' ? 'text-white border-white' : 'text-white/40 border-transparent hover:text-white'}`}>History</button></div>
-                <button onClick={onClose} className="hidden md:block text-white/50 hover:text-white"><X size={20} /></button>
-              </div>
-              <motion.div layout className="overflow-y-auto custom-scrollbar p-6">
-                {activeTab === 'history' && (<motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mb-8"><CalendarView historyData={getEffectiveHistory()} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></motion.div>)}
-                <div className="grid grid-cols-2 gap-4"><StatCard label={activeTab === 'today' ? "Focus Time" : "Focus"} value={formatDetailedDuration(finalStats.dailyFocusTime || 0)} icon={Zap} /><StatCard label="Break Time" value={formatDetailedDuration(finalStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={finalStats.dailySessions || 0} icon={Clock} />{activeTab === 'today' && <StatCard label="Current Streak" value={`${finalStats.currentStreak || 0} d`} icon={Flame} />}</div>
-              </motion.div>
-            </div>
-
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 // --- HELPERS FOR FRIEND STATS ---
 
 const FriendStatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlight = false }) => (
@@ -3301,6 +3026,7 @@ const NoteSystemModals = ({
                           <div className="relative z-10 flex flex-col h-full pointer-events-none">
                             {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
                             <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
+                              {/* WalletIndicator removed */}
                               <RichTextRenderer
                                 text={note.text}
                                 className="text-xs md:text-sm"
@@ -3636,6 +3362,11 @@ function MainApp() {
   const [timerResetKey, setTimerResetKey] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
+
+  // ---- COINS ----
+  const [coins, setCoins] = useState(() => Storage.getWallet().balance);
+  const [vaultOpen, setVaultOpen] = useState(false);
+  const coinBufferRef = useRef(0); // Internal counter for seconds
 
   // --- BUY ME A COFFEE ---
   const [isBmcDisabled, setIsBmcDisabled] = useState(() => {
@@ -4066,6 +3797,7 @@ function MainApp() {
   const [isStrictMenuOpen, setIsStrictMenuOpen] = useState(false);
   const [isBmcMenuOpen, setIsBmcMenuOpen] = useState(false);
 
+
   // --- STRICT MODE STATE & LOGIC ---
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
   const [showStrictConfirm, setShowStrictConfirm] = useState(false);
@@ -4305,7 +4037,9 @@ function MainApp() {
         dailyBreakTime: currentStats.dailyBreakTime || 0,
         dailySessions: currentStats.dailySessions || 0
       },
-      streak: currentStreak
+      streak: currentStreak,
+      wallet: Storage.getWallet(),
+      inventory: Storage.getInventory()
     };
 
     // FIX: Update local UI state immediately so the user sees the streak change
@@ -4340,7 +4074,9 @@ function MainApp() {
         // 3. USER AGGREGATE (Backup & Metadata)
         setDoc(doc(db, "users", user.uid), {
           lastActive: Timestamp.now(),
-          stats: payload.todayStats // Keep current day's stats active in root for quick access
+          stats: payload.todayStats,
+          wallet: payload.wallet,
+          inventory: payload.inventory
         }, { merge: true })
       ];
 
@@ -4598,7 +4334,7 @@ function MainApp() {
             mode,
             timeLeft,
             isPinned: friendConfig[friendId]?.isPinned || false,
-            isPro: data.isPro || false
+            isPro: data.isPro || data.isBoosted || false
           };
 
           setFriends(Object.values(currentFriendsData));
@@ -4809,10 +4545,35 @@ function MainApp() {
 
           // --- BASIC USER INFO ---
           setUserHandle(data.handle || "");
-          const userIsPro = data.subscription?.plan === 'pro';
+
+          // FIX: Check expiration date for Pro status AND Flow Pass
+          const sub = data.subscription || {};
+          const flowPass = data.flowPass || {};
+
+          const isServerPro = sub.plan === 'pro';
+          const isSubValid = isServerPro && sub.expiresAt && sub.expiresAt > Date.now();
+
+          const isFlowPassValid = flowPass.active && flowPass.expiresAt && flowPass.expiresAt > Date.now();
+
+          const userIsPro = isSubValid || isFlowPassValid;
 
           // 1. Update State
           setIsPro(userIsPro);
+
+          // Persist valid server pro status to local storage for offline use
+          if (userIsPro) {
+            // Use the latest expiry
+            const subExpiry = sub.expiresAt || 0;
+            const passExpiry = flowPass.expiresAt || 0;
+            const finalExpiry = Math.max(subExpiry, passExpiry);
+
+            const claim = {
+              isPro: true,
+              lastVerified: Date.now(),
+              expiresAt: finalExpiry
+            };
+            localStorage.setItem('zen_pro_claim', JSON.stringify(claim));
+          }
 
           // 2. Renew the Offline Lease (Updates timestamp to Now)
 
@@ -4920,6 +4681,15 @@ function MainApp() {
           // --- 5. OPTIMIZED STREAK ---
           if (data.streak !== undefined) {
             Storage.syncServerStreak(data.streak || 0, data.lastActive || 0);
+          }
+
+          // --- 6. WALLET & INVENTORY SYNC ---
+          if (data.wallet) {
+            Storage.setWallet(data.wallet);
+            setCoins(data.wallet.balance || 0);
+          }
+          if (data.inventory) {
+            Storage.setInventory(data.inventory);
           }
         }
         setDataLoaded(true);
@@ -5196,7 +4966,6 @@ function MainApp() {
           const secondsPassed = Math.floor(delta / 1000);
 
           // 1. UPDATE THE WALL CLOCK
-          // We add exactly 1000ms chunks to keep rhythm perfect
           lastTickRef.current += (secondsPassed * 1000);
 
           // 2. Update Local Storage (The Ledger)
@@ -5211,6 +4980,18 @@ function MainApp() {
             dailyFocusTime: updatedStats.dailyFocusTime,
             dailyBreakTime: updatedStats.dailyBreakTime
           }));
+
+          // --- 5. COIN LOGIC (NEW) ---
+          if (mode === 'focus') {
+            coinBufferRef.current += secondsPassed;
+            if (coinBufferRef.current >= 60) {
+              const newCoins = Math.floor(coinBufferRef.current / 60);
+              coinBufferRef.current %= 60; // Keep remainder
+
+              const updatedWallet = Storage.updateWallet(newCoins);
+              setCoins(updatedWallet.balance);
+            }
+          }
         }
 
         // --- D. SESSION END LOGIC ---
@@ -5724,12 +5505,17 @@ function MainApp() {
           </div>
         </div>
 
-        {/* --- DESKTOP HEADER: Settings & Stats --- */}
+        {/* --- DESKTOP HEADER --- */}
         <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
           <div className="flex items-center gap-4">
 
-            {/* 2. PROFILE ICON (Opens Unified Modal) */}
-            {/* --- FIXED: Removed overflow-hidden so the ring shows --- */}
+            {/* WALLET INDICATOR */}
+            <WalletIndicator
+              balance={coins}
+              onClick={() => setVaultOpen(true)}
+            />
+
+            {/* PROFILE ICON */}
             <button
               onClick={() => setIsUnifiedModalOpen(true)}
               className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95"
@@ -6272,6 +6058,15 @@ function MainApp() {
         onClose={() => setProModalSource(null)}
         onUpgrade={handleUpgradeToPro}
         source={proModalSource} // Pass the source string ('notes' or 'arcade')
+      />
+
+      <VaultModal
+        isOpen={vaultOpen}
+        onClose={() => setVaultOpen(false)}
+        balance={coins}
+        onUpdateBalance={(newBalance) => setCoins(newBalance)}
+        onSync={() => Storage.syncWalletInventory(db, user)}
+        onActivatePro={(hours) => Storage.activateProSubscription(db, user, hours)}
       />
 
       {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
