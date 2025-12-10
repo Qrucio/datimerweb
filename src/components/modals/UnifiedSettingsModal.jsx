@@ -10,6 +10,7 @@ import {
   getFirestore, collection, query, orderBy, getDocs, limit,
   where, doc, getDoc, writeBatch, onSnapshot
 } from "firebase/firestore";
+import { DEV_USER_IDS } from '../../utils/data'; // Import DEV_USER_IDS
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
@@ -353,7 +354,7 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
                 <div className={`px-2 py-1 rounded-full flex items-center gap-2 backdrop-blur-md shadow-sm transition-all ${isPro ? 'bg-transparent border-none p-0' : 'bg-white/10 border border-white/10 px-3 py-1.5 text-white/60'}`}>
                   {isPro ? (
                     <div className="flex items-center gap-2 bg-black/20 rounded-full pr-3 pl-1 py-1 border border-white/10 backdrop-blur-md">
-                      <FlowTag className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" alt="Flow" />
+                      <FlowTag isDev={user?.uid && DEV_USER_IDS.includes(user.uid)} className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" alt="Flow" />
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 font-bold text-xs uppercase tracking-widest font-sans">Flow Member</span>
                     </div>
                   ) : (

@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
+import { DEV_USER_IDS } from '../utils/data';
 
-const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro = false, className = "" }) => {
+const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro = false, isDev = false, className = "" }) => {
     const [imageError, setImageError] = useState(false);
 
     // Data Resolution
     const finalPhoto = photoURL || userData?.photoURL;
     const finalName = name || userData?.displayName || userData?.name;
-    // Check for "Pro" OR "Flow" status
-    const finalIsFlow = isPro || userData?.isPro || userData?.subscription?.plan === 'pro' || userData?.subscription?.plan === 'flow';
+    const uid = userData?.uid;
+
+    // Check Status
+    const userIsDev = isDev || (uid && DEV_USER_IDS.includes(uid));
+    const finalIsFlow = userIsDev || isPro || userData?.isPro || userData?.subscription?.plan === 'pro' || userData?.subscription?.plan === 'flow';
     const finalIsPinned = isPinned || userData?.isPinned;
 
     useEffect(() => { setImageError(false); }, [finalPhoto]);
@@ -25,22 +29,30 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
 
     const containerSize = sizeClasses[size] || sizeClasses.md;
 
+    // --- DYNAMIC STYLES ---
+    // Dev: Purple (#a855f7) -> Fuchsia (#d946ef) -> White
+    // Pro: Cyan (#0ea5e9) -> Sky (#22d3ee) -> White
+    const glowGradient = userIsDev
+        ? "from-purple-500 via-fuchsia-400 to-white"
+        : "from-cyan-400 via-sky-400 to-white";
+
+    const ringGradient = userIsDev
+        ? 'conic-gradient(transparent 0deg, #a855f7 50deg, #d946ef 100deg, #ffffff 160deg, #a855f7 360deg)'
+        : 'conic-gradient(transparent 0deg, #0ea5e9 50deg, #22d3ee 100deg, #ffffff 160deg, #0ea5e9 360deg)';
+
     return (
         <div className={`relative flex-shrink-0 ${containerSize} ${className} select-none group`}>
 
-            {/* --- THE ICY FLOW RING --- */}
+            {/* --- THE RING --- */}
             {finalIsFlow && (
                 <>
-                    {/* 1. Outer Glow (Icy: Cyan -> Sky -> White) */}
-                    <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-cyan-400 via-sky-400 to-white opacity-40 blur-md animate-pulse z-0" />
+                    {/* 1. Outer Glow */}
+                    <div className={`absolute -inset-[4px] rounded-full bg-gradient-to-tr ${glowGradient} opacity-40 blur-md animate-pulse z-0`} />
 
-                    {/* 2. The Rotating Gradient Ring (Icy Tones) */}
+                    {/* 2. The Rotating Gradient Ring */}
                     <div className="absolute -inset-[2px] rounded-full overflow-hidden z-0">
                         <div className="w-[200%] h-[200%] absolute top-[-50%] left-[-50%] animate-[spin_3s_linear_infinite]"
-                            style={{
-                                // Replaced purple (#a855f7) with Sky Blue (#0ea5e9) and White (#ffffff) for the icy shine
-                                background: 'conic-gradient(transparent 0deg, #0ea5e9 50deg, #22d3ee 100deg, #ffffff 160deg, #0ea5e9 360deg)'
-                            }}
+                            style={{ background: ringGradient }}
                         />
                     </div>
                 </>

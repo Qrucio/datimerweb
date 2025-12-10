@@ -1,4 +1,11 @@
+
 import { CloudRain, CloudLightning, Wind, Waves, Coffee, Tent, Train, Keyboard, Music, Radio } from 'lucide-react';
+
+export const DEV_USER_IDS = [
+    "QHlFAC3H34fiIVT2LaWlAoOrjmH2",
+    "cmxtLQPCqkfhkhNQZ04ZlXjCPbV2"
+];
+
 
 export const BACKGROUND_OPTIONS = [
     {

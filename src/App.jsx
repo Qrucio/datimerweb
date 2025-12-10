@@ -14,7 +14,7 @@ import MusicModal from './components/modals/MusicModal';
 import VaultModal from './components/modals/VaultModal';
 
 import Avatar from './components/Avatar';
-import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS } from './utils/data';
+import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
@@ -1118,11 +1118,12 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
                         </h2>
 
                         {/* --- MINIMALIST FLOW BADGE --- */}
-                        {profileData?.isPro && (
+                        {(profileData?.isPro || (profileData?.uid && DEV_USER_IDS.includes(profileData.uid))) && (
                           <FlowTag
+                            isDev={profileData?.uid && DEV_USER_IDS.includes(profileData.uid)}
                             alt="Flow Member"
-                            className="h-5 w-auto object-contain drop-shadow-[0_0_12px_rgba(6,182,212,0.8)] mt-0.5"
-                            title="Flow Member"
+                            className={`h-5 w-auto object-contain mt-0.5 ${(profileData?.uid && DEV_USER_IDS.includes(profileData.uid)) ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)]' : 'drop-shadow-[0_0_12px_rgba(6,182,212,0.8)]'}`}
+                            title={(profileData?.uid && DEV_USER_IDS.includes(profileData.uid)) ? "Dev Member" : "Flow Member"}
                           />
                         )}
                       </div>
@@ -2367,7 +2368,7 @@ const PersonalityCard = ({ p, activeId, onClick }) => {
   );
 };
 
-const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSelectPersonality }) => {
+const PersonalitiesCenter = ({ mode, opacityClass, isPro, onOpenPro, activePersonality, onSelectPersonality }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   // Logic: Show this ONLY in Focus mode
@@ -2426,7 +2427,7 @@ const PersonalitiesCenter = ({ mode, isPro, onOpenPro, activePersonality, onSele
   return (
     <>
       {/* --- TRIGGER BUTTON --- */}
-      <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
+      <div className={`absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center transition-opacity duration-700 ease-in-out ${opacityClass}`}>
         <AnimatePresence mode="wait">
           {!isOpen && (
             <motion.div
@@ -5519,7 +5520,7 @@ function MainApp() {
               onClick={() => setIsUnifiedModalOpen(true)}
               className="relative ml-2 w-8 h-8"
             >
-              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
+              <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
 
           </div>
@@ -5540,7 +5541,7 @@ function MainApp() {
               onClick={() => setIsUnifiedModalOpen(true)}
               className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95"
             >
-              <Avatar photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
+              <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
             </button>
 
           </div>
@@ -5930,9 +5931,9 @@ function MainApp() {
               mode={mode}
               isPro={isPro}
               onOpenPro={() => setProModalSource('personalities')}
-              // --- ADD THESE TWO LINES: ---
               activePersonality={activePersonality}
               onSelectPersonality={handleSelectPersonality}
+              opacityClass={uiOpacityClass}
             />
 
           </div>
