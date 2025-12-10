@@ -303,8 +303,11 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
     const [view, setView] = useState('store'); // 'store' | 'inventory'
     const [inventory, setInventory] = useState([]);
 
-    // --- STATE CHANGE: Store items are now dynamic state ---
-    const [storeItems, setStoreItems] = useState(DEFAULT_STORE_ITEMS);
+    // --- STATE CHANGE: Store items are now dynamic state (Merged with Local Custom Items) ---
+    const [storeItems, setStoreItems] = useState(() => {
+        const customItems = Storage.getCustomStoreItems();
+        return [...DEFAULT_STORE_ITEMS, ...customItems];
+    });
 
     const [devInput, setDevInput] = useState('');
     const [isCreatorOpen, setIsCreatorOpen] = useState(false);
@@ -324,11 +327,17 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
 
     // --- UPDATED: Add to Store instead of Inventory ---
     const handleCreateItem = (newItem) => {
-        // Add to the shop list (local session)
+        // 1. Save to Storage (Persistence)
+        Storage.addCustomStoreItem(newItem);
+
+        // 2. Update React State
         setStoreItems(prev => [...prev, newItem]);
         setIsCreatorOpen(false);
         // We stay in the 'store' view so the user can buy it
         setView('store');
+
+        // 3. Sync to Cloud
+        if (onSync) onSync();
     };
 
     const handlePurchase = (item) => {

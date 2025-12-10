@@ -14,6 +14,7 @@ const KEYS = {
     WALLET: 'zen_cache_wallet',
     INVENTORY: 'zen_cache_inventory',
     SUBSCRIPTION: 'zen_cache_subscription',
+    CUSTOM_ITEMS: 'zen_custom_store_items',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -432,15 +433,35 @@ export const Storage = {
         localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inventoryData));
     },
 
+    // --- 11. CUSTOM STORE ITEMS ---
+    getCustomStoreItems: () => {
+        try {
+            const items = JSON.parse(localStorage.getItem(KEYS.CUSTOM_ITEMS) || '[]');
+            return Array.isArray(items) ? items : [];
+        } catch { return []; }
+    },
+
+    addCustomStoreItem: (item) => {
+        const items = Storage.getCustomStoreItems();
+        // Prevent duplicates by ID just in case
+        if (!items.find(i => i.id === item.id)) {
+            items.push(item);
+            localStorage.setItem(KEYS.CUSTOM_ITEMS, JSON.stringify(items));
+        }
+        return items;
+    },
+
     syncWalletInventory: async (db, user) => {
         if (!user) return;
         try {
             const wallet = Storage.getWallet();
             const inventory = Storage.getInventory();
+            const customStoreItems = Storage.getCustomStoreItems();
 
             await setDoc(doc(db, "users", user.uid), {
                 wallet: wallet,
                 inventory: inventory,
+                customStoreItems: customStoreItems,
                 lastUpdated: Timestamp.now()
             }, { merge: true });
         } catch (e) {
