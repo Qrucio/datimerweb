@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "firebase/auth";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -4551,9 +4551,23 @@ function MainApp() {
           const flowPass = data.flowPass || {};
 
           const isServerPro = sub.plan === 'pro';
-          const isSubValid = isServerPro && sub.expiresAt && sub.expiresAt > Date.now();
 
-          const isFlowPassValid = flowPass.active && flowPass.expiresAt && flowPass.expiresAt > Date.now();
+          // Helper to get time in millis from various formats
+          const getTime = (val) => {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            if (val.toMillis) return val.toMillis(); // Firestore Timestamp
+            if (val.seconds) return val.seconds * 1000; // Raw object
+            return 0;
+          };
+
+          const isPlanValid = sub.plan === 'pro' || sub.status === 'active';
+
+          // If expiresAt is missing but status is active, treat as Lifetime/Valid
+          const hasNotExpired = !sub.expiresAt || getTime(sub.expiresAt) > Date.now();
+
+          const isSubValid = isPlanValid && hasNotExpired;
+          const isFlowPassValid = flowPass.active && flowPass.expiresAt && getTime(flowPass.expiresAt) > Date.now();
 
           const userIsPro = isSubValid || isFlowPassValid;
 
@@ -4563,8 +4577,8 @@ function MainApp() {
           // Persist valid server pro status to local storage for offline use
           if (userIsPro) {
             // Use the latest expiry
-            const subExpiry = sub.expiresAt || 0;
-            const passExpiry = flowPass.expiresAt || 0;
+            const subExpiry = getTime(sub.expiresAt);
+            const passExpiry = getTime(flowPass.expiresAt);
             const finalExpiry = Math.max(subExpiry, passExpiry);
 
             const claim = {
