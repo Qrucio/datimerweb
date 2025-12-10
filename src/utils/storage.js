@@ -451,6 +451,20 @@ export const Storage = {
         return items;
     },
 
+    updateCustomStoreItem: (updatedItem) => {
+        let items = Storage.getCustomStoreItems();
+        items = items.map(i => i.id === updatedItem.id ? updatedItem : i);
+        localStorage.setItem(KEYS.CUSTOM_ITEMS, JSON.stringify(items));
+        return items;
+    },
+
+    removeCustomStoreItem: (itemId) => {
+        let items = Storage.getCustomStoreItems();
+        items = items.filter(i => i.id !== itemId);
+        localStorage.setItem(KEYS.CUSTOM_ITEMS, JSON.stringify(items));
+        return items;
+    },
+
     syncWalletInventory: async (db, user) => {
         if (!user) return;
         try {

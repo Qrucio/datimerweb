@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ShoppingBag, Box, Check, X, Terminal, Plus, ArrowLeft,
+    ShoppingBag, Box, Check, X, Pencil, Terminal, Plus, ArrowLeft,
     Zap, Coffee, Flame, Heart, Star, Crown, Skull, Trophy,
     Gem, Sword, Shield, Ghost, Anchor, Music, Gamepad2, Gift,
     // Daily Objects
@@ -63,21 +63,92 @@ const BG_OPTIONS = [
     { id: 'grad_berry', class: 'bg-gradient-to-br from-pink-500 via-red-500 to-yellow-500' },
 ];
 
+// --- COMPONENTS ---
+
+// 1. Liquid Delete Button (Copied/Adapted for Modal Usage)
+const LiquidDeleteBtn = ({ onDelete, label = "Delete" }) => {
+    const [status, setStatus] = useState('idle'); // 'idle' | 'confirming'
+
+    useEffect(() => {
+        let t;
+        if (status === 'confirming') t = setTimeout(() => setStatus('idle'), 3000);
+        return () => clearTimeout(t);
+    }, [status]);
+
+    return (
+        <div className="relative h-9 min-w-[70px] z-10 flex justify-end">
+            <motion.div
+                layout
+                onClick={(e) => { e.stopPropagation(); if (status === 'idle') setStatus('confirming'); }}
+                initial={false}
+                animate={status === 'confirming'
+                    ? { width: 140, borderRadius: 24, backgroundColor: "rgba(239, 68, 68, 0.15)", borderColor: "rgba(239, 68, 68, 0.4)" }
+                    : { width: 70, borderRadius: 12, backgroundColor: "rgba(255, 255, 255, 0.05)", borderColor: "rgba(255, 255, 255, 0.1)" }
+                }
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className="absolute right-0 top-0 bottom-0 border flex items-center justify-center overflow-hidden cursor-pointer backdrop-blur-md transition-colors"
+            >
+                <AnimatePresence mode="popLayout">
+                    {status === 'idle' ? (
+                        <motion.button
+                            key="label"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="w-full h-full flex items-center justify-center text-[10px] font-bold text-red-400/70 hover:text-red-400 uppercase tracking-wider"
+                        >
+                            {label}
+                        </motion.button>
+                    ) : (
+                        <motion.div
+                            key="actions"
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 5 }}
+                            className="flex items-center gap-2 px-1 w-full justify-evenly"
+                        >
+                            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:scale-110 transition-transform shadow-sm">
+                                <Check size={12} strokeWidth={3} />
+                            </button>
+                            <span className="text-[10px] font-bold text-red-400 select-none">Confirm</span>
+                            <button onClick={(e) => { e.stopPropagation(); setStatus('idle'); }} className="w-6 h-6 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
+                                <X size={12} strokeWidth={3} />
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
+        </div>
+    );
+};
+
 // --- COMPONENT: CUSTOM ITEM CREATOR ---
-const CustomItemCreator = ({ onClose, onCreate }) => {
-    const [name, setName] = useState('');
-    const [price, setPrice] = useState(100);
-    const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
-    const [selectedBg, setSelectedBg] = useState(BG_OPTIONS[0]);
+const CustomItemCreator = ({ onClose, onCreate, onUpdate, onDelete, initialItem }) => {
+    // Initialize state with existing item data if available
+    const [name, setName] = useState(initialItem ? initialItem.name : '');
+    const [price, setPrice] = useState(initialItem ? initialItem.price : 100);
+
+    // Find initial options or default to first
+    const initialIcon = initialItem
+        ? ICON_OPTIONS.find(o => o.id === initialItem.customData.iconId) || ICON_OPTIONS[0]
+        : ICON_OPTIONS[0];
+    const initialBg = initialItem
+        ? BG_OPTIONS.find(o => o.class === initialItem.customData.bgClass) || BG_OPTIONS[0]
+        : BG_OPTIONS[0];
+
+    const [selectedIcon, setSelectedIcon] = useState(initialIcon);
+    const [selectedBg, setSelectedBg] = useState(initialBg);
 
     // Collapsing State
     const [showIcons, setShowIcons] = useState(false);
     const [showBgs, setShowBgs] = useState(false);
 
-    // Randomize on Mount
+    // Randomize on Mount only if NOT editing
     useEffect(() => {
-        randomizeAll();
-    }, []);
+        if (!initialItem) {
+            randomizeAll();
+        }
+    }, [initialItem]);
 
     const randomizeAll = () => {
         const randomIcon = ICON_OPTIONS[Math.floor(Math.random() * ICON_OPTIONS.length)];
@@ -86,21 +157,35 @@ const CustomItemCreator = ({ onClose, onCreate }) => {
         setSelectedBg(randomBg);
     };
 
-    const handleCreate = () => {
+    const handleAction = () => {
         if (!name.trim()) return;
 
-        const newItem = {
-            id: `custom_${Date.now()}`,
-            name: name,
-            description: `Custom item created by you.`,
-            price: parseInt(price),
-            customData: {
-                iconId: selectedIcon.id,
-                bgClass: selectedBg.class,
-            },
-            type: 'custom'
+        const customData = {
+            iconId: selectedIcon.id,
+            bgClass: selectedBg.class,
         };
-        onCreate(newItem);
+
+        if (initialItem) {
+            // UPDATING existing item
+            const updatedItem = {
+                ...initialItem,
+                name,
+                price: parseInt(price),
+                customData
+            };
+            if (onUpdate) onUpdate(updatedItem);
+        } else {
+            // CREATING new item
+            const newItem = {
+                id: `custom_${Date.now()}`,
+                name: name,
+                description: `Custom item created by you.`,
+                price: parseInt(price),
+                customData,
+                type: 'custom'
+            };
+            if (onCreate) onCreate(newItem);
+        }
     };
 
     return (
@@ -111,8 +196,12 @@ const CustomItemCreator = ({ onClose, onCreate }) => {
                     <ArrowLeft size={20} />
                 </button>
                 <div className="flex-1">
-                    <h3 className="text-xl font-bold text-white">Design Item</h3>
+                    <h3 className="text-xl font-bold text-white">{initialItem ? 'Edit Item' : 'Design Item'}</h3>
                 </div>
+                {/* DELETE BUTTON (Left of Shuffle) */}
+                {initialItem && onDelete && (
+                    <LiquidDeleteBtn onDelete={() => onDelete(initialItem)} label="Delete" />
+                )}
                 <button onClick={randomizeAll} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Randomize All">
                     <Shuffle size={18} />
                 </button>
@@ -232,14 +321,14 @@ const CustomItemCreator = ({ onClose, onCreate }) => {
 
             <div className="p-6 border-t border-white/10 bg-[#080808] shrink-0">
                 <button
-                    onClick={handleCreate}
+                    onClick={handleAction}
                     disabled={!name.trim()}
                     className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all ${name.trim() ? 'bg-white text-black hover:bg-gray-200 shadow-lg' : 'bg-white/10 text-white/30 cursor-not-allowed'}`}
                 >
-                    Add to Store
+                    {initialItem ? 'Save Changes' : 'Add to Store'}
                 </button>
             </div>
-        </div>
+        </div >
     );
 };
 
@@ -311,6 +400,8 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
 
     const [devInput, setDevInput] = useState('');
     const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+    // New state for editing
+    const [editingItem, setEditingItem] = useState(null);
 
     // Check Localhost
     const isDev = window.location.hostname === 'localhost';
@@ -338,6 +429,38 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
 
         // 3. Sync to Cloud
         if (onSync) onSync();
+    };
+
+    const handleUpdateItem = (updatedItem) => {
+        // 1. Update in Storage
+        Storage.updateCustomStoreItem(updatedItem);
+        // 2. Update Local State
+        setStoreItems(prev => prev.map(item => item.id === updatedItem.id ? updatedItem : item));
+        // 3. Reset UI
+        setIsCreatorOpen(false);
+        setEditingItem(null);
+        if (onSync) onSync();
+    };
+
+    const handleDeleteItem = (itemToDelete) => {
+        // 1. Remove from Storage
+        Storage.removeCustomStoreItem(itemToDelete.id);
+        // 2. Update Local State
+        setStoreItems(prev => prev.filter(item => item.id !== itemToDelete.id));
+        // 3. Reset UI
+        setIsCreatorOpen(false);
+        setEditingItem(null);
+        if (onSync) onSync();
+    };
+
+    const openCreatorForEdit = (item) => {
+        setEditingItem(item);
+        setIsCreatorOpen(true);
+    };
+
+    const openCreatorForNew = () => {
+        setEditingItem(null);
+        setIsCreatorOpen(true);
     };
 
     const handlePurchase = (item) => {
@@ -416,7 +539,13 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
                                     transition={{ duration: 0.3, ease: "easeInOut" }}
                                     className="absolute inset-0 z-50 bg-[#080808]"
                                 >
-                                    <CustomItemCreator onClose={() => setIsCreatorOpen(false)} onCreate={handleCreateItem} />
+                                    <CustomItemCreator
+                                        onClose={() => { setIsCreatorOpen(false); setEditingItem(null); }}
+                                        onCreate={handleCreateItem}
+                                        onUpdate={handleUpdateItem}
+                                        onDelete={handleDeleteItem}
+                                        initialItem={editingItem}
+                                    />
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -495,6 +624,16 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
                                                         <p className="text-white/40 text-[10px] leading-relaxed line-clamp-2">{item.description}</p>
                                                     </div>
 
+                                                    {/* EDIT BUTTON (Pencil, Left of Price) */}
+                                                    {item.customData && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); openCreatorForEdit(item); }}
+                                                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all opacity-0 group-hover:opacity-100 mr-2"
+                                                        >
+                                                            <Pencil size={14} />
+                                                        </button>
+                                                    )}
+
                                                     <button
                                                         disabled={!canAfford}
                                                         onClick={() => handlePurchase(item)}
@@ -511,7 +650,7 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
 
                                         {/* 2. Create Custom Item Card (Moved to Bottom) */}
                                         <button
-                                            onClick={() => setIsCreatorOpen(true)}
+                                            onClick={openCreatorForNew}
                                             // Matches standard card padding (p-3 pl-4) and general layout logic
                                             className="group relative bg-transparent border-2 border-dashed border-white/10 hover:border-white/40 rounded-2xl p-3 pl-4 flex items-center gap-4 transition-all hover:bg-white/5 min-h-[72px]"
                                         >
