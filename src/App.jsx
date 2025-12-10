@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
 import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
@@ -3485,6 +3485,7 @@ function MainApp() {
 
   const [isEditingSessions, setIsEditingSessions] = useState(false);
   const [sessionEditValue, setSessionEditValue] = useState("");
+  const [highlightCaffeine, setHighlightCaffeine] = useState(false);
 
   const commitSessionEdit = () => {
     const val = parseInt(sessionEditValue, 10);
@@ -3588,7 +3589,7 @@ function MainApp() {
 
   // --- OPTIMIZED SYNC: Run ONCE on mount ---
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isAnonymous) return;
 
     const checkAndMigrateProfile = async () => {
       try {
@@ -3669,7 +3670,7 @@ function MainApp() {
     Storage.saveNotesLocally(currentNotes);
 
     // 2. Save to DB
-    if (user) {
+    if (user && !user.isAnonymous) {
       try {
         await setDoc(doc(db, "users", user.uid), { notes: currentNotes }, { merge: true });
       } catch (e) { console.error("Reorder failed", e); }
@@ -3690,7 +3691,7 @@ function MainApp() {
     Storage.saveNotesLocally(updatedNotes);
 
     // 3. SYNC TO FIREBASE (Background)
-    if (user) {
+    if (user && !user.isAnonymous) {
       try {
         // Direct write. No debounce needed because the user explicitly clicked "Done".
         await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
@@ -3719,7 +3720,7 @@ function MainApp() {
     Storage.saveTrashLocally(updatedTrash);
 
     // 4. Sync Both to Firestore
-    if (user) {
+    if (user && !user.isAnonymous) {
       try {
         await setDoc(doc(db, "users", user.uid), {
           notes: updatedNotes,
@@ -3789,6 +3790,18 @@ function MainApp() {
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
+
+  // --- UNIFIED MODAL STATE & GUEST LOGIC ---
+  const [unifiedModalTab, setUnifiedModalTab] = useState('preferences');
+
+  const checkGuestAccess = () => {
+    if (user?.isAnonymous) {
+      setUnifiedModalTab('account');
+      setIsUnifiedModalOpen(true);
+      return false;
+    }
+    return true;
+  };
   const [friendUids, setFriendUids] = useState([]); // Just the IDs for listening
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
   const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
@@ -4101,6 +4114,13 @@ function MainApp() {
     initAuth();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // GUARD: Skip Auth check if in Demo Mode
+      if (window.location.search.includes('demo=')) {
+        setIsAuthChecking(false);
+        setIsAppReady(true);
+        return;
+      }
+
       setUser(currentUser);
       setIsAuthChecking(false);
 
@@ -4201,6 +4221,36 @@ function MainApp() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // --- DEMO MODE HANDLER ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const demoMode = params.get('demo');
+
+    if (demoMode) {
+      console.log("🚀 ACTIVATING DEMO MODE:", demoMode);
+
+      // 1. SKIP ONBOARDING
+      setOnboardingStep(3);
+
+      // 2. SET DUMMY USER
+      const dummyUser = {
+        uid: 'demo-user-123',
+        displayName: 'Caffeine demo',
+        photoURL: null,
+        email: 'demo@example.com',
+        isAnonymous: true // Treated as guest infrastructure but locally Pro
+      };
+
+      setUser(dummyUser);
+      setIsPro(true); // Force Pro
+
+      // 3. FEATURE SPECIFIC TRIGGERS
+      if (demoMode === 'caffeine') {
+        setTimeout(() => setHighlightCaffeine(true), 800);
+      }
+    }
   }, []);
 
   // --- SOCIAL: Friends Logic (UPDATED) ---
@@ -4922,18 +4972,28 @@ function MainApp() {
       localStorage.removeItem('pomodoro_user_name');
       localStorage.removeItem('zen_user_handle');
 
-      // 2. Clear caches (Recommended so next user starts fresh)
+      // 2. Clear ALL persistent caches
       localStorage.removeItem('zen_cache_settings');
       localStorage.removeItem('zen_cache_notes');
+      localStorage.removeItem('zen_cache_tasks');
+      localStorage.removeItem('zen_cache_habits');
       localStorage.removeItem('zen_cache_session_name');
-      localStorage.removeItem('zen_cache_stats');
+
+      // Fix: Clear correct keys based on Storage.KEYS
+      localStorage.removeItem('zen_stats_current');
+      localStorage.removeItem('zen_pro_claim');     // Fixes the main bug
+      localStorage.removeItem('zen_cache_wallet');
+      localStorage.removeItem('zen_cache_inventory');
+      localStorage.removeItem('zen_timer_state');   // Clear personality/timer persistence
 
       // 3. Reset UI State
-      // We ONLY need to reset the step. 
-      // The OnboardingFlow component will mount and automatically 
-      // show "Hello, stranger" and the login buttons itself.
       setIsMigrating(false);
       setOnboardingStep(0);
+      setIsPro(false); // Explicit state update
+      setCoins(0);     // Reset wallet UI
+      setNotes([]);    // Reset notes UI
+      setTasks([]);
+      setHabits([]);
 
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -5368,7 +5428,12 @@ function MainApp() {
   };
 
   const handleSaveAmbienceSelection = async (selectedIds) => {
-    if (!user) return;
+    // Always update local state first
+    setUnlockedAmbiences(selectedIds);
+    setAmbienceSetupDone(true);
+
+    if (!user || user.isAnonymous) return;
+
     try {
       await setDoc(doc(db, "users", user.uid), {
         preferences: {
@@ -5376,9 +5441,6 @@ function MainApp() {
           ambienceSetupDone: true
         }
       }, { merge: true });
-
-      setUnlockedAmbiences(selectedIds);
-      setAmbienceSetupDone(true);
     } catch (e) {
       console.error("Failed to save ambience selection", e);
     }
@@ -5511,7 +5573,7 @@ function MainApp() {
             <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
               <Music size={22} />
             </button>
-            <button onClick={() => setShowFriends(true)} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
+            <button onClick={() => { if (checkGuestAccess()) setShowFriends(true); }} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
               <Users size={22} />
             </button>
 
@@ -5533,7 +5595,7 @@ function MainApp() {
             {/* WALLET INDICATOR */}
             <WalletIndicator
               balance={coins}
-              onClick={() => setVaultOpen(true)}
+              onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }}
             />
 
             {/* PROFILE ICON */}
@@ -5584,7 +5646,7 @@ function MainApp() {
             <motion.button
               layout
               onMouseEnter={() => setHoveredDockIndex(0)}
-              onClick={() => setShowFriends(true)}
+              onClick={() => { if (checkGuestAccess()) setShowFriends(true); }}
               className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center"
             >
               <Users size={20} />
@@ -5658,10 +5720,16 @@ function MainApp() {
             {/* 4. CAFFEINE TRACKER (Index 3 - FIXED) */}
             <motion.button
               layout
-              onMouseEnter={() => setHoveredDockIndex(3)} // <--- FIXED: WAS 4, NOW 3
-              onClick={() => setShowCaffeine(true)}
+              onMouseEnter={() => setHoveredDockIndex(3)}
+              onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }}
               className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
+              {highlightCaffeine && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50">
+                  <ArrowDown size={32} strokeWidth={3} />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" />
+                </div>
+              )}
               <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
               <motion.span
                 layout

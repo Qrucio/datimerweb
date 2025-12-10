@@ -406,9 +406,14 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
 const UnifiedSettingsModal = ({
   isOpen, onClose, user, signOut, settings, setSettings,
   handleSettingsSave, handleBackgroundChange, backgrounds = [],
-  isPro = false, stats = {}, onOpenPro
+  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences'
 }) => {
-  const [activeTab, setActiveTab] = useState('preferences');
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]); // Reset tab when re-opened
+
   const [statsView, setStatsView] = useState('today');
   const [historyData, setHistoryData] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -623,10 +628,17 @@ const UnifiedSettingsModal = ({
 
                   {activeTab === 'account' && (
                     <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-0 md:p-4">
-                      {user ? (
+                      {user && !user.isAnonymous ? (
                         <UserProfileCard user={user} isPro={isPro} signOut={signOut} />
                       ) : (
-                        <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 dashed flex flex-col items-center justify-center w-full max-w-lg aspect-video"><User size={48} className="text-white/30 mb-4" /><p className="text-white/50">Please sign in to manage your account.</p></div>
+                        <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 dashed flex flex-col items-center justify-center w-full max-w-lg aspect-video">
+                          <User size={48} className="text-white/30 mb-4" />
+                          <p className="text-white/50 mb-6 font-medium">Guest Mode Active</p>
+                          <p className="text-white/30 text-sm mb-8 max-w-xs">Sign in to save your progress, customize your handle, and access social features.</p>
+                          <button onClick={signOut} className="px-8 py-3 bg-white text-black rounded-full font-bold text-sm tracking-wide uppercase hover:scale-105 transition-transform shadow-lg shadow-white/10">
+                            Sign In / Register
+                          </button>
+                        </div>
                       )}
                     </motion.div>
                   )}

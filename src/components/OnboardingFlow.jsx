@@ -44,11 +44,15 @@ const OnboardingFlow = ({ db, auth, provider, user, isMigrating, onComplete }) =
     // --- EFFECT: Handle Login Success -> Move to Step 1 ---
     useEffect(() => {
         if (user && internalStep === 0) {
+            if (user.isAnonymous) {
+                onComplete();
+                return;
+            }
             // Logic from your App.jsx to check if we skip to dashboard is done in App.jsx
             // If we are still rendered, it means we need to do the Handle step
             handleNameTransition(user.displayName ? user.displayName.split(' ')[0] : 'User');
         }
-    }, [user]);
+    }, [user, internalStep]);
 
     // --- EFFECT: Handle Availability Checker ---
     useEffect(() => {
