@@ -512,6 +512,25 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
         return <img src={item.icon} alt={item.name} className="w-full h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity drop-shadow-lg" />;
     };
 
+    // --- MOBILE DETECTION ---
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const modalVariants = isMobile ? {
+        hidden: { opacity: 0, y: '100%' },
+        visible: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } },
+        exit: { opacity: 0, y: '100%', transition: { type: "tween", duration: 0.2, ease: "easeIn" } }
+    } : {
+        hidden: { scale: 0.95, opacity: 0, y: 10 },
+        visible: { scale: 1, opacity: 1, y: 0, transition: { type: "spring", bounce: 0, duration: 0.25 } },
+        exit: { scale: 0.95, opacity: 0, y: 10 }
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -521,9 +540,10 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
                     onClick={onClose}
                 >
                     <motion.div
-                        initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                        variants={modalVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit="exit"
                         // Increased Size
                         className="w-full max-w-lg h-[750px] bg-[#080808] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col relative"
                         onClick={e => e.stopPropagation()}

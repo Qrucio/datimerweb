@@ -441,6 +441,25 @@ const UnifiedSettingsModal = ({
     exit: { opacity: 0, y: -5, transition: { duration: 0.15, ease: "easeIn" } }
   };
 
+  // --- MOBILE DETECTION ---
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const modalVariants = isMobile ? {
+    hidden: { opacity: 0, y: '100%' },
+    visible: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } },
+    exit: { opacity: 0, y: '100%', transition: { type: "tween", duration: 0.2, ease: "easeIn" } }
+  } : {
+    hidden: { opacity: 0, scale: 0.95, y: 10 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", bounce: 0, duration: 0.25 } },
+    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.2 } }
+  };
+
   useEffect(() => {
     if (activeTab === 'stats' && statsView === 'history' && user) {
       const fetchHistory = async () => {
@@ -485,10 +504,10 @@ const UnifiedSettingsModal = ({
 
           <div className="fixed inset-0 z-[101] flex items-center justify-center pointer-events-none md:p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", bounce: 0, duration: 0.25 }}
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
               className="w-full md:max-w-5xl h-[100dvh] md:h-[80vh] bg-[#0A0A0A] border-none md:border border-white/10 rounded-none md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row pointer-events-auto relative"
             >
 
@@ -569,7 +588,7 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'preferences' && (
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
                       <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-3">Timer Configuration</h3>
+                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Timer Configuration</h3>
                         {/* CHANGED: Vertical List Layout (Apple Style) */}
                         <div className="flex flex-col bg-white/5 border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
                           <SettingInput label="Focus Duration" value={settings.focus} onChange={(e) => updateSetting('focus', e.target.value)} onBlur={() => handleBlur('focus', 25)} min={1} max={120} />
@@ -579,7 +598,7 @@ const UnifiedSettingsModal = ({
                         </div>
                       </section>
                       <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-3">Automation</h3>
+                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
                           <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
@@ -592,13 +611,13 @@ const UnifiedSettingsModal = ({
 
                   {activeTab === 'appearance' && (
                     <motion.div key="appear" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                      <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-1">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pb-12">
+                      <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 pt-2 pb-1 leading-normal">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
                           const credit = bg.credit;
                           return (
-                            <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}>
+                            <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-[9/16] md:aspect-video rounded-2xl overflow-hidden group transition-all duration-300 ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}>
                               {isVideo ? (<video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline />) : (<img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />)}
                               {isVideo && (<div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" /><span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span></div>)}
                               {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
@@ -613,7 +632,7 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'stats' && (
                     <motion.div key="stats" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="max-w-3xl pb-12 flex flex-col h-full">
                       <div className="flex flex-col items-start gap-4 mb-8">
-                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-1">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
+                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 pt-2 pb-1 leading-normal">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
                         <div className="flex p-1 bg-white/5 rounded-full border border-white/5 relative">{['today', 'history'].map(view => (<button key={view} onClick={() => setStatsView(view)} className={`relative px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${statsView === view ? 'text-black' : 'text-white/40 hover:text-white'}`}>{statsView === view && (<motion.div layoutId="statsViewPill" className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]" transition={{ type: "spring", stiffness: 500, damping: 30 }} />)}{view}</button>))}</div>
                       </div>
                       <AnimatePresence mode="wait">
