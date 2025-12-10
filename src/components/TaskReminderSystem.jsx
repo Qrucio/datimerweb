@@ -1,13 +1,51 @@
 import React, { useEffect, useRef } from 'react';
 
 const TaskReminderSystem = ({ tasks = [] }) => {
-    // Track alerted task-reminder pairs to prevent double firing
+    // Track alerted task-reminder pairs using sessionStorage to persist across remounts
     const alertedTaskIds = useRef(new Set());
     const timeoutRef = useRef(null);
+    const audioRef = useRef(null);
+
+    // Initialize state and audio
+    useEffect(() => {
+        // 1. Load alerted state from storage
+        try {
+            const stored = sessionStorage.getItem('zen_alerted_reminders');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                parsed.forEach(id => alertedTaskIds.current.add(id));
+            }
+        } catch (e) {
+            console.error("[ReminderSystem] Failed to load history:", e);
+        }
+
+        // 2. Setup Audio
+        // Create audio object once and keep it
+        audioRef.current = new Audio('/sounds/remindnotif.mp3');
+        audioRef.current.preload = 'auto'; // Preload for instant playback
+        audioRef.current.volume = 1.0;
+
+        // 3. Request Notification Permission
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission().catch(err => console.error("Notification permissions error", err));
+        }
+
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    const saveAlertState = () => {
+        try {
+            sessionStorage.setItem('zen_alerted_reminders', JSON.stringify([...alertedTaskIds.current]));
+        } catch (e) {
+            console.error("[ReminderSystem] Save failed", e);
+        }
+    };
 
     useEffect(() => {
         const scheduleNextCheck = () => {
-            // 1. Clear existing timeout
+            // 1. Clear existing timeout to avoid overlaps
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
@@ -58,10 +96,10 @@ const TaskReminderSystem = ({ tasks = [] }) => {
                     const triggerTimeMs = taskDate.getTime() - reminderOffsetMs;
                     const alertId = `${task.id}-${reminderMinutes}`;
 
-                    // Only consider if not already alerted AND in the future (or very recent past)
+                    // Check if already alerted
                     if (!alertedTaskIds.current.has(alertId)) {
-                        // If it's in the past but within last 1 minute, fire immediately
-                        if (triggerTimeMs <= currentMs && (currentMs - triggerTimeMs) < 60000) {
+                        // If it's in the past but within last 2 minutes, fire immediately (missed valid window)
+                        if (triggerTimeMs <= currentMs && (currentMs - triggerTimeMs) < 120000) {
                             fireReminder(task, reminderMinutes, alertId);
                         }
                         // If it's strictly in the future, add to schedule candidates
@@ -79,15 +117,12 @@ const TaskReminderSystem = ({ tasks = [] }) => {
 
             // 3. Find the Earliest Next Reminder
             if (allFutureReminders.length === 0) {
-                // console.log("[ReminderSystem] No future reminders pending.");
                 return;
             }
 
             allFutureReminders.sort((a, b) => a.triggerTimeMs - b.triggerTimeMs);
             const nextEvent = allFutureReminders[0];
             const delay = Math.max(0, nextEvent.triggerTimeMs - currentMs);
-
-            // console.log(`[ReminderSystem] Next reminder for "${nextEvent.task.title}" in ${(delay / 1000).toFixed(1)}s`);
 
             // 4. Set Single Timeout
             timeoutRef.current = setTimeout(() => {
@@ -98,9 +133,19 @@ const TaskReminderSystem = ({ tasks = [] }) => {
         };
 
         const fireReminder = (task, minutes, alertId) => {
+            if (alertedTaskIds.current.has(alertId)) return; // Double-check
+
             console.log(`[ReminderSystem] 🔔 ALARM: "${task.title}" (${minutes}m warning)`);
-            playReminderSound();
+
+            // Mark as done immediately
             alertedTaskIds.current.add(alertId);
+            saveAlertState();
+
+            // Play Sound
+            playReminderSound();
+
+            // Show Notification
+            showSystemNotification(task.title, `Reminder: Due in ${minutes} minutes`);
         };
 
         // Run scheduling whenever tasks change or tab visibility changes
@@ -108,26 +153,62 @@ const TaskReminderSystem = ({ tasks = [] }) => {
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                // console.log("[ReminderSystem] Tab awake. Re-syncing schedule...");
                 scheduleNextCheck();
             }
         };
 
+        const handleFocus = () => {
+            scheduleNextCheck();
+        };
+
         document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("focus", handleFocus);
 
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("focus", handleFocus);
         };
     }, [tasks]); // Re-schedule if tasks list changes
 
     const playReminderSound = () => {
-        try {
-            const audio = new Audio('/sounds/remindnotif.mp3');
-            audio.volume = 1.0;
-            audio.play().catch(e => console.error("[ReminderSystem] Play failed:", e));
-        } catch (e) {
-            console.error("[ReminderSystem] Sound error:", e);
+        if (!audioRef.current) return;
+
+        // Reset and play
+        audioRef.current.currentTime = 0;
+        const playPromise = audioRef.current.play();
+
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("[ReminderSystem] Audio playback failed:", error);
+
+                // If audio fails (e.g. autoplay policy), we rely on Notification.
+                // We could also try to show a visual toast, but Notification is standard.
+            });
+        }
+    };
+
+    const showSystemNotification = (title, body) => {
+        if (!("Notification" in window)) return;
+
+        if (Notification.permission === "granted") {
+            try {
+                // Use the standard notification
+                new Notification(title, {
+                    body: body,
+                    icon: '/logo/altimer-logo.png', // Best guess path, or standard icon
+                    silent: false
+                });
+            } catch (e) {
+                console.error("[ReminderSystem] Notification failed", e);
+            }
+        }
+        else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    showSystemNotification(title, body);
+                }
+            });
         }
     };
 
