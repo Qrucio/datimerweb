@@ -79,10 +79,13 @@ export const Storage = {
 
     // Move a finished day into the "Upload Queue"
     queueDayForSync: (dayData) => {
+        // [DEPRECATED] - Piggyback Sync now handles history via syncTimerState
+        /*
         if (!dayData || !dayData.date) return;
         const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
         history.push(dayData);
         localStorage.setItem(KEYS.HISTORY, JSON.stringify(history));
+        */
     },
 
     // --- 2. THE SYNC WORKER (The "Bank Run") ---
@@ -98,77 +101,14 @@ export const Storage = {
     },
 
     syncPendingData: async (db, user) => {
+        // [DEPRECATED] - Piggyback Sync now handles history via syncTimerState
+        return true;
+        /*
         if (!user) return false;
 
         const today = getDateId();
-
-        // 1. Check current slot for stale data (e.g. user opened app next day)
-        const current = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
-
-        // STRICT GUARD: If stats are for TODAY, DO NOT TOUCH THEM.
-        if (current.date === today) {
-            // This is active data. Leave it alone.
-        }
-        else if (current.date && current.date !== today) {
-            // It's definitely NOT today. It's old. Move it using the explicit logic.
-            console.log("[Sync] Detected stale data from", current.date);
-            Storage.queueDayForSync(current);
-            localStorage.removeItem(KEYS.STATS);
-        }
-
-        // 2. Load Queue
-        const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
-        if (history.length === 0) return true; // Nothing to sync is a success
-
-        console.log(`[Sync] Found ${history.length} items to upload...`);
-
-        try {
-            // CONSOLIDATE DUPLICATES (Optimization)
-            const consolidated = history.reduce((acc, item) => {
-                const date = item.date;
-                // EXTRA GUARD: Never upload "Today" from history if it somehow got there
-                if (date === today) return acc;
-
-                if (!acc[date]) {
-                    acc[date] = { ...item };
-                } else {
-                    acc[date].dailyFocusTime = (acc[date].dailyFocusTime || 0) + (item.dailyFocusTime || 0);
-                    acc[date].dailyBreakTime = (acc[date].dailyBreakTime || 0) + (item.dailyBreakTime || 0);
-                    acc[date].dailySessions = (acc[date].dailySessions || 0) + (item.dailySessions || 0);
-                }
-                return acc;
-            }, {});
-
-            const batch = writeBatch(db);
-            let hasWrites = false;
-
-            Object.values(consolidated).forEach(dayStat => {
-                hasWrites = true;
-                const historyRef = doc(db, "users", user.uid, "history", dayStat.date);
-                batch.set(historyRef, {
-                    date: dayStat.date,
-                    dailyFocusTime: increment(dayStat.dailyFocusTime || 0),
-                    dailyBreakTime: increment(dayStat.dailyBreakTime || 0),
-                    dailySessions: increment(dayStat.dailySessions || 0),
-                    uploadedAt: Timestamp.now()
-                }, { merge: true });
-            });
-
-            if (hasWrites) {
-                await batch.commit();
-                console.log("[Sync] Upload successful!");
-            } else {
-                console.log("[Sync] No valid past-days to upload.");
-            }
-
-            // Clear queue only on success
-            localStorage.removeItem(KEYS.HISTORY);
-            return true;
-
-        } catch (error) {
-            console.error("[Sync] Failed:", error);
-            return false;
-        }
+        // ... (rest of old code commented out)
+        */
     },
 
     // --- 2.5 SYNC DOWN (The "Withdrawal") ---

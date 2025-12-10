@@ -1328,6 +1328,20 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
 
   const getStats = () => {
     const s = profileData.stats || {};
+
+    // Check if data is from today to prevent showing yesterday's stats
+    const lastUpdateTimestamp = profileData.timerState?.lastUpdated || 0;
+    const isDataFromToday = isSameDay(new Date(lastUpdateTimestamp), new Date());
+
+    if (!isDataFromToday) {
+      return {
+        dailyFocusTime: 0,
+        dailyBreakTime: 0,
+        dailySessions: 0,
+        currentStreak: s.currentStreak ?? profileData.streak ?? 0 // Keep streak
+      };
+    }
+
     return {
       dailyFocusTime: s.dailyFocusTime ?? profileData.todayFocusTime ?? 0,
       dailyBreakTime: s.dailyBreakTime ?? 0,
@@ -4294,16 +4308,43 @@ function MainApp() {
       streak: currentStreak
     };
 
+    // FIX: Update local UI state immediately so the user sees the streak change
+    setStats(prev => ({
+      ...prev,
+      currentStreak: currentStreak
+    }));
+
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
     try {
-      // ONLY update Public Profile Status (Online/Offline/Focusing)
-      await setDoc(doc(db, "publicProfiles", user.uid), {
-        timerState: payload.timerState,
-        stats: payload.todayStats, // Flattened for easy access by friends
-        streak: payload.streak,
-        todayFocusTime: payload.todayStats.dailyFocusTime // Backwards compatibility for root readers
-      }, { merge: true });
+      // UNIFIED SYNC: Update Public Profile, Personal History, and User Doc simultaneously
+      const todayId = formatDateId(new Date());
+      const batchPromises = [
+        // 1. PUBLIC PROFILE (For Friends)
+        setDoc(doc(db, "publicProfiles", user.uid), {
+          timerState: payload.timerState,
+          stats: payload.todayStats,
+          streak: payload.streak,
+          todayFocusTime: payload.todayStats.dailyFocusTime
+        }, { merge: true }),
+
+        // 2. PERSONAL HISTORY (The Permanent Log)
+        setDoc(doc(db, "users", user.uid, "history", todayId), {
+          date: todayId,
+          dailyFocusTime: payload.todayStats.dailyFocusTime,
+          dailyBreakTime: payload.todayStats.dailyBreakTime,
+          dailySessions: payload.todayStats.dailySessions,
+          uploadedAt: Timestamp.now()
+        }, { merge: true }),
+
+        // 3. USER AGGREGATE (Backup & Metadata)
+        setDoc(doc(db, "users", user.uid), {
+          lastActive: Timestamp.now(),
+          stats: payload.todayStats // Keep current day's stats active in root for quick access
+        }, { merge: true })
+      ];
+
+      await Promise.all(batchPromises);
 
     } catch (e) {
       console.error("Sync failed", e);
@@ -4870,6 +4911,9 @@ function MainApp() {
             }
           }
 
+          // FIX: Ensure streak is fresh from local history on load
+          finalStats.currentStreak = Storage.calculateStreak(Storage.getFullHistory());
+
           setStats(finalStats);
           localStorage.setItem('zen_cache_stats', JSON.stringify(finalStats));
 
@@ -5108,23 +5152,10 @@ function MainApp() {
 
 
 
-  // --- SYNC WORKER (Smart Rollover) ---
-  useEffect(() => {
-    if (!user) return;
+  // --- SYNC WORKER REMOVED (Replaced by Event-Driven "Piggyback" Sync) ---
+  // The 'attemptSync' effect was here. It is now obsolete because we sync
+  // history in real-time via syncTimerState.
 
-    // Trigger sync ONLY when:
-    // 1. App mounts (handled by dependency on 'stats.date' implicitly or separate auth check)
-    // 2. The date changes (Rollover at midnight)
-    // This satisfies "batchwrite next day" without constant polling.
-    const attemptSync = async () => {
-      if (Storage.hasPendingData()) {
-        console.log("[App] Rollover/Load detected. Syncing pending stats...");
-        await Storage.syncPendingData(db, user);
-      }
-    };
-
-    attemptSync();
-  }, [user, stats.date]); // Runs on mount + when date flips
 
   // --- TIMER INTERVAL & TRANSITION LOGIC (Ghost-Proof) ---
   useEffect(() => {
