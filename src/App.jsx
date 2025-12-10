@@ -1139,9 +1139,7 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
                     </div>
                   </div>
 
-                  <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 border border-white/5 flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all">
-                    <X size={18} />
-                  </button>
+                  <CloseButton onClick={onClose} />
                 </div>
 
                 {/* View Switcher Pills */}
@@ -4699,8 +4697,16 @@ function MainApp() {
 
           // --- 6. WALLET & INVENTORY SYNC ---
           if (data.wallet) {
-            Storage.setWallet(data.wallet);
-            setCoins(data.wallet.balance || 0);
+            const localWallet = Storage.getWallet();
+            // Conflict Resolution: Only overwrite if server is newer
+            // Default to 0 if undefined to ensure migration
+            const serverTime = data.wallet.lastUpdated || 0;
+            const localTime = localWallet.lastUpdated || 0;
+
+            if (serverTime > localTime) {
+              Storage.setWallet(data.wallet);
+              setCoins(data.wallet.balance || 0);
+            }
           }
           if (data.inventory) {
             Storage.setInventory(data.inventory);

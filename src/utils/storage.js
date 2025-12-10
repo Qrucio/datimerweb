@@ -372,6 +372,7 @@ export const Storage = {
     updateWallet: (amountToAdd) => {
         const wallet = Storage.getWallet();
         wallet.balance = (wallet.balance || 0) + amountToAdd;
+        wallet.lastUpdated = Date.now();
         localStorage.setItem(KEYS.WALLET, JSON.stringify(wallet));
         return wallet;
     },
