@@ -4314,74 +4314,67 @@ function MainApp() {
     const unsubscribers = [];
     const currentFriendsData = {};
 
-    friendUids.forEach(friendId => {
-      const unsub = onSnapshot(doc(db, "publicProfiles", friendId), (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
+    // Helper to calculate status (Used by both Snapshot and Interval)
+    const calculateFriendStatus = (data, now) => {
+      let isOnline = false;
+      let isActive = false;
+      let statusText = "Offline";
+      let mode = 'focus';
+      let timeLeft = 0;
+      const GRACE_PERIOD = 5 * 60 * 1000; // 5 Minutes
 
-          let isOnline = false;
-          let isActive = false;
-          let statusText = "Offline";
-          let mode = 'focus';
-          let timeLeft = 0;
+      if (data.timerState) {
+        const ts = data.timerState;
+        const lastUpdated = ts.lastUpdated || 0;
+        const timeSinceUpdate = now - lastUpdated;
+        const isStale = timeSinceUpdate > GRACE_PERIOD;
 
-          if (data.timerState) {
-            // ... inside the useEffect for friend profiles ...
+        if (!isStale) {
+          isOnline = true; // They are online!
 
-            const now = Date.now();
-            const GRACE_PERIOD = 5 * 60 * 1000; // 5 Minutes
+          if (ts.isActive) {
+            // Check if timer has actually finished locally
+            const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
 
-            // ... when parsing data ...
-            if (data.timerState) {
-              const ts = data.timerState; // Shorthand
-              const lastUpdate = ts.lastUpdated || 0;
-              const isDataStale = (now - lastUpdate) > GRACE_PERIOD;
-
-              // SCENARIO 1: Timer is Running (Active)
-              if (ts.isActive) {
-                // We trust the end time. Even if they close the tab, 
-                // the session is valid until the clock runs out.
-                if (ts.targetEndTime > now) {
-                  isOnline = true;
-                  isActive = true;
-                  mode = ts.mode;
-                  timeLeft = Math.ceil((ts.targetEndTime - now) / 1000);
-                  statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
-                } else {
-                  // Timer finished naturally, but user hasn't touched app in a while
-                  // We show them as "Idle" (Online but away)
-                  isOnline = true;
-                  isActive = false;
-                  statusText = "Idle";
-                }
-              }
-              // SCENARIO 2: Timer is Paused/Stopped
-              else {
-                if (isDataStale) {
-                  // It has been > 5 mins since they paused.
-                  // They probably closed the tab. Mark as OFFLINE.
-                  isOnline = false;
-                  statusText = "Offline";
-                } else {
-                  // They paused recently (within 5 mins). They are still here.
-                  isOnline = true;
-                  isActive = false;
-                  statusText = "Paused";
-                }
-              }
+            if (remaining > 0) {
+              isActive = true;
+              mode = ts.mode;
+              timeLeft = remaining;
+              statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+            } else {
+              // Timer finished naturally but user hasn't touched app
+              isActive = false;
+              statusText = "Idle";
             }
+          } else {
+            // Paused/Stopped but recently updated
+            isActive = false;
+            statusText = "Paused";
           }
+        } else {
+          // Stale Data -> They probably closed the tab
+          isOnline = false;
+          statusText = "Offline";
+        }
+      }
+
+      return { isOnline, isActive, statusText, mode, timeLeft };
+    };
+
+    friendUids.forEach(friendId => {
+      const unsub = onSnapshot(doc(db, "publicProfiles", friendId), (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const calculated = calculateFriendStatus(data, Date.now());
 
           currentFriendsData[friendId] = {
             uid: friendId,
             displayName: data.displayName || "Unknown",
             photoURL: data.photoURL,
             handle: data.handle,
-            isOnline,
-            isActive,
-            statusText,
-            mode,
-            timeLeft,
+            // Critical: Store raw state for the interval loop
+            timerState: data.timerState,
+            ...calculated,
             isPinned: friendConfig[friendId]?.isPinned || false,
             isPro: data.isPro || data.isBoosted || false
           };
@@ -4392,13 +4385,18 @@ function MainApp() {
       unsubscribers.push(unsub);
     });
 
-    // Local tick to update countdowns smoothly without DB reads
+    // Local tick to update status/countdowns smoothly without DB reads
     const interval = setInterval(() => {
-      setFriends(prev => prev.map(f => (f.isActive && f.timeLeft > 0 ? {
-        ...f,
-        timeLeft: f.timeLeft - 1,
-        statusText: `${f.mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor((f.timeLeft - 1) / 60)}m`
-      } : f)));
+      const now = Date.now();
+      setFriends(prev => prev.map(f => {
+        // If we have raw timerState, recalculate dynamic fields
+        if (f.timerState) {
+          // Re-run the exact same logic as above
+          const calculated = calculateFriendStatus({ timerState: f.timerState }, now);
+          return { ...f, ...calculated };
+        }
+        return f;
+      }));
     }, 1000);
 
     return () => { unsubscribers.forEach(u => u()); clearInterval(interval); };
