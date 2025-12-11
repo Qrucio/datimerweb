@@ -598,6 +598,12 @@ const UnifiedSettingsModal = ({
                         </div>
                       </section>
                       <section>
+                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Experience</h3>
+                        <div className="grid grid-cols-1 gap-2">
+                          <ToggleRow label="Intention Mode" description="Focus on a specific goal with an immersive video background." checked={settings.intentionMode} onChange={(val) => toggleSetting('intentionMode', val)} icon={Sparkles} />
+                        </div>
+                      </section>
+                      <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
