@@ -601,7 +601,10 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
                             </p>
 
                             <button
-                                onClick={onComplete}
+                                onClick={() => {
+                                    onComplete();
+                                    window.location.reload();
+                                }}
                                 onMouseEnter={() => {
                                     confetti({
                                         particleCount: 100,

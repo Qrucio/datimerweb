@@ -410,22 +410,9 @@ const UnifiedSettingsModal = ({
                           <SettingInput label="Intervals" value={settings.pomosBeforeLongBreak} onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)} onBlur={() => handleBlur('pomosBeforeLongBreak', 4)} min={1} max={10} />
                         </div>
                       </section>
-                      <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Experience</h3>
-                        <div className="grid grid-cols-1 gap-2">
-                          <ToggleRow label="Intention Mode" description="Focus on a specific goal with an immersive video background." checked={settings.intentionMode} onChange={(val) => toggleSetting('intentionMode', val)} icon={Sparkles} />
-                          <button onClick={onReplayOnboarding} className="flex items-center justify-between w-full py-4 px-5 hover:bg-white/5 transition-colors group border-t border-white/5">
-                            <div className="flex items-center gap-3">
-                              <RefreshCw size={18} className="text-white/40 group-hover:text-white transition-colors" />
-                              <div className="flex flex-col items-start">
-                                <span className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">Replay Onboarding</span>
-                                <span className="text-white/40 text-xs">View the welcome sequence again.</span>
-                              </div>
-                            </div>
-                            <ChevronRight size={14} className="text-white/20 group-hover:text-white/60 transition-colors" />
-                          </button>
-                        </div>
-                      </section>
+
+
+
                       <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
