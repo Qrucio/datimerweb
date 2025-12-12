@@ -6,10 +6,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
   Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw
 } from 'lucide-react';
-import {
-  getFirestore, collection, query, orderBy, getDocs, limit,
-  where, doc, getDoc, writeBatch, onSnapshot
-} from "firebase/firestore";
+import { supabase } from '../../lib/supabase';
 import { DEV_USER_IDS } from '../../utils/data'; // Import DEV_USER_IDS
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
@@ -128,12 +125,25 @@ const StatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlig
   </motion.div>
 );
 
-const StreakCard = ({ streak }) => (
-  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300 }} className="col-span-2 relative overflow-hidden rounded-2xl p-6 border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40 group">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.15),transparent_50%)]" />
+const StreakCard = ({ streak, active = false }) => (
+  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300 }} className={`col-span-2 relative overflow-hidden rounded-2xl p-6 border group ${active ? 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40' : 'border-white/5 bg-gradient-to-br from-white/5 via-[#0A0A0A] to-black/40'}`}>
+    <div className={`absolute inset-0 bg-[radial-gradient(circle_at_top_right,${active ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.05)'},transparent_50%)]`} />
     <div className="flex items-center justify-between relative z-10">
-      <div><div className="flex items-center gap-2 mb-1"><span className="text-[10px] font-bold text-orange-400/80 uppercase tracking-widest">Current Streak</span></div><div className="text-4xl font-serif-display text-white flex items-baseline gap-1">{streak} <span className="text-sm font-sans text-white/40 font-medium">days</span></div></div>
-      <motion.div animate={{ scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} className="text-orange-500"><Flame size={48} fill="currentColor" fillOpacity={0.2} strokeWidth={1.5} /></motion.div>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-orange-400/80' : 'text-white/30'}`}>Current Streak</span>
+        </div>
+        <div className={`text-4xl font-serif-display flex items-baseline gap-1 ${active ? 'text-white' : 'text-white/50'}`}>
+          {streak} <span className="text-sm font-sans text-white/40 font-medium">days</span>
+        </div>
+      </div>
+      <motion.div
+        animate={active ? { scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] } : { scale: 1, filter: "none" }}
+        transition={active ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
+        className={active ? "text-orange-500" : "text-white/10"}
+      >
+        <Flame size={48} fill="currentColor" fillOpacity={active ? 0.2 : 0} strokeWidth={1.5} />
+      </motion.div>
     </div>
   </motion.div>
 );
@@ -196,7 +206,6 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
   const [displayHandle, setDisplayHandle] = useState(user?.handle || "");
   const [rotation, setRotation] = useState(0);
   const dominantColor = useDominantColor(user?.photoURL);
-  const db = getFirestore();
 
   const themes = useMemo(() => [
     { name: 'Warm Amber', gradient: "from-[#7A3B19] via-[#B95A2A] to-[#E8A15A]", glow: "rgba(185, 90, 42, 0.5)" },
@@ -231,15 +240,24 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
   };
 
   useEffect(() => {
+    // Real-time listener for profile changes (like manual edits on another device)
     if (!user?.uid) return;
-    const unsub = onSnapshot(doc(db, "publicProfiles", user.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.handle) setDisplayHandle(data.handle);
-      }
-    });
-    return () => unsub();
-  }, [user, db]);
+
+    const channel = supabase
+      .channel('public:profiles')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.uid}` },
+        (payload) => {
+          if (payload.new && payload.new.handle) {
+            setDisplayHandle(payload.new.handle);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   useEffect(() => {
     if (isEditing) setNewHandle(displayHandle.replace(/^@/, ''));
@@ -253,10 +271,16 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
         setCooldownDays(0);
         return;
       }
+      // Check profile for last handle change
       try {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        if (userSnap.exists()) {
-          const lastChange = userSnap.data().lastHandleChange || 0;
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('last_handle_change')
+          .eq('id', user.uid)
+          .single();
+
+        if (data) {
+          const lastChange = data.last_handle_change ? new Date(data.last_handle_change).getTime() : 0;
           const now = Date.now();
           const diffTime = Math.abs(now - lastChange);
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -266,7 +290,7 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
       } catch (e) { console.error("Cooldown check failed", e); }
     };
     if (isEditing) checkCooldown();
-  }, [user, isEditing, db]);
+  }, [user, isEditing]);
 
   useEffect(() => {
     if (!isEditing) return;
@@ -277,18 +301,23 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
       setHandleStatus("checking");
       try {
         const fullHandle = `@${newHandle}`;
-        const q = query(collection(db, "publicProfiles"), where("handle_lowercase", "==", fullHandle.toLowerCase()));
-        const snap = await getDocs(q);
-        if (snap.empty) { setHandleStatus("available"); setStatusMsg(""); }
+        // Check case-insensitive handle uniqueness
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('handle', fullHandle)
+          .limit(1);
+
+        if (!data || data.length === 0) { setHandleStatus("available"); setStatusMsg(""); }
         else {
-          if (snap.docs[0].id === user.uid) { setHandleStatus("available"); setStatusMsg(""); }
+          if (data[0].id === user.uid) { setHandleStatus("available"); setStatusMsg(""); }
           else { setHandleStatus("taken"); setStatusMsg("Taken"); }
         }
       } catch (e) { console.error(e); }
     };
     const timer = setTimeout(checkAvailability, 500);
     return () => clearTimeout(timer);
-  }, [newHandle, isEditing, user, db, displayHandle]);
+  }, [newHandle, isEditing, user, displayHandle]);
 
   const handleCopy = (e) => {
     e.stopPropagation();
@@ -304,12 +333,19 @@ const UserProfileCard = ({ user, isPro, signOut }) => {
     setIsSaving(true);
     try {
       const fullHandle = `@${newHandle}`;
-      const batch = writeBatch(db);
-      const publicRef = doc(db, "publicProfiles", user.uid);
-      batch.set(publicRef, { handle: fullHandle, handle_lowercase: fullHandle.toLowerCase() }, { merge: true });
-      const privateRef = doc(db, "users", user.uid);
-      batch.set(privateRef, { handle: fullHandle, lastHandleChange: Date.now() }, { merge: true });
-      await batch.commit();
+
+      // Update Profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          handle: fullHandle,
+          // handle_lowercase: fullHandle.toLowerCase(), // Supabase likely handles this or we use ILIKE
+          last_handle_change: new Date()
+        })
+        .eq('id', user.uid);
+
+      if (error) throw error;
+
       setDisplayHandle(fullHandle);
       setIsEditing(false);
       setCooldownDays(14);
@@ -465,15 +501,32 @@ const UnifiedSettingsModal = ({
       const fetchHistory = async () => {
         setLoadingHistory(true);
         try {
-          const db = getFirestore();
-          const historyRef = collection(db, 'users', user.uid, 'history');
-          const q = query(historyRef, orderBy('date', 'desc'), limit(100));
-          const snapshot = await getDocs(q);
-          const data = {};
-          snapshot.forEach(doc => { data[doc.id] = doc.data(); });
-          const todayId = formatDateId(new Date());
-          if (stats && stats.dailyFocusTime > 0) { data[todayId] = { ...stats, date: new Date() }; }
-          setHistoryData(data);
+          const { data, error } = await supabase
+            .from('history')
+            .select('*')
+            .eq('user_id', user.uid)
+            .order('date_id', { ascending: false })
+            .limit(100);
+
+          if (data) {
+            const historyMap = {};
+            data.forEach(item => {
+              // FIX: Normalize data structure so UI finds 'dailyFocusTime'
+              // Prioritize the 'data' JSON column, fallback to mapping snake_case columns
+              historyMap[item.date_id] = item.data || {
+                dailyFocusTime: item.focus_time,
+                dailyBreakTime: item.break_time,
+                dailySessions: item.sessions
+              };
+            });
+
+            const todayId = formatDateId(new Date());
+            // Piggyback current session if exists
+            if (stats && stats.dailyFocusTime > 0) {
+              historyMap[todayId] = { ...stats, date: new Date() };
+            }
+            setHistoryData(historyMap);
+          }
         } catch (e) { console.error("Failed to load history", e); } finally { setLoadingHistory(false); }
       };
       fetchHistory();
@@ -643,7 +696,7 @@ const UnifiedSettingsModal = ({
                       </div>
                       <AnimatePresence mode="wait">
                         {statsView === 'today' ? (
-                          <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} /></motion.div>
+                          <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} active={(stats.dailyFocusTime > 0 || stats.dailySessions > 0)} /></motion.div>
                         ) : (
                           <motion.div key="view-history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="flex flex-col gap-6"><HistoryCalendar historyData={historyData} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} isExpanded={isCalendarExpanded} setIsExpanded={setIsCalendarExpanded} /><motion.div layout className="space-y-4"><div className="flex items-center gap-3 border-t border-white/10 pt-6"><h4 className="font-serif-display text-lg text-white">{!isCalendarExpanded ? "Stats Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><StatCard label="Focus Time" value={formatDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight /><StatCard label="Break Time" value={formatDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} /></div></motion.div></motion.div>
                         )}

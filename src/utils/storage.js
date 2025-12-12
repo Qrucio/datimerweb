@@ -1,4 +1,4 @@
-import { doc, writeBatch, Timestamp, increment, setDoc } from "firebase/firestore";
+import { supabase } from "../lib/supabase";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
@@ -38,6 +38,19 @@ export const Storage = {
         } catch { return {}; }
     },
 
+    // HYDRATE FROM SERVER (Fix for 0s bug)
+    hydrateTodayStats: (serverData) => {
+        if (!serverData) return;
+        const data = {
+            date: serverData.date_id,
+            dailyFocusTime: serverData.focus_time || 0,
+            dailyBreakTime: serverData.break_time || 0,
+            dailySessions: serverData.sessions || 0
+        };
+        localStorage.setItem(KEYS.STATS, JSON.stringify(data));
+        return data;
+    },
+
     // Call this every second in your timer loop.
     updateLocalStats: (elapsedSeconds, mode) => {
         const today = getDateId();
@@ -47,6 +60,7 @@ export const Storage = {
         if (data.date && data.date !== today) {
             Storage.queueDayForSync(data);
             data = {};
+            localStorage.setItem(KEYS.STATS, JSON.stringify(data)); // Force save reset
         }
 
         // Initialize if empty
@@ -82,61 +96,42 @@ export const Storage = {
     },
 
     // Move a finished day into the "Upload Queue"
-    queueDayForSync: (dayData) => {
-        // [DEPRECATED] - Piggyback Sync now handles history via syncTimerState
-        /*
+    queueDayForSync: async (dayData) => {
         if (!dayData || !dayData.date) return;
+
+        // 1. History Array Logic (Deprecated but safe to keep locally)
         const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
         history.push(dayData);
         localStorage.setItem(KEYS.HISTORY, JSON.stringify(history));
-        */
-    },
 
-    // --- 2. THE SYNC WORKER (The "Bank Run") ---
-
-    hasPendingData: () => {
-        try {
-            const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
-            const current = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
-            // Also check if current is stale
-            const isStale = current.date && current.date !== getDateId();
-            return history.length > 0 || isStale;
-        } catch { return false; }
-    },
-
-    syncPendingData: async (db, user) => {
-        // [DEPRECATED] - Piggyback Sync now handles history via syncTimerState
-        return true;
-        /*
-        if (!user) return false;
-
-        const today = getDateId();
-        // ... (rest of old code commented out)
-        */
-    },
-
-    // --- 2.5 SYNC DOWN (The "Withdrawal") ---
-    // Kept for manual sync if needed, but not used on load anymore.
-    mergeHistory: (remoteHistory) => {
-        try {
-            if (!remoteHistory || remoteHistory.length === 0) return;
-
-            const localHistory = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
-            const historyMap = new Map();
-
-            localHistory.forEach(item => historyMap.set(item.date, item));
-            remoteHistory.forEach(item => {
-                if (item.date === getDateId()) return;
-                historyMap.set(item.date, item);
-            });
-
-            const merged = Array.from(historyMap.values());
-            localStorage.setItem(KEYS.HISTORY, JSON.stringify(merged));
-            return merged;
-        } catch (e) {
-            console.error("Failed to merge history", e);
-            return [];
+        // 2. Immediate Supabase Sync attempt (Best Effort)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            try {
+                await supabase.from('history').upsert({
+                    user_id: user.id,
+                    date_id: dayData.date,
+                    focus_time: dayData.dailyFocusTime || 0,
+                    break_time: dayData.dailyBreakTime || 0,
+                    sessions: dayData.dailySessions || 0,
+                    data: dayData
+                }, { onConflict: 'user_id, date_id' });
+            } catch (e) {
+                console.error("Queue Sync Failed", e);
+            }
         }
+    },
+
+    // --- 2. THE SYNC WORKER ---
+    // In Supabase, we don't strictly *need* complex offline queuing because 
+    // the client handles retries well, but we'll leave the hooks for now.
+    hasPendingData: () => false,
+    syncPendingData: async () => true,
+
+    // --- 2.5 SYNC DOWN (Fetch History) ---
+    mergeHistory: (remoteHistory) => {
+        // ... (kept for compat if needed, but easier to just trust DB)
+        return remoteHistory;
     },
 
     getFullHistory: () => {
@@ -144,11 +139,67 @@ export const Storage = {
             const history = JSON.parse(localStorage.getItem(KEYS.HISTORY) || '[]');
             const today = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
 
+            // Copy history array
+            let fullHistory = [...history];
+
+            // If today has data, append it for streak calculation
             if (today.date && (today.dailyFocusTime > 0 || today.dailySessions > 0)) {
-                return [...history, today];
+                // Check if today already exists in history (duplicate protection)
+                const exists = fullHistory.find(d => d.date === today.date);
+                if (!exists) {
+                    fullHistory.push(today);
+                } else {
+                    // Update existing today entry if in history (shouldn't happen with correct logic but safe)
+                    fullHistory = fullHistory.map(d => d.date === today.date ? today : d);
+                }
             }
-            return history;
+            return fullHistory;
         } catch { return []; }
+    },
+
+    // --- NEW: FORCE DAILY RESET ON APP LOAD ---
+    checkDailyReset: () => {
+        const today = getDateId();
+        let data = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+
+        // If data exists and date is NOT today (and not empty)
+        if (data.date && data.date !== today) {
+            console.log("Storage: Daily Reset Triggered. Queuing", data.date);
+            Storage.queueDayForSync(data);
+            localStorage.setItem(KEYS.STATS, '{}'); // Wipe for today
+            return true; // Indicates reset happened
+        }
+
+        // If data doesn't have a date yet (fresh install or empty), set it
+        if (!data.date) {
+            data.date = today;
+            localStorage.setItem(KEYS.STATS, JSON.stringify(data));
+        }
+
+        return false;
+    },
+
+    // --- NEW: HYDRATE HISTORY FROM SERVER ---
+    hydrateHistory: (serverHistory) => {
+        if (!serverHistory || !Array.isArray(serverHistory)) return;
+
+        // 1. Convert Server Format -> Local Format
+        const localHistory = serverHistory.map(row => {
+            // If 'data' column has full JSON, use it, else map columns
+            return row.data || {
+                date: row.date_id,
+                dailyFocusTime: row.focus_time,
+                dailyBreakTime: row.break_time,
+                dailySessions: row.sessions
+            };
+        });
+
+        // 2. Save only "past" days to History (filter out today to avoid conflict)
+        const todayId = getDateId();
+        const pastHistory = localHistory.filter(h => h.date !== todayId);
+
+        localStorage.setItem(KEYS.HISTORY, JSON.stringify(pastHistory));
+        return pastHistory;
     },
 
     syncServerStreak: (streak, lastActive) => {
@@ -161,13 +212,12 @@ export const Storage = {
     },
 
     calculateStreak: (fullHistory) => {
-        // 1. Load Server Baseline
+        // [Logic preserved from original file as it is pure math]
         const base = JSON.parse(localStorage.getItem(KEYS.BASE_STREAK) || '{}');
         const baseStreak = base.streak || 0;
         const baseLastActive = base.lastActive ? new Date(base.lastActive) : null;
 
         if (!fullHistory || fullHistory.length === 0) {
-            // No local history? Check if Server Baseline is still valid for Today/Yesterday
             if (baseLastActive && baseStreak > 0) {
                 const today = getDateId();
                 const yesterdayDate = new Date();
@@ -181,10 +231,7 @@ export const Storage = {
             return 0;
         }
 
-        // 2. Sort Local History by Date Descending
         const sorted = [...fullHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // 3. Check overlap with Today/Yesterday
         const today = getDateId();
         const yesterdayDate = new Date();
         yesterdayDate.setDate(yesterdayDate.getDate() - 1);
@@ -193,36 +240,29 @@ export const Storage = {
         if (sorted.length === 0) return 0;
         const lastEntry = sorted[0];
 
-        // If the last entry is older than yesterday, streak is broken.
         if (lastEntry.date !== today && lastEntry.date !== yesterday) {
-            return 0; // Streak broken
+            return 0;
         }
 
-        // 4. Count backwards (Local Chain)
         let streak = 1;
         let currentDate = new Date(lastEntry.date);
 
         for (let i = 1; i < sorted.length; i++) {
             const entry = sorted[i];
             const entryDate = new Date(entry.date);
-
-            // Expected previous day
             const expectedDate = new Date(currentDate);
             expectedDate.setDate(expectedDate.getDate() - 1);
 
-            // Compare strings to avoid time issues
             if (getDateId(entryDate) === getDateId(expectedDate)) {
                 streak++;
-                currentDate = expectedDate; // Move cursor back
+                currentDate = expectedDate;
             } else {
-                break; // Gap found
+                break;
             }
         }
 
-        // 5. Check Connection to Server Baseline
-        // If we ran out of local history, does the end of our chain connect to the server baseline?
         if (baseLastActive && baseStreak > 0) {
-            const lastLocalDate = currentDate; // The oldest date in our continuous chain
+            const lastLocalDate = currentDate;
             const oneDayBeforeLocal = new Date(lastLocalDate);
             oneDayBeforeLocal.setDate(oneDayBeforeLocal.getDate() - 1);
 
@@ -238,8 +278,18 @@ export const Storage = {
     },
 
     // --- 3. NOTES ---
-    saveNotesLocally: (notes) => {
+    saveNotesLocally: async (notes) => {
         localStorage.setItem(KEYS.NOTES, JSON.stringify(notes));
+
+        // Supabase Sync
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                notes: notes,
+                updated_at: new Date()
+            });
+        }
     },
 
     getNotes: () => {
@@ -249,40 +299,52 @@ export const Storage = {
     },
 
     // --- 3.5 SMART NOTES (Tasks & Habits) ---
-    saveTasksLocally: (tasks) => {
+    // For now, these share the 'notes' jsonb column or can be split later.
+    // Keeping local-only for brevity unless we want to migrate them too.
+    saveTasksLocally: async (tasks) => {
         localStorage.setItem(KEYS.TASKS, JSON.stringify(tasks));
+        // SYNC TASKS TO DB
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                tasks: tasks,
+                updated_at: new Date()
+            });
+        }
     },
+    getTasks: () => JSON.parse(localStorage.getItem(KEYS.TASKS) || '[]'),
 
-    getTasks: () => {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(KEYS.TASKS) || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch { return []; }
-    },
-
-    saveHabitsLocally: (habits) => {
+    saveHabitsLocally: async (habits) => {
         localStorage.setItem(KEYS.HABITS, JSON.stringify(habits));
+        // SYNC HABITS TO DB
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                habits: habits,
+                updated_at: new Date()
+            });
+        }
     },
+    getHabits: () => JSON.parse(localStorage.getItem(KEYS.HABITS) || '[]'),
 
-    getHabits: () => {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(KEYS.HABITS) || '[]');
-            return Array.isArray(parsed) ? parsed : [];
-        } catch { return []; }
-    },
-
-    // --- 4. TRASH (The Hit List) ---
-    saveTrashLocally: (trashMap) => {
-        localStorage.setItem(KEYS.TRASH, JSON.stringify(trashMap));
-    },
-
-    getTrash: () => {
-        try { return JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}'); } catch { return {}; }
-    },
+    // --- 4. TRASH ---
+    saveTrashLocally: (trashMap) => localStorage.setItem(KEYS.TRASH, JSON.stringify(trashMap)),
+    getTrash: () => JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}'),
 
     // --- 5. SETTINGS ---
-    saveSettingsLocally: (settings) => {
+    saveSettingsLocally: async (settings) => {
         localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                settings: settings,
+                updated_at: new Date()
+            });
+        }
     },
 
     getSettings: (defaults) => {
@@ -293,171 +355,193 @@ export const Storage = {
     },
 
     // --- 6. PRO LICENSE MANAGEMENT ---
-    getProStatus: () => {
+    // --- 6. PRO LICENSE MANAGEMENT ---
+    // Synchronous "Peek" for optimistic UI initialization (Instant Load)
+    peekProStatus: () => {
         try {
             const claim = JSON.parse(localStorage.getItem(KEYS.PRO_CLAIM) || '{}');
-            if (!claim.isPro) return false;
-
-            const now = Date.now();
-            const lastVerified = claim.lastVerified || 0;
-
-            if (claim.expiresAt && now > claim.expiresAt) {
-                return false;
-            }
-
-            if (now - lastVerified > GRACE_PERIOD_MS) {
-                return false; // Expired
-            }
-            return true;
+            // Strict check: Must have isPro AND valid expiry
+            return !!(claim.isPro && claim.expiresAt && claim.expiresAt > Date.now());
         } catch { return false; }
     },
 
-    saveProStatus: (isPro) => {
-        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify({
-            isPro: isPro,
-            lastVerified: Date.now()
-        }));
-    },
+    getProStatus: async () => {
+        // ALWAYS check Supabase first to respect manual DB edits / revocations.
+        // Only fallback to cache if the server check fails (Offline).
+        console.log("[Storage] Checking Pro Status...");
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            console.log("[Storage] User:", user?.id);
 
-    activateProTime: (hours) => {
-        // Local Only Fallback
-        const duration = hours * 60 * 60 * 1000;
-        const claim = {
-            isPro: true,
-            lastVerified: Date.now(),
-            expiresAt: Date.now() + duration
-        };
-        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify(claim));
-    },
+            if (user) {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('is_pro, pro_expires_at')
+                    .eq('id', user.id)
+                    .single();
 
-    activateProSubscription: async (db, user, hours) => {
-        const duration = hours * 60 * 60 * 1000;
-        const expiresAt = Date.now() + duration;
+                console.log("[Storage] DB Response:", data, error);
 
-        // 1. Local Update (Immediate UI feedback)
-        const claim = {
-            isPro: true,
-            lastVerified: Date.now(),
-            expiresAt: expiresAt
-        };
-        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify(claim));
-
-        // 2. Server Update (Use flowPass to bypass subscription rules)
-        if (user) {
-            try {
-                // Update Private User Doc
-                await setDoc(doc(db, "users", user.uid), {
-                    flowPass: {
-                        active: true,
-                        expiresAt: expiresAt,
-                        activatedAt: Date.now()
+                if (data) {
+                    // MASTER SWITCH: If is_pro is false in DB, revoke immediately.
+                    if (!data.is_pro) {
+                        console.log("[Storage] Master Switch: Revoked");
+                        Storage.saveProStatus(false);
+                        return false;
                     }
-                }, { merge: true });
 
-                // Update Public Profile (Use isBoosted to bypass isPro rules)
-                await setDoc(doc(db, "publicProfiles", user.uid), {
-                    isBoosted: true
-                }, { merge: true });
-            } catch (e) {
-                console.error("Failed to sync sub", e);
+                    const now = Date.now();
+                    const serverExpiresAt = data.pro_expires_at ? new Date(data.pro_expires_at).getTime() : null;
+
+                    // Valid if:
+                    // 1. Lifetime (is_pro = true, no expiry)
+                    // 2. Subscription (is_pro = true, expiry in future)
+                    const isValid = !serverExpiresAt || (serverExpiresAt > now);
+                    console.log("[Storage] Is Valid?", isValid, "Expires:", serverExpiresAt);
+
+                    if (isValid) {
+                        // Confirmed Pro from Server
+                        Storage.saveProStatus(true, serverExpiresAt);
+                        return true;
+                    }
+                }
             }
+
+            // If we are here, User is logged in but NOT Pro (or logged out)
+            // We must invalidate the cache to prevent "zombie" Pro status
+            console.log("[Storage] Defaulting to False");
+            Storage.saveProStatus(false);
+            return false;
+
+        } catch (e) {
+            console.warn("Pro Status Server Check Failed (Offline Mode)", e);
+            // FALLBACK: Check Local Cache if Server is unreachable
+            try {
+                const claim = JSON.parse(localStorage.getItem(KEYS.PRO_CLAIM) || '{}');
+                const now = Date.now();
+                console.log("[Storage] Checking Cache Fallback:", claim);
+                if (claim.isPro && claim.expiresAt && claim.expiresAt > now) {
+                    return true;
+                }
+            } catch { /* ignore cache errors */ }
+            return false;
         }
     },
 
-    getWallet: () => {
-        try {
-            return JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}');
-        } catch { return { balance: 0 }; }
+    saveProStatus: (isPro, expiresAt = null) => {
+        // Default to 7 days cache if lifetime, otherwise use exact expiry
+        const validUntil = expiresAt || (Date.now() + GRACE_PERIOD_MS);
+
+        localStorage.setItem(KEYS.PRO_CLAIM, JSON.stringify({
+            isPro: isPro,
+            lastVerified: Date.now(),
+            expiresAt: validUntil
+        }));
     },
 
-    updateWallet: (amountToAdd) => {
+    activateProSubscription: async (user, hours) => {
+        const duration = hours * 60 * 60 * 1000;
+        const expiresAt = Date.now() + duration;
+
+        // 1. Local Update
+        Storage.saveProStatus(true, expiresAt);
+
+        // 2. Server Update (Supabase)
+        if (user) {
+            await supabase.from('profiles').update({
+                is_pro: true,
+                pro_expires_at: new Date(expiresAt).toISOString()
+            }).eq('id', user.id);
+        }
+    },
+
+    // --- 9. WALLET & INVENTORY ---
+    getWallet: () => JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}'),
+    updateWallet: async (amountToAdd) => {
         const wallet = Storage.getWallet();
         wallet.balance = (wallet.balance || 0) + amountToAdd;
         wallet.lastUpdated = Date.now();
         localStorage.setItem(KEYS.WALLET, JSON.stringify(wallet));
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                wallet: wallet
+            });
+        }
         return wallet;
     },
 
-    getInventory: () => {
-        try {
-            const data = JSON.parse(localStorage.getItem(KEYS.INVENTORY));
-            // Force array type check
-            return Array.isArray(data) ? data : [];
-        } catch {
-            return [];
-        }
-    },
+    getInventory: () => JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]'),
 
-    addToInventory: (item) => {
+    addToInventory: async (item) => {
         const inv = Storage.getInventory();
         const newItem = { ...item, instanceId: Date.now().toString() };
         inv.push(newItem);
         localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inv));
+        Storage._syncInventory(inv); // Helper to sync
         return inv;
     },
 
-    removeFromInventory: (instanceId) => {
+    removeFromInventory: async (instanceId) => {
         const inv = Storage.getInventory();
         const newInv = inv.filter(i => i.instanceId !== instanceId);
         localStorage.setItem(KEYS.INVENTORY, JSON.stringify(newInv));
+        Storage._syncInventory(newInv);
         return newInv;
     },
 
-    // --- 9. SUBSCRIPTION MANAGEMENT ---
-    getSubscription: () => {
-        try {
-            const sub = JSON.parse(localStorage.getItem(KEYS.SUBSCRIPTION) || '{}');
-            if (sub.expiresAt && Date.now() > sub.expiresAt) {
-                return null; // Expired
-            }
-            return sub;
-        } catch { return null; }
+    _syncInventory: async (inventory) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('user_settings').upsert({
+                user_id: user.id,
+                inventory: inventory
+            });
+        }
     },
 
-    applySubscription: (type, durationMs) => {
-        const subscription = {
-            plan: type,
-            expiresAt: Date.now() + durationMs,
-            activatedAt: Date.now()
-        };
-        localStorage.setItem(KEYS.SUBSCRIPTION, JSON.stringify(subscription));
-        return subscription;
+    syncWalletInventory: async (user) => {
+        // Force push local state to Supabase
+        if (!user) return;
+        const wallet = Storage.getWallet();
+        const inventory = Storage.getInventory();
+
+        await supabase.from('user_settings').upsert({
+            user_id: user.id,
+            wallet: wallet,
+            inventory: inventory,
+            updated_at: new Date()
+        });
     },
 
-    // --- 10. SYNC HELPERS (Wallet & Inventory) ---
-    setWallet: (walletData) => {
-        localStorage.setItem(KEYS.WALLET, JSON.stringify(walletData));
+    setWallet: (wallet) => {
+        localStorage.setItem(KEYS.WALLET, JSON.stringify(wallet));
     },
 
-    setInventory: (inventoryData) => {
-        localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inventoryData));
+    setInventory: (inventory) => {
+        localStorage.setItem(KEYS.INVENTORY, JSON.stringify(inventory));
     },
 
     // --- 11. CUSTOM STORE ITEMS ---
-    getCustomStoreItems: () => {
-        try {
-            const items = JSON.parse(localStorage.getItem(KEYS.CUSTOM_ITEMS) || '[]');
-            return Array.isArray(items) ? items : [];
-        } catch { return []; }
-    },
-
+    getCustomStoreItems: () => JSON.parse(localStorage.getItem(KEYS.CUSTOM_ITEMS) || '[]'),
+    // ... Implement similar save/sync logic for custom items if they have a DB column, 
+    // for now we'll stick to local storage for brevity as it wasn't in the core tables list.
     addCustomStoreItem: (item) => {
         const items = Storage.getCustomStoreItems();
-        // Prevent duplicates by ID just in case
         if (!items.find(i => i.id === item.id)) {
             items.push(item);
             localStorage.setItem(KEYS.CUSTOM_ITEMS, JSON.stringify(items));
         }
         return items;
     },
-
     updateCustomStoreItem: (updatedItem) => {
         let items = Storage.getCustomStoreItems();
         items = items.map(i => i.id === updatedItem.id ? updatedItem : i);
         localStorage.setItem(KEYS.CUSTOM_ITEMS, JSON.stringify(items));
         return items;
     },
-
     removeCustomStoreItem: (itemId) => {
         let items = Storage.getCustomStoreItems();
         items = items.filter(i => i.id !== itemId);
@@ -465,21 +549,14 @@ export const Storage = {
         return items;
     },
 
-    syncWalletInventory: async (db, user) => {
-        if (!user) return;
-        try {
-            const wallet = Storage.getWallet();
-            const inventory = Storage.getInventory();
-            const customStoreItems = Storage.getCustomStoreItems();
-
-            await setDoc(doc(db, "users", user.uid), {
-                wallet: wallet,
-                inventory: inventory,
-                customStoreItems: customStoreItems,
-                lastUpdated: Timestamp.now()
-            }, { merge: true });
-        } catch (e) {
-            console.error("Failed to sync wallet/inventory", e);
-        }
+    // --- 12. SESSION CLEANUP ---
+    clearAll: () => {
+        Object.values(KEYS).forEach(key => localStorage.removeItem(key));
+        // Clear legacy/other keys if they exist
+        localStorage.removeItem('pomodoro_user_name');
+        localStorage.removeItem('zen_user_handle');
+        localStorage.removeItem('zen_intention_task');
+        localStorage.removeItem('zen_holo_note');
+        localStorage.removeItem('zen_bmc_disabled');
     }
 };

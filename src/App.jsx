@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, signInAnonymously } from "firebase/auth";
-import { getFirestore, doc, setDoc, onSnapshot, Timestamp, collection, query, where, getDocs, orderBy, getDoc, limit, deleteDoc, increment, writeBatch } from "firebase/firestore";
+import { supabase } from './lib/supabase';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
@@ -157,27 +155,11 @@ class ErrorBoundary extends React.Component {
 }
 
 // --- FIREBASE CONFIGURATION ---
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_APP_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_APP_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_APP_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_APP_FIREBASE_MEASUREMENT_ID,
-};
-
-let app, auth, db, provider;
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  provider = new GoogleAuthProvider();
-} catch (e) {
-  console.warn("Firebase config missing. App running in offline mode.");
-}
+// --- FIREBASE CONFIG REMOVED ---
+// App now uses Supabase (initialized in ./lib/supabase.js)
 
 const apiKey = import.meta.env.VITE_APP_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+
 
 // Helper for raw fetch calls to Gemini
 const callGeminiAPI = async (prompt) => {
@@ -257,6 +239,8 @@ const getGeminiAdvice = async (context) => {
   // Fallback ONLY if result is somehow null but not an error string (shouldn't happen with above logic)
   return result || `I hear that you're feeling ${context.reasons[0] || "stuck"}. It happens. Take a moment. [Action: Resume]`;
 };
+
+
 
 const generateSessionPlan = async (task, timeString) => {
   const prompt = `
@@ -1105,35 +1089,65 @@ const FriendProfileModal = ({ isOpen, onClose, friend }) => {
 
   const [profileData, setProfileData] = useState(friend || {});
 
+  // SYNC PROFILE DATA WHEN FRIEND PROP CHANGES
+  useEffect(() => {
+    setProfileData(friend || {});
+  }, [friend]);
+
   useEffect(() => {
     if (isOpen && friend) {
-      const userDocRef = doc(db, "publicProfiles", friend.uid);
-      const unsubUser = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setProfileData(prev => ({
-            ...prev,
-            ...data,
-            stats: data.stats || {}
-          }));
-        }
-      });
+      // 1. Listen to Profile Changes
+      const channel = supabase.channel(`friend_profile_${friend.uid}`)
+        .on('postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${friend.uid}` },
+          (payload) => {
+            const newP = payload.new;
+            setProfileData(prev => ({
+              ...prev,
+              displayName: newP.display_name,
+              handle: newP.handle,
+              photoURL: newP.photo_url,
+              isPro: newP.is_pro,
+              timerState: newP.timer_state,
+              // Ensure stats is not overwritten by null if the update lacks it, 
+              // but usually profiles update sends full row.
+              // Also merge streak from payload if present (custom column) or stats JSON
+              stats: newP.stats || {},
+              lastActive: newP.last_active,
+              streak: newP.stats?.currentStreak || 0
+            }));
+          }
+        )
+        .subscribe();
 
+      // 2. Fetch History
       const fetchHistory = async () => {
         try {
-          const historyRef = collection(db, 'users', friend.uid, 'history');
-          const q = query(historyRef, orderBy('date', 'desc'), limit(100));
-          const snapshot = await getDocs(q);
-          const data = {};
-          snapshot.forEach(doc => { data[doc.id] = doc.data(); });
-          setHistoryData(data);
+          const { data, error } = await supabase
+            .from('history')
+            .select('*')
+            .eq('user_id', friend.uid)
+            .order('date_id', { ascending: false })
+            .limit(100);
+
+          if (data) {
+            const historyMap = {};
+            data.forEach(row => {
+              historyMap[row.date_id] = row.data || {
+                dailyFocusTime: row.focus_time,
+                dailyBreakTime: row.break_time,
+                dailySessions: row.sessions
+              };
+            });
+            setHistoryData(historyMap);
+          }
         } catch (e) {
           console.log("History access restricted or failed", e);
         }
       };
 
       fetchHistory();
-      return () => unsubUser();
+      return () => { supabase.removeChannel(channel); };
     }
   }, [isOpen, friend]);
 
@@ -3687,10 +3701,30 @@ function MainApp() {
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
   // Load Stats from Cache
   const [stats, setStats] = useState(() => {
+    // --- FIX: Force Check Daily Reset on Load ---
+    Storage.checkDailyReset();
+
     // Attempt to load today's stats from LS, otherwise default
     const local = localStorage.getItem('zen_stats_current');
     return local ? JSON.parse(local) : DEFAULT_STATS;
   });
+
+  // --- FIX: Hydrate History from Server on Load ---
+  useEffect(() => {
+    const syncHistory = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        try {
+          // Fetch all history
+          const { data } = await supabase.from('history').select('*').eq('user_id', user.id);
+          if (data) Storage.hydrateHistory(data);
+        } catch (e) {
+          console.error("History Sync Failed", e);
+        }
+      }
+    };
+    syncHistory();
+  }, []);
 
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
@@ -3701,7 +3735,7 @@ function MainApp() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
-  const [isPro, setIsPro] = useState(() => Storage.getProStatus());
+  const [isPro, setIsPro] = useState(() => Storage.peekProStatus());
   const [proModalSource, setProModalSource] = useState(null);
   const [showStats, setShowStats] = useState(false);
   const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
@@ -3813,70 +3847,43 @@ function MainApp() {
 
 
   // --- OPTIMIZED SYNC: Run ONCE on mount ---
+  // --- OPTIMIZED SYNC: Run ONCE on mount ---
   useEffect(() => {
     if (!user || user.isAnonymous) return;
 
     const checkAndMigrateProfile = async () => {
       try {
-        const publicRef = doc(db, "publicProfiles", user.uid);
-        const userRef = doc(db, "users", user.uid);
+        // Check if profile exists in Supabase
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, handle, is_pro')
+          .eq('id', user.uid)
+          .single();
 
-        const [publicSnap, userSnap] = await Promise.all([
-          getDoc(publicRef),
-          getDoc(userRef)
-        ]);
-
-        // CASE 1: BRAND NEW USER
-        if (!publicSnap.exists() && !userSnap.exists()) {
-          console.log("Creating new user data...");
-          // Initialize PRIVATE data 
-          // FIX 2: DEFAULT_STATS is now defined above, so this won't crash
-          await setDoc(userRef, {
-            email: user.email,
-            createdAt: Date.now(),
-            stats: DEFAULT_STATS,
-            settings: DEFAULT_SETTINGS,
-            handle: null
-          });
-
-          setIsMigrating(false);
+        if (!profile && !error) {
+          // Case 1: No Profile -> New User logic
+          console.log("No profile found, redirecting to onboarding...");
           setOnboardingStep(1);
           setShowLoginBtn(false);
-          return;
-        }
+          setIsMigrating(false);
+        } else if (profile) {
+          // Case 2: Profile Exists
 
-        // CASE 2: MIGRATION (Private data exists, but Public Profile missing)
-        if (userSnap.exists() && !publicSnap.exists()) {
-          console.log("Migrating legacy user...");
-          const data = userSnap.data();
-          const baseName = user.displayName || "User";
-          // Use the helper you defined earlier for uniqueness
-          const baseHandle = data.handle || await getUniqueHandle(baseName);
-
-          await setDoc(publicRef, {
-            uid: user.uid,
-            displayName: baseName,
-            photoURL: user.photoURL || null,
-            handle: baseHandle,
-            handle_lowercase: baseHandle.toLowerCase(),
-            isPro: data.subscription?.plan === 'pro',
-            stats: data.stats || DEFAULT_STATS, // Ensure fallback
-          });
-
-          if (!data.handle) {
-            await setDoc(userRef, { handle: baseHandle }, { merge: true });
+          // A. Sync Server Status to Local Cache
+          if (profile.is_pro) {
+            // If DB says Pro, ensure LocalStorage agrees (restore logic)
+            setIsPro(true);
+            Storage.saveProStatus(true); // Helper to save claim
           }
-        }
 
-        // CASE 3: EXISTING USER
-        if (publicSnap.exists() && userSnap.exists()) {
-          const pubData = publicSnap.data();
-          const privData = userSnap.data();
-          if (!privData.handle && pubData.handle) {
-            await setDoc(userRef, { handle: pubData.handle }, { merge: true });
+          // B. Handle Check
+          if (!profile.handle) {
+            // If profile exists but no handle, go to onboarding
+            setOnboardingStep(1);
+            setShowLoginBtn(false);
           }
+          // Else, all good.
         }
-
       } catch (e) {
         console.error("Profile check failed:", e);
       }
@@ -3891,20 +3898,23 @@ function MainApp() {
   };
 
   const saveNotesOrder = async (currentNotes) => {
-    // 1. Save to LocalStorage immediately (Keeps order if you refresh)
+    // 1. Save to LocalStorage
     Storage.saveNotesLocally(currentNotes);
 
     // 2. Save to DB
     if (user && !user.isAnonymous) {
       try {
-        await setDoc(doc(db, "users", user.uid), { notes: currentNotes }, { merge: true });
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          notes: currentNotes,
+          updated_at: new Date()
+        });
       } catch (e) { console.error("Reorder failed", e); }
     }
   };
 
   const handleSaveNote = async (note) => {
-    // 1. OPTIMISTIC UPDATE (Instant)
-    // Logic to update the notes array in state...
+    // 1. OPTIMISTIC UPDATE
     const exists = notes.some(n => n.id === note.id);
     const updatedNotes = exists
       ? notes.map(n => (n.id === note.id ? note : n))
@@ -3912,29 +3922,28 @@ function MainApp() {
 
     setNotes(updatedNotes);
 
-    // 2. SAVE TO LOCAL STORAGE (Safety)
+    // 2. SAVE TO LOCAL STORAGE
     Storage.saveNotesLocally(updatedNotes);
 
-    // 3. SYNC TO FIREBASE (Background)
+    // 3. SYNC TO DB
     if (user && !user.isAnonymous) {
       try {
-        // Direct write. No debounce needed because the user explicitly clicked "Done".
-        await setDoc(doc(db, "users", user.uid), { notes: updatedNotes }, { merge: true });
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          notes: updatedNotes,
+          updated_at: new Date()
+        });
       } catch (e) {
         console.error("Note sync failed:", e);
-        // Optional: Add a "Retry" indicator to UI
       }
     }
   };
 
-
-
   const handleDeleteNote = async (noteId) => {
-    // 1. Remove from Active Notes (Instant UI update, no "deleted: true" clutter)
+    // 1. Remove from Active Notes
     const updatedNotes = notes.filter(n => n.id !== noteId);
 
-    // 2. Add to Trash Ledger (The Hit List)
-    // We map ID -> Timestamp of deletion
+    // 2. Add to Trash Ledger
     const localTrash = Storage.getTrash();
     const updatedTrash = { ...localTrash, [noteId]: Date.now() };
 
@@ -3944,13 +3953,15 @@ function MainApp() {
     Storage.saveNotesLocally(updatedNotes);
     Storage.saveTrashLocally(updatedTrash);
 
-    // 4. Sync Both to Firestore
+    // 4. Sync Both to DB
     if (user && !user.isAnonymous) {
       try {
-        await setDoc(doc(db, "users", user.uid), {
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
           notes: updatedNotes,
-          trash: updatedTrash // <--- Sync the Hit List too
-        }, { merge: true });
+          trash: updatedTrash,
+          updated_at: new Date()
+        });
       } catch (e) {
         console.error("Delete failed", e);
       }
@@ -4256,197 +4267,144 @@ function MainApp() {
     if (!user) return;
 
     // --- HYBRID PIGGYBACK STRATEGY ---
-    // Read the latest local stats directly from storage (avoids React Staleness)
-    // We attach this to the public presence doc so friends can see "Today's Focus"
-    // WITHOUT requiring a separate DB write.
     const currentStats = Storage.getTodayStats();
     const fullHistory = Storage.getFullHistory();
     const currentStreak = Storage.calculateStreak(fullHistory);
 
     const payload = {
-      timerState: {
-        ...newState,
-        lastUpdated: Date.now()
-      },
-      // Piggyback stats here:
-      todayStats: {
+      timerState: { ...newState, lastUpdated: Date.now() },
+      stats: {
         dailyFocusTime: currentStats.dailyFocusTime || 0,
         dailyBreakTime: currentStats.dailyBreakTime || 0,
-        dailySessions: currentStats.dailySessions || 0
+        dailySessions: currentStats.dailySessions || 0,
+        currentStreak: currentStreak // Ensure streak is synced to public stats
       },
       streak: currentStreak,
       wallet: Storage.getWallet(),
       inventory: Storage.getInventory()
     };
 
-    // FIX: Update local UI state immediately so the user sees the streak change
-    setStats(prev => ({
-      ...prev,
-      currentStreak: currentStreak
-    }));
-
+    setStats(prev => ({ ...prev, currentStreak }));
     lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
     try {
-      // UNIFIED SYNC: Update Public Profile, Personal History, and User Doc simultaneously
       const todayId = formatDateId(new Date());
-      const batchPromises = [
-        // 1. PUBLIC PROFILE (For Friends)
-        setDoc(doc(db, "publicProfiles", user.uid), {
-          timerState: payload.timerState,
-          stats: payload.todayStats,
-          streak: payload.streak,
-          todayFocusTime: payload.todayStats.dailyFocusTime
-        }, { merge: true }),
 
-        // 2. PERSONAL HISTORY (The Permanent Log)
-        setDoc(doc(db, "users", user.uid, "history", todayId), {
-          date: todayId,
-          dailyFocusTime: payload.todayStats.dailyFocusTime,
-          dailyBreakTime: payload.todayStats.dailyBreakTime,
-          dailySessions: payload.todayStats.dailySessions,
-          uploadedAt: Timestamp.now()
-        }, { merge: true }),
+      // 1. Update Profile (Public presence + stats)
+      const { error } = await supabase.from('profiles').update({
+        timer_state: payload.timerState,
+        stats: payload.stats,
+        // streak: payload.streak, // If you add streak column to profiles
+        last_active: new Date()
+      }).eq('id', user.uid); // user.uid is mapped from user.id
 
-        // 3. USER AGGREGATE (Backup & Metadata)
-        setDoc(doc(db, "users", user.uid), {
-          lastActive: Timestamp.now(),
-          stats: payload.todayStats,
-          wallet: payload.wallet,
-          inventory: payload.inventory
-        }, { merge: true })
-      ];
+      // 2. Personal History Log
+      // We use upsert to ensure date row exists
+      await supabase.from('history').upsert({
+        user_id: user.uid,
+        date_id: todayId,
+        focus_time: payload.stats.dailyFocusTime,
+        break_time: payload.stats.dailyBreakTime,
+        sessions: payload.stats.dailySessions,
+        data: payload.stats
+      }, { onConflict: 'user_id, date_id' });
 
-      await Promise.all(batchPromises);
+      // 3. User Settings (Wallet/Inventory)
+      await supabase.from('user_settings').upsert({
+        user_id: user.uid,
+        wallet: payload.wallet,
+        inventory: payload.inventory,
+        updated_at: new Date()
+      });
 
     } catch (e) {
       console.error("Sync failed", e);
     }
   };
 
-  // --- UPDATED AUTH EFFECT ---
+  // --- UPDATED AUTH EFFECT (Supabase) ---
   useEffect(() => {
-    const initAuth = async () => {
-      // Magic Link Check (Same as before)
-      const params = new URLSearchParams(window.location.search);
-      const demoMode = params.get('demo');
-      if (demoMode === 'caffeine' && !auth.currentUser) {
-        try { await signInAnonymously(auth); } catch (e) { console.error(e); }
-      } else if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      // GUARD: Skip Auth check if in Demo Mode
-      if (window.location.search.includes('demo=')) {
-        setIsAuthChecking(false);
-        setIsAppReady(true);
-        return;
-      }
-
-      setUser(currentUser);
-      setIsAuthChecking(false);
-
-      if (currentUser) {
-        // 0. MAGIC LINK UPGRADE (Same as before)
-        const params = new URLSearchParams(window.location.search);
-        if (params.get('demo') === 'caffeine') {
-          // ... (Same demo logic as previous response) ...
-          console.log("☕ Caffeine Clock Demo Mode Activated");
-          window.history.replaceState({}, document.title, window.location.pathname);
-          const batch = writeBatch(db);
-          const userRef = doc(db, "users", currentUser.uid);
-          batch.set(userRef, {
-            subscription: { plan: 'pro', status: 'active', since: Date.now() },
-            settings: DEFAULT_SETTINGS,
-            handle: "@CaffeineClock"
-          }, { merge: true });
-          const publicRef = doc(db, "publicProfiles", currentUser.uid);
-          batch.set(publicRef, {
-            uid: currentUser.uid,
-            displayName: "Caffeine Clock Team",
-            handle: "@CaffeineClock",
-            handle_lowercase: "@caffeineclock",
-            isPro: true,
-            stats: DEFAULT_STATS
-          }, { merge: true });
-          await batch.commit();
-          setIsPro(true);
-          setUserHandle("@CaffeineClock");
-          localStorage.setItem('zen_user_handle', "@CaffeineClock");
-          localStorage.setItem('pomodoro_user_name', "Caffeine Clock");
-          setOnboardingStep(3);
-          setShowLoginBtn(false);
-          setShowCaffeine(true);
-          setDataLoaded(true);
-          return;
-        }
-
-        // --- 1. GUEST USER LOGIC (FIXED) ---
-        if (currentUser.isAnonymous) {
-          console.log("Guest session active.");
-          // IMPORTANT: Remove any handle from local storage so UI knows they are guest
-          localStorage.removeItem('zen_user_handle');
-          localStorage.setItem('pomodoro_user_name', "Guest");
-
-          // Skip Onboarding immediately (Guests don't pick handles)
-          setOnboardingStep(3);
-          setShowLoginBtn(false);
-          Storage.syncPendingData(db, currentUser);
-          setDataLoaded(true);
-          return;
-        }
-
-        // --- 2. REGISTERED USER LOGIC ---
-        const firstName = currentUser.displayName ? currentUser.displayName.split(' ')[0] : 'User';
-
-        // Check DB for existing handle (The definitive source)
-        try {
-          const publicRef = doc(db, "publicProfiles", currentUser.uid);
-          const publicSnap = await getDoc(publicRef);
-          const dbHandle = publicSnap.exists() ? publicSnap.data().handle : null;
-
-          if (dbHandle) {
-            // User HAS a handle -> Go to Dashboard
-            localStorage.setItem('zen_user_handle', dbHandle);
-
-            setOnboardingStep(3); // Skip onboarding
-            setShowLoginBtn(false);
-          } else {
-            // User HAS NO handle -> Go to Handle Step (1)
-            // This happens for new Google sign-ups
-            setIsMigrating(false);
-            // Suggest handle based on name
-            const suggested = currentUser.displayName
-              ? currentUser.displayName.replace(/\s+/g, '').toLowerCase().slice(0, 10)
-              : "user";
-            // We set this via prop or local state if OnboardingFlow reads it, 
-            // but for now relying on OnboardingFlow's internal suggestion logic is fine.
-
-            setOnboardingStep(1); // Force Handle Creation
-            setShowLoginBtn(false);
-          }
-        } catch (e) {
-          console.error("Auth check failed:", e);
-        }
-
-        Storage.syncPendingData(db, currentUser);
-
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        handleUserMapping(session.user);
       } else {
-        // --- 3. NO USER ---
-        setGreetingText("Hello, stranger");
-        setShowLoginBtn(true);
-        if (onboardingStep !== 3) {
-          setOnboardingStep(0);
-        }
-        setDataLoaded(false);
+        handleUserMapping(null);
       }
     });
 
-    return () => unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleUserMapping(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleUserMapping = async (supaUser) => {
+    // GUARD: Skip Auth check if in Demo Mode
+    if (window.location.search.includes('demo=')) {
+      setIsAuthChecking(false);
+      setIsAppReady(true);
+      return;
+    }
+
+    setIsAuthChecking(false);
+
+    if (supaUser) {
+      // MAP Supabase User to App User Shape (Compatibility Layer)
+      const appUser = {
+        ...supaUser,
+        uid: supaUser.id, // CRITICAL: Maintain 'uid' for existing code
+        displayName: supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0],
+        photoURL: supaUser.user_metadata?.avatar_url,
+        isAnonymous: supaUser.is_anonymous
+      };
+
+      setUser(appUser);
+
+      // ... (Rest of your user logic, adapted for Supabase)
+      // We can't rely on Firestore doc checks instantly, so we query profiles table.
+
+      // 1. GUEST LOGIC
+      if (appUser.isAnonymous) {
+        console.log("Guest session active.");
+        localStorage.removeItem('zen_user_handle');
+        localStorage.setItem('pomodoro_user_name', "Guest");
+        setOnboardingStep(3);
+        setShowLoginBtn(false);
+        setDataLoaded(true);
+        return;
+      }
+
+      // 2. REGISTERED USER LOGIC
+      // Check 'profiles' table for handle
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('handle')
+          .eq('id', appUser.uid)
+          .maybeSingle();
+
+        if (profile && profile.handle) {
+          localStorage.setItem('zen_user_handle', profile.handle);
+          setOnboardingStep(3);
+          setShowLoginBtn(false);
+        } else {
+          // No handle? Onboarding.
+          setIsMigrating(false); // Reset migration flag if any
+          setOnboardingStep(1);
+          setShowLoginBtn(false);
+        }
+      } catch (e) { console.error("Profile check failed", e); }
+
+    } else {
+      setUser(null);
+      setGreetingText("Hello, stranger");
+      setShowLoginBtn(true);
+      if (onboardingStep !== 3) setOnboardingStep(0);
+      setDataLoaded(false);
+    }
+  };
 
   // --- DEMO MODE HANDLER ---
   useEffect(() => {
@@ -4478,154 +4436,233 @@ function MainApp() {
     }
   }, []);
 
-  // --- SOCIAL: Friends Logic (UPDATED) ---
+  // --- SOCIAL: Friends Logic (SUPABASE MIGRATION) ---
 
   const [friendRequests, setFriendRequests] = useState([]);
   const [blockedUsers, setBlockedUsers] = useState([]);
   const [socialView, setSocialView] = useState('list'); // <--- ADD THIS STATE
 
-  // 1. Listen to friends
-  useEffect(() => {
-    if (!user) return;
-    const friendsRef = collection(db, "users", user.uid, "friends");
-    const unsub = onSnapshot(friendsRef, (snapshot) => {
-      const config = {};
-      const uids = [];
-      snapshot.forEach(doc => {
-        uids.push(doc.id);
-        config[doc.id] = { isPinned: doc.data().isPinned || false };
-      });
-      setFriendUids(uids);
-      setFriendConfig(config);
-    });
-    return () => unsub();
-  }, [user]);
+  // Helper: Calculate friend status (Online/Focus/Idle)
+  // Moved outside useEffect for reuse
+  const calculateFriendStatus = useCallback((data, now) => {
+    let isOnline = false;
+    let isActive = false;
+    let statusText = "Offline";
+    let mode = 'focus';
+    let timeLeft = 0;
+    const GRACE_PERIOD = 5 * 60 * 1000; // 5 mins
 
-  // 2. Listen to Friend Requests
-  useEffect(() => {
-    if (!user) return;
-    const requestsRef = collection(db, "users", user.uid, "friendRequests");
-    const unsub = onSnapshot(requestsRef, (snapshot) => {
-      const reqs = [];
-      snapshot.forEach(doc => { reqs.push({ uid: doc.id, ...doc.data() }); });
-      setFriendRequests(reqs);
-    });
-    return () => unsub();
-  }, [user]);
+    if (data.timer_state) {
+      const ts = data.timer_state;
+      const lastUpdated = ts.lastUpdated || 0;
+      const timeSinceUpdate = now - lastUpdated;
 
-  // 3. Listen to BLOCKED users
-  useEffect(() => {
-    if (!user) return;
-    const blockedRef = collection(db, "users", user.uid, "blocked");
-    const unsub = onSnapshot(blockedRef, (snapshot) => {
-      const blocked = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        blocked.push({
-          uid: doc.id,
-          displayName: data.displayName || "Unknown User",
-          photoURL: data.photoURL || null,
-          email: data.email || null
-        });
-      });
-      setBlockedUsers(blocked);
-    });
-    return () => unsub();
-  }, [user]);
+      // LOGIC FIX: If timer is actively running and has time left, user IS online.
+      const isTimerRunning = ts.isActive && (ts.targetEndTime - now > 0);
+      const isStale = !isTimerRunning && (timeSinceUpdate > GRACE_PERIOD);
 
-  // 4. Friend Profiles Listener
-  useEffect(() => {
-    if (!user || friendUids.length === 0) { setFriends([]); return; }
-    const unsubscribers = [];
-    const currentFriendsData = {};
+      if (!isStale) {
+        isOnline = true;
+        if (ts.isActive) {
+          const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
+          if (remaining > 0) {
+            isActive = true;
+            mode = ts.mode;
+            timeLeft = remaining;
+            statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
 
-    // Helper to calculate status (Used by both Snapshot and Interval)
-    const calculateFriendStatus = (data, now) => {
-      let isOnline = false;
-      let isActive = false;
-      let statusText = "Offline";
-      let mode = 'focus';
-      let timeLeft = 0;
-      const GRACE_PERIOD = 5 * 60 * 1000; // 5 Minutes
-
-      if (data.timerState) {
-        const ts = data.timerState;
-        const lastUpdated = ts.lastUpdated || 0;
-        const timeSinceUpdate = now - lastUpdated;
-        const isStale = timeSinceUpdate > GRACE_PERIOD;
-
-        if (!isStale) {
-          isOnline = true; // They are online!
-
-          if (ts.isActive) {
-            // Check if timer has actually finished locally
-            const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
-
-            if (remaining > 0) {
-              isActive = true;
-              mode = ts.mode;
-              timeLeft = remaining;
-              statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
-            } else {
-              // Timer finished naturally but user hasn't touched app
-              isActive = false;
-              statusText = "Idle";
-            }
+            // Override Online Status for Focus Mode specifically
+            // Even if they haven't moved mouse (lastUpdated is old), the timer proves they are here.
+            isOnline = true;
           } else {
-            // Paused/Stopped but recently updated
             isActive = false;
-            statusText = "Paused";
+            statusText = "Idle";
           }
         } else {
-          // Stale Data -> They probably closed the tab
-          isOnline = false;
-          statusText = "Offline";
+          isActive = false;
+          statusText = "Paused";
         }
+      } else {
+        isOnline = false;
+        statusText = "Offline";
       }
+    }
+    return { isOnline, isActive, statusText, mode, timeLeft };
+  }, []);
 
-      return { isOnline, isActive, statusText, mode, timeLeft };
+  // 1. LISTEN TO FRIEND REQUESTS (Incoming)
+  useEffect(() => {
+    if (!user) { setFriendRequests([]); return; }
+
+    const fetchRequests = async () => {
+      const { data, error } = await supabase
+        .from('friend_requests')
+        .select(`
+          id,
+          created_at,
+          sender:profiles!sender_id (id, display_name, handle, photo_url, is_pro)
+        `)
+        .eq('receiver_id', user.uid)
+        .eq('status', 'pending');
+
+      if (data) {
+        const mapped = data.map(r => ({
+          uid: r.sender.id,
+          requestId: r.id,
+          displayName: r.sender.display_name,
+          handle: r.sender.handle,
+          photoURL: r.sender.photo_url,
+          isPro: r.sender.is_pro,
+          timestamp: new Date(r.created_at).getTime()
+        }));
+        setFriendRequests(mapped);
+      }
     };
 
-    friendUids.forEach(friendId => {
-      const unsub = onSnapshot(doc(db, "publicProfiles", friendId), (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const calculated = calculateFriendStatus(data, Date.now());
+    fetchRequests();
 
-          currentFriendsData[friendId] = {
-            uid: friendId,
-            displayName: data.displayName || "Unknown",
-            photoURL: data.photoURL,
-            handle: data.handle,
-            // Critical: Store raw state for the interval loop
-            timerState: data.timerState,
-            ...calculated,
-            isPinned: friendConfig[friendId]?.isPinned || false,
-            isPro: data.isPro || data.isBoosted || false
-          };
+    const channel = supabase.channel('social_requests')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${user.uid}` },
+        () => { fetchRequests(); }
+      )
+      .subscribe();
 
-          setFriends(Object.values(currentFriendsData));
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // 2. LISTEN TO BLOCKED USERS
+  useEffect(() => {
+    if (!user) { setBlockedUsers([]); return; }
+
+    const fetchBlocked = async () => {
+      const { data } = await supabase
+        .from('blocked_users')
+        .select(`
+           blocked_user_id,
+           profile:profiles!blocked_user_id (id, display_name, photo_url, handle)
+        `)
+        .eq('user_id', user.uid);
+
+      if (data) {
+        const mapped = data.map(b => ({
+          uid: b.profile.id,
+          displayName: b.profile.display_name,
+          photoURL: b.profile.photo_url,
+          handle: b.profile.handle
+        }));
+        setBlockedUsers(mapped);
+      }
+    };
+
+    fetchBlocked();
+
+    const channel = supabase.channel('social_blocked')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'blocked_users', filter: `user_id=eq.${user.uid}` },
+        () => fetchBlocked()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // 3. LISTEN TO FRIENDS (List + Status)
+  useEffect(() => {
+    if (!user) { setFriends([]); return; }
+
+    const fetchFriends = async () => {
+      // Manual Hydration for Reliability
+      const { data: friendships } = await supabase
+        .from('friendships')
+        .select('friend_id, is_pinned')
+        .eq('user_id', user.uid);
+
+      if (friendships && friendships.length > 0) {
+        const friendIds = friendships.map(f => f.friend_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, display_name, handle, photo_url, is_pro, timer_state, last_active, stats')
+          .in('id', friendIds);
+
+        if (profiles) {
+          const profileMap = new Map(profiles.map(p => [p.id, p]));
+          const now = Date.now();
+          const mapped = friendships.map(f => {
+            const p = profileMap.get(f.friend_id);
+            if (!p) return null;
+            const status = calculateFriendStatus(p, now);
+            return {
+              uid: p.id,
+              displayName: p.display_name,
+              handle: p.handle,
+              photoURL: p.photo_url,
+              isPro: p.is_pro,
+              isPinned: f.is_pinned,
+              timerState: p.timer_state,
+              stats: p.stats,
+              ...status
+            };
+          }).filter(Boolean);
+          setFriends(mapped);
+          setFriendUids(mapped.map(f => f.uid));
         }
-      });
-      unsubscribers.push(unsub);
-    });
+      } else {
+        setFriends([]);
+        setFriendUids([]);
+      }
+    };
 
-    // Local tick to update status/countdowns smoothly without DB reads
+    fetchFriends();
+
+    const friendshipChannel = supabase.channel('social_friendships')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'friendships', filter: `user_id=eq.${user.uid}` },
+        () => fetchFriends()
+      )
+      .subscribe();
+
+    const presenceChannel = supabase.channel('social_presence')
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          if (friendUids.includes(payload.new.id)) {
+            setFriends(prev => prev.map(f => {
+              if (f.uid === payload.new.id) {
+                const newP = payload.new;
+                const status = calculateFriendStatus(newP, Date.now());
+                return {
+                  ...f,
+                  timerState: newP.timer_state,
+                  last_active: newP.last_active,
+                  stats: newP.stats,
+                  ...status
+                };
+              }
+              return f;
+            }));
+          }
+        }
+      )
+      .subscribe();
+
     const interval = setInterval(() => {
       const now = Date.now();
       setFriends(prev => prev.map(f => {
-        // If we have raw timerState, recalculate dynamic fields
         if (f.timerState) {
-          // Re-run the exact same logic as above
-          const calculated = calculateFriendStatus({ timerState: f.timerState }, now);
-          return { ...f, ...calculated };
+          const status = calculateFriendStatus({ timer_state: f.timerState }, now);
+          return { ...f, ...status };
         }
         return f;
       }));
     }, 1000);
 
-    return () => { unsubscribers.forEach(u => u()); clearInterval(interval); };
-  }, [user, friendUids, friendConfig]);
+    return () => {
+      supabase.removeChannel(friendshipChannel);
+      supabase.removeChannel(presenceChannel);
+      clearInterval(interval);
+    };
+  }, [user, friendUids.join(','), calculateFriendStatus]);
 
   // --- ACTIONS ---
 
@@ -4634,115 +4671,144 @@ function MainApp() {
     if (targetUser.uid === user.uid) return { success: false, error: "You can't add yourself." };
 
     try {
-      const friendRef = doc(db, "users", user.uid, "friends", targetUser.uid);
-      const friendSnap = await getDoc(friendRef);
-      if (friendSnap.exists()) return { success: false, error: "Already friends." };
+      const { error } = await supabase
+        .from('friend_requests')
+        .insert({ sender_id: user.uid, receiver_id: targetUser.uid });
 
-      const incomingReqRef = doc(db, "users", user.uid, "friendRequests", targetUser.uid);
-      const incomingSnap = await getDoc(incomingReqRef);
-
-      if (incomingSnap.exists()) {
-        const batch = writeBatch(db);
-        batch.set(doc(db, "users", user.uid, "friends", targetUser.uid), { addedAt: Date.now() });
-        batch.set(doc(db, "users", targetUser.uid, "friends", user.uid), { addedAt: Date.now() });
-        batch.delete(incomingReqRef);
-        batch.delete(doc(db, "users", targetUser.uid, "friendRequests", user.uid));
-        await batch.commit();
-        return { success: true, message: "You are now friends!" };
+      if (error) {
+        if (error.code === '23505') return { success: false, error: "Request already sent/exists." };
+        throw error;
       }
-
-      const reqRef = doc(db, "users", targetUser.uid, "friendRequests", user.uid);
-      const reqSnap = await getDoc(reqRef);
-      if (reqSnap.exists()) return { success: false, error: "Request already sent." };
-
-      await setDoc(reqRef, {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
-        isPro: isPro,
-        timestamp: Date.now()
-      });
       return { success: true };
     } catch (e) {
-      if (e.code === 'permission-denied') return { success: false, error: "Unable to send (User may have blocked you)." };
-      return { success: false, error: "Failed to send request." };
+      console.error(e);
+      return { success: false, error: "Failed to send." };
     }
-  }, [user, isPro]);
+  }, [user]);
 
   const handleCheckOutgoingRequest = useCallback(async (targetUserId) => {
     if (!user) return false;
-    try {
-      const reqRef = doc(db, "users", targetUserId, "friendRequests", user.uid);
-      const snap = await getDoc(reqRef);
-      return snap.exists();
-    } catch (e) { return false; }
+    const { data } = await supabase
+      .from('friend_requests')
+      .select('id')
+      .eq('sender_id', user.uid)
+      .eq('receiver_id', targetUserId)
+      .maybeSingle();
+    return !!data;
   }, [user]);
 
   const handleBlockUser = useCallback(async (targetUser) => {
     if (!user) return;
     try {
-      const batch = writeBatch(db);
-
-      const uid = targetUser.uid || targetUser;
-      const displayName = targetUser.displayName || "Unknown User";
-      const photoURL = targetUser.photoURL || null;
-      const email = targetUser.email || null;
-
-      const blockRef = doc(db, "users", user.uid, "blocked", uid);
-      batch.set(blockRef, { timestamp: Date.now(), displayName, photoURL, email });
-
-      batch.delete(doc(db, "users", user.uid, "friends", uid));
-      batch.delete(doc(db, "users", uid, "friends", user.uid));
-      batch.delete(doc(db, "users", user.uid, "friendRequests", uid));
-      batch.delete(doc(db, "users", uid, "friendRequests", user.uid));
-
-      await batch.commit();
-
-      setFriends(prev => prev.filter(f => f.uid !== uid));
-      setFriendRequests(prev => prev.filter(req => req.uid !== uid));
-    } catch (e) { console.error("Block failed:", e); }
+      const targetUid = targetUser.uid || targetUser;
+      await supabase.from('blocked_users').insert({ user_id: user.uid, blocked_user_id: targetUid });
+      await supabase.from('friend_requests').delete().or(`sender_id.eq.${targetUid},receiver_id.eq.${targetUid}`);
+      await supabase.from('friendships').delete().eq('user_id', user.uid).eq('friend_id', targetUid);
+      setFriends(prev => prev.filter(f => f.uid !== targetUid));
+    } catch (e) { console.error("Block failed", e); }
   }, [user]);
 
-  const handleUnblockUser = useCallback(async (blockedUserId) => {
+  const handleUnblockUser = useCallback(async (blockedUid) => {
     if (!user) return;
     try {
-      const batch = writeBatch(db);
-      batch.delete(doc(db, "users", user.uid, "blocked", blockedUserId));
-      batch.delete(doc(db, "users", user.uid, "friends", blockedUserId));
-      await batch.commit();
-      setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUserId));
-      setFriends(prev => prev.filter(f => f.uid !== blockedUserId));
-    } catch (e) { console.error("Unblock failed:", e); }
+      await supabase.from('blocked_users').delete().eq('user_id', user.uid).eq('blocked_user_id', blockedUid);
+      setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUid));
+    } catch (e) { console.error("Unblock failed", e); }
   }, [user]);
 
-  const handleAcceptRequest = useCallback(async (requester) => {
-    if (!user) return;
-    const batch = writeBatch(db);
-    batch.set(doc(db, "users", user.uid, "friends", requester.uid), { addedAt: Date.now() });
-    batch.set(doc(db, "users", requester.uid, "friends", user.uid), { addedAt: Date.now() });
-    batch.delete(doc(db, "users", user.uid, "friendRequests", requester.uid));
-    await batch.commit();
+  const handleAcceptRequest = useCallback(async (requestObj) => {
+    if (!user || !requestObj.requestId) return { success: false, error: "Invalid request" };
+    try {
+      console.log("Accepting request via V2:", requestObj.requestId);
+      const { error } = await supabase.rpc('confirm_friendship', { req_id: requestObj.requestId });
+
+      if (error) {
+        console.error("V2 RPC Error:", error);
+        throw error;
+      }
+
+      // SUCCESS: Force Fetch Friendship Data to get the Profile Stats immediately
+      const { data, error: fetchError } = await supabase
+        .from('friendships')
+        .select(`
+          friend_id,
+          is_pinned,
+          profile:profiles!friend_id (
+             id, display_name, handle, photo_url, is_pro, timer_state, last_active, stats
+          )
+        `)
+        .eq('user_id', user.uid);
+
+      if (data) {
+        const now = Date.now();
+        const mapped = data.map(row => {
+          const p = row.profile;
+          if (!p) return null;
+          const status = calculateFriendStatus(p, now);
+          return {
+            uid: p.id,
+            displayName: p.display_name,
+            handle: p.handle,
+            photoURL: p.photo_url,
+            isPro: p.is_pro,
+            isPinned: row.is_pinned,
+            timerState: p.timer_state,
+            stats: p.stats || {}, // Ensure stats is never null
+            ...status
+          };
+        }).filter(Boolean);
+        setFriends(mapped);
+        setFriendUids(mapped.map(f => f.uid));
+
+        // REMOVE FROM REQUESTS LIST
+        setFriendRequests(prev => prev.filter(r => r.requestId !== requestObj.requestId));
+      }
+      return { success: true };
+    } catch (e) {
+      console.error("Accept failed", e);
+      return { success: false, error: e.message };
+    }
   }, [user]);
 
   const handleDeclineRequest = useCallback(async (requesterId) => {
     if (!user) return;
-    await deleteDoc(doc(db, "users", user.uid, "friendRequests", requesterId));
+    try {
+      await supabase
+        .from('friend_requests')
+        .delete()
+        .eq('receiver_id', user.uid)
+        .eq('sender_id', requesterId);
+    } catch (e) { console.error("Decline failed", e); }
   }, [user]);
 
   const handleRemoveFriend = useCallback(async (friendId) => {
     if (!user) return;
-    setFriends(prev => prev.filter(f => f.uid !== friendId));
-    const batch = writeBatch(db);
-    batch.delete(doc(db, "users", user.uid, "friends", friendId));
-    batch.delete(doc(db, "users", friendId, "friends", user.uid));
-    await batch.commit();
+    setFriends(prev => prev.filter(f => f.uid !== friendId)); // Optimistic UI update
+
+    try {
+      // Use RPC for atomic reciprocal removal
+      const { error } = await supabase.rpc('remove_friend', { friend_uid: friendId });
+
+      if (error) {
+        console.error("RPC Remove failed, falling back to manual deletion", error);
+        // Fallback: Manual Double Delete
+        await supabase.from('friendships').delete().match({ user_id: user.uid, friend_id: friendId });
+        await supabase.from('friendships').delete().match({ user_id: friendId, friend_id: user.uid });
+      }
+    } catch (e) {
+      console.error("Remove failed completely", e);
+    }
   }, [user]);
 
   const handleTogglePin = useCallback(async (friendId, currentStatus) => {
     if (!user) return;
-    const friendRef = doc(db, "users", user.uid, "friends", friendId);
-    await setDoc(friendRef, { isPinned: !currentStatus }, { merge: true });
+    try {
+      await supabase
+        .from('friendships')
+        .update({ is_pinned: !currentStatus })
+        .eq('user_id', user.uid)
+        .eq('friend_id', friendId);
+    } catch (e) { console.error("Pin failed", e); }
   }, [user]);
 
   const handleViewFriendStats = (friend) => {
@@ -4756,278 +4822,335 @@ function MainApp() {
     const term = queryText.trim();
     if (!term) return [];
 
-    // AUTO-PREFIX @ LOGIC
-    const termLower = term.toLowerCase();
-    let handleQuery = termLower;
-    if (!handleQuery.startsWith('@')) {
-      handleQuery = '@' + handleQuery;
-    }
-
-    const profilesRef = collection(db, "publicProfiles");
-
-    const senderHandle = stats.handle || user.handle || "@user";
-
-    // Query 1: By Handle
-    const q1 = query(profilesRef, where("handle_lowercase", ">=", handleQuery), where("handle_lowercase", "<=", handleQuery + '\uf8ff'), limit(5));
-    // Query 2: By Display Name
-    const q2 = query(profilesRef, where("displayName", ">=", term), where("displayName", "<=", term + '\uf8ff'), limit(5));
-
     try {
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-      const resultsMap = new Map();
-      // Exclude blocked users logic here...
-      const blockedSet = new Set(blockedUsers.map(b => b.uid));
-
-      [...snap1.docs, ...snap2.docs].forEach(doc => {
-        const docId = doc.id;
-        if (docId !== user.uid && !blockedSet.has(docId)) {
-          const data = doc.data();
-          resultsMap.set(docId, {
-            uid: docId,
-            displayName: data.displayName,
-            photoURL: data.photoURL,
-            handle: data.handle, // Return the handle
-            isPro: data.isPro,
-            streak: data.streak || 0,
-            todayFocusTime: data.todayFocusTime || 0,
-            timerState: data.timerState // Include timer state if useful
-          });
-        }
-      });
-      return Array.from(resultsMap.values());
-    } catch (e) {
-      console.error("Search error:", e);
-      return [];
-    }
-  }, [user, blockedUsers]);
+      const { data, error } = await supabase.rpc('search_users', { search_query: term });
+      if (data) {
+        return data.map(u => ({
+          uid: u.id,
+          displayName: u.display_name,
+          handle: u.handle,
+          photoURL: u.photo_url
+        }));
+      }
+    } catch (e) { console.error("Search failed", e); }
+    return [];
+  }, []);
 
   // --- End Social Logic ---
 
   // --- UPDATED SYNC EFFECT (FIXED) ---
+  // --- UPDATED SYNC EFFECT (SUPABASE MIGRATION) ---
   useEffect(() => {
-    if (user) {
-      const userDocRef = doc(db, "users", user.uid);
-      const unsub = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+    if (!user) return;
 
-          // --- FIX 1: DEFINE MISSING VARIABLES HERE ---
-          const serverNotes = data.notes || [];
-          const localNotes = Storage.getNotes() || [];
+    // A. SYNC SETTINGS (Notes, Trash, Wallet, Inventory, App Settings)
+    const settingsChannel = supabase.channel(`sync_settings_${user.uid}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'user_settings', filter: `user_id=eq.${user.uid}` },
+        (payload) => {
+          const newS = payload.new;
+          if (newS) {
+            // 1. NOTES SYNC
+            const serverNotes = newS.notes || [];
+            const localNotes = Storage.getNotes() || [];
 
-          // --- BASIC USER INFO ---
-          setUserHandle(data.handle || "");
+            // 2. TRASH SYNC
+            const serverTrash = newS.trash || {};
+            const localTrash = Storage.getTrash();
 
-          // FIX: Check expiration date for Pro status AND Flow Pass
-          const sub = data.subscription || {};
-          const flowPass = data.flowPass || {};
+            // Merge Trash
+            const mergedTrash = { ...serverTrash, ...localTrash };
+            Object.keys(localTrash).forEach(id => {
+              if (serverTrash[id] && serverTrash[id] > localTrash[id]) mergedTrash[id] = serverTrash[id];
+            });
 
-          const isServerPro = sub.plan === 'pro';
+            // Merge Notes
+            const mergedNotesMap = new Map();
+            serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
+            localNotes.forEach(localNote => {
+              const serverNote = mergedNotesMap.get(localNote.id);
+              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
+                mergedNotesMap.set(localNote.id, localNote);
+              }
+            });
 
-          // Helper to get time in millis from various formats
-          const getTime = (val) => {
-            if (!val) return 0;
-            if (typeof val === 'number') return val;
-            if (val.toMillis) return val.toMillis(); // Firestore Timestamp
-            if (val.seconds) return val.seconds * 1000; // Raw object
-            return 0;
-          };
+            // Apply Hit List (Trash)
+            Object.keys(mergedTrash).forEach(deletedId => {
+              const note = mergedNotesMap.get(deletedId);
+              if (note) {
+                if (mergedTrash[deletedId] > (note.updatedAt || 0)) {
+                  mergedNotesMap.delete(deletedId);
+                } else {
+                  delete mergedTrash[deletedId];
+                }
+              }
+            });
 
-          const isPlanValid = sub.plan === 'pro' || sub.status === 'active';
-
-          // If expiresAt is missing but status is active, treat as Lifetime/Valid
-          const hasNotExpired = !sub.expiresAt || getTime(sub.expiresAt) > Date.now();
-
-          const isSubValid = isPlanValid && hasNotExpired;
-          const isFlowPassValid = flowPass.active && flowPass.expiresAt && getTime(flowPass.expiresAt) > Date.now();
-
-          const userIsPro = isSubValid || isFlowPassValid;
-
-          // 1. Update State
-          setIsPro(userIsPro);
-
-          // Persist valid server pro status to local storage for offline use
-          if (userIsPro) {
-            // Use the latest expiry
-            const subExpiry = getTime(sub.expiresAt);
-            const passExpiry = getTime(flowPass.expiresAt);
-            const finalExpiry = Math.max(subExpiry, passExpiry);
-
-            const claim = {
-              isPro: true,
-              lastVerified: Date.now(),
-              expiresAt: finalExpiry
-            };
-            localStorage.setItem('zen_pro_claim', JSON.stringify(claim));
-          }
-
-          // 2. Renew the Offline Lease (Updates timestamp to Now)
-
-          // Load Trash Ledgers
-          const serverTrash = data.trash || {};
-          const localTrash = Storage.getTrash();
-
-          // A. MERGE TRASH (Union)
-          const mergedTrash = { ...serverTrash, ...localTrash };
-          Object.keys(localTrash).forEach(id => {
-            if (serverTrash[id] && serverTrash[id] > localTrash[id]) {
-              mergedTrash[id] = serverTrash[id];
+            // Save Merged State
+            const finalNotes = Array.from(mergedNotesMap.values());
+            if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
+              setNotes(finalNotes);
+              Storage.saveNotesLocally(finalNotes);
             }
-          });
+            Storage.saveTrashLocally(mergedTrash);
 
-          // B. MERGE NOTES
+            // 3. SETTINGS SYNC
+            if (newS.settings) {
+              const remote = newS.settings;
+              const local = Storage.getSettings(DEFAULT_SETTINGS);
+              if ((remote.updatedAt || 0) > (local.updatedAt || 0)) {
+                const merged = { ...DEFAULT_SETTINGS, ...remote };
+                setSettings(merged);
+                Storage.saveSettingsLocally(merged);
+                prevSettings.current = merged;
+              }
+            }
+
+            // 4. WALLET / INVENTORY
+            if (newS.wallet) {
+              const localWallet = Storage.getWallet();
+              if ((newS.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0)) {
+                Storage.setWallet(newS.wallet);
+                setCoins(newS.wallet.balance || 0);
+              }
+            }
+            if (newS.inventory) Storage.setInventory(newS.inventory);
+          }
+          setDataLoaded(true);
+        }
+      )
+      .subscribe();
+
+    // B. SYNC PROFILE (Handle, Pro Status, Streak)
+    const profileChannel = supabase.channel(`sync_profile_${user.uid}`)
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.uid}` },
+        (payload) => {
+          const p = payload.new;
+          if (p) {
+            setUserHandle(p.handle || "");
+            const newIsPro = p.is_pro || false;
+            setIsPro(newIsPro);
+
+            if (newIsPro) {
+              // Mock claim for offline persistence since we don't sync full sub details yet
+              const claim = { isPro: true, lastVerified: Date.now(), expiresAt: Date.now() + 86400000 * 30 };
+              localStorage.setItem('zen_pro_claim', JSON.stringify(claim));
+            }
+
+            // Sync Streak Check (Authoritative)
+            if (p) {
+              // 1. Trigger RPC to get real calc
+              const fetchRealStreak = async () => {
+                const { data: realStreak } = await supabase.rpc('get_current_streak', { user_id_input: user.uid });
+                if (realStreak !== null) {
+                  setStats(prev => ({ ...prev, currentStreak: realStreak }));
+                  Storage.syncServerStreak(realStreak, new Date().toISOString());
+                }
+              };
+              fetchRealStreak();
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Initial Streak Fetch on Mount
+    const initStreak = async () => {
+      // 1. Calculate Local Streak (Most up-to-date regarding today's activity)
+      const localHistory = Storage.getFullHistory();
+      const localStreak = Storage.calculateStreak(localHistory);
+
+      // 2. Fetch Server Streak (Authoritative for past history on new devices)
+      const { data: serverStreak } = await supabase.rpc('get_current_streak', { user_id_input: user.uid });
+
+      // 3. Reconcile: Trust the higher number (Union of knowledge)
+      const finalStreak = Math.max(localStreak, serverStreak || 0);
+
+      if (finalStreak > 0) {
+        setStats(prev => ({ ...prev, currentStreak: finalStreak }));
+
+        // 4. Force Sync Authoritative Streak to Profile (for friends)
+        // Only update if needed or to ensure consistency
+        if (finalStreak !== serverStreak) {
+          await supabase.from('profiles').update({
+            streak: finalStreak,
+            stats: {
+              ...stats,
+              currentStreak: finalStreak
+            }
+          }).eq('id', user.uid);
+        }
+      } else {
+        setStats(prev => ({ ...prev, currentStreak: 0 }));
+      }
+    };
+    initStreak();
+
+    // Initial Fetch (Required for Supabase to get current state)
+    const fetchInitialData = async () => {
+      try {
+        const { data: serverData } = await supabase
+          .from('user_settings')
+          .select('*')
+          .eq('user_id', user.uid)
+          .maybeSingle();
+
+        if (serverData) {
+          // 1. NOTES
+          const serverNotes = serverData.notes || [];
+          const localNotes = Storage.getNotes() || [];
           const mergedNotesMap = new Map();
           serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
-
           localNotes.forEach(localNote => {
             const serverNote = mergedNotesMap.get(localNote.id);
             if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
               mergedNotesMap.set(localNote.id, localNote);
             }
           });
-
-          // C. EXECUTE THE HIT LIST (Kill Zombies)
-          Object.keys(mergedTrash).forEach(deletedId => {
-            const note = mergedNotesMap.get(deletedId);
-            if (note) {
-              const deleteTime = mergedTrash[deletedId];
-              const noteTime = note.updatedAt || 0;
-              if (deleteTime > noteTime) {
-                mergedNotesMap.delete(deletedId);
-              } else {
-                delete mergedTrash[deletedId];
-              }
-            }
-          });
-
-          // D. GARBAGE COLLECTION
-          const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-          const now = Date.now();
-          Object.keys(mergedTrash).forEach(id => {
-            if (now - mergedTrash[id] > THIRTY_DAYS_MS) {
-              delete mergedTrash[id];
-            }
-          });
-
           const finalNotes = Array.from(mergedNotesMap.values());
-
-          // E. SAVE EVERYTHING
           if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
             setNotes(finalNotes);
             Storage.saveNotesLocally(finalNotes);
           }
-          Storage.saveTrashLocally(mergedTrash);
+          prevNotes.current = finalNotes;
 
-          // --- 2. SMART SETTINGS SYNC ---
-          if (data.settings) {
-            const remoteSettings = data.settings;
-            const localSettings = Storage.getSettings(DEFAULT_SETTINGS);
-            const remoteTime = remoteSettings.updatedAt || 0;
-            const localTime = localSettings.updatedAt || 0;
+          // 2. SETTINGS
+          if (serverData.settings) {
+            const remote = serverData.settings;
+            // Get local settings, defaulting to current defaults
+            const local = Storage.getSettings(DEFAULT_SETTINGS);
 
-            if (remoteTime > localTime) {
-              const merged = { ...DEFAULT_SETTINGS, ...remoteSettings };
+            // LOGIC: If remote has a newer timestamp, use it.
+            // CAUTION: If remote is "Defaults" created just now, it might look newer than real local data.
+            // Check if remote is just defaults (approximate check)
+            const isRemoteDefault = Object.keys(remote).length <= Object.keys(DEFAULT_SETTINGS).length && remote.focus === DEFAULT_SETTINGS.focus;
+
+            if (remote.updatedAt && remote.updatedAt > (local.updatedAt || 0)) {
+              // Remote is explicitly newer -> Trust it
+              const merged = { ...DEFAULT_SETTINGS, ...remote };
               setSettings(merged);
               Storage.saveSettingsLocally(merged);
               prevSettings.current = merged;
+            } else if (!isRemoteDefault && local.updatedAt > (remote.updatedAt || 0)) {
+              // Local is newer and remote is not just a fresh default -> Keep local (it will sync next save)
+              prevSettings.current = local;
+              // Trigger a save to update server
+              Storage.saveSettingsLocally(local);
+            } else {
+              // Tie or Local is older? 
+              // If local has data and remote is generic default, trust local.
+              if (!isRemoteDefault) {
+                const merged = { ...DEFAULT_SETTINGS, ...remote };
+                setSettings(merged);
+                Storage.saveSettingsLocally(merged);
+                prevSettings.current = merged;
+              } else {
+                // Remote is default, Local might be custom. Trust Local.
+                Storage.saveSettingsLocally(local);
+                prevSettings.current = local;
+              }
             }
           }
 
-          // --- 4. STATS LOGIC ---
-          const serverStats = { ...DEFAULT_STATS, ...(data.stats || {}) };
-          const localStats = JSON.parse(localStorage.getItem('zen_stats_current') || '{}');
-          const todayId = formatDateId(new Date());
-          let finalStats = { ...serverStats };
-
-          if (localStats.date === todayId) {
-            finalStats.dailyFocusTime = localStats.dailyFocusTime || 0;
-            finalStats.dailyBreakTime = localStats.dailyBreakTime || 0;
-            finalStats.dailySessions = localStats.dailySessions || 0;
-          }
-
-          const today = new Date();
-          let lastActiveDate = finalStats.lastActiveDate
-            ? (finalStats.lastActiveDate.toDate ? finalStats.lastActiveDate.toDate() : new Date(finalStats.lastActiveDate))
-            : null;
-
-          if (lastActiveDate && !isSameDay(lastActiveDate, today)) {
-            if (localStats.date !== todayId) {
-              finalStats.dailyFocusTime = 0;
-              finalStats.dailyBreakTime = 0;
-              finalStats.dailySessions = 0;
-            }
-          }
-
-          // FIX: Ensure streak is fresh from local history on load
-          finalStats.currentStreak = Storage.calculateStreak(Storage.getFullHistory());
-
-          setStats(finalStats);
-          localStorage.setItem('zen_cache_stats', JSON.stringify(finalStats));
-
-          // --- 5. OPTIMIZED STREAK ---
-          if (data.streak !== undefined) {
-            Storage.syncServerStreak(data.streak || 0, data.lastActive || 0);
-          }
-
-          // --- 6. WALLET & INVENTORY SYNC ---
-          if (data.wallet) {
+          // 3. WALLET / INVENTORY
+          if (serverData.wallet) {
             const localWallet = Storage.getWallet();
-            // Conflict Resolution: Only overwrite if server is newer
-            // Default to 0 if undefined to ensure migration
-            const serverTime = data.wallet.lastUpdated || 0;
-            const localTime = localWallet.lastUpdated || 0;
-
-            if (serverTime > localTime) {
-              Storage.setWallet(data.wallet);
-              setCoins(data.wallet.balance || 0);
+            if ((serverData.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0)) {
+              Storage.setWallet(serverData.wallet);
+              setCoins(serverData.wallet.balance || 0);
             }
           }
-          if (data.inventory) {
-            Storage.setInventory(data.inventory);
-          }
-        }
-        setDataLoaded(true);
-      });
+          if (serverData.inventory) Storage.setInventory(serverData.inventory);
 
-      // --- FIX 2: Correct closing of IF block and RETURN ---
-      return () => unsub();
-    }
+          // 4. TASKS & HABITS
+          if (serverData.tasks) {
+            setTasks(serverData.tasks);
+            Storage.saveTasksLocally(serverData.tasks);
+          }
+          if (serverData.habits) {
+            setHabits(serverData.habits);
+            Storage.saveHabitsLocally(serverData.habits);
+          }
+
+        } else {
+          // NO DATA FOUND -> Create Initial Row
+          console.log("No user_settings found. creating...");
+          const initialSettings = Storage.getSettings(DEFAULT_SETTINGS);
+          try {
+            const { error } = await supabase.from('user_settings').insert({
+              user_id: user.uid,
+              settings: initialSettings,
+              updated_at: new Date()
+            });
+            if (error) console.error("Failed to create initial settings", error);
+          } catch (err) { console.error("Creation error", err); }
+          prevSettings.current = initialSettings;
+          prevSettings.current = initialSettings;
+        }
+
+        // 4. HYDRATE TODAY'S STATS (Fix for 0s bug)
+        try {
+          const todayId = formatDateId(new Date());
+          const { data: todayHistory } = await supabase
+            .from('history')
+            .select('*')
+            .eq('user_id', user.uid)
+            .eq('date_id', todayId)
+            .maybeSingle();
+
+          if (todayHistory) {
+            const hydrated = Storage.hydrateTodayStats(todayHistory);
+            // Note: We don't need to force setStats here because:
+            // 1) The Timer/Stats UI reads directly from localStorage on mount/tick
+            // 2) The 'stats' state in App.jsx is mainly for public profile sync
+          }
+        } catch (e) {
+          console.error("Failed to hydrate stats", e);
+        }
+      } catch (e) {
+        console.error("Initial fetch failed", e);
+      } finally {
+        setDataLoaded(true);
+      }
+    };
+    fetchInitialData();
+
+    return () => {
+      supabase.removeChannel(settingsChannel);
+      supabase.removeChannel(profileChannel);
+    };
   }, [user]);
-  // --- OPTIMIZED SAVE LOGIC (Critical Changes Only) ---
+
+  // --- OPTIMIZED SAVE LOGIC (Supabase) ---
   useEffect(() => {
     if (!user || !dataLoaded) return;
 
-    // Helper to compare objects deeply
     const isDifferent = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
 
-    // Check for Critical Changes (Notes, Settings, Session Name)
-    // We do NOT check 'stats' here anymore. Stats are handled by flushUnsavedTime().
+    // Check for Critical Changes (Notes, Settings)
     const notesChanged = JSON.stringify(notes) !== JSON.stringify(prevNotes.current);
     const hasCriticalChanges = notesChanged || isDifferent(settings, prevSettings.current);
 
     if (hasCriticalChanges) {
       const saveData = async () => {
-        const userDocRef = doc(db, "users", user.uid);
-        const today = new Date();
-
-        // 1. Save Private Data (Settings, Notes, Session Name)
-        // We include 'stats' here just to keep the document complete, 
-        // but we aren't "pushing" the live timer update here.
+        // Prepare Payload for user_settings
         const payload = {
           notes,
           settings,
-          lastUpdated: today,
-          stats // This just syncs whatever the current state is, mostly for backup
+          updated_at: new Date()
         };
 
-        await setDoc(userDocRef, payload, { merge: true });
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          ...payload
+        });
 
-        // Update Refs so we don't save again until the next change
+        // Update Refs
         prevNotes.current = notes;
         prevSettings.current = settings;
       };
 
-      // Debounce slightly to prevent rapid-fire saves while typing a note
       const handler = setTimeout(saveData, 2000);
       return () => clearTimeout(handler);
     }
@@ -5191,25 +5314,10 @@ function MainApp() {
     try {
       await signOut(auth);
 
-      // 1. Clear User Identity Data
-      localStorage.removeItem('pomodoro_user_name');
-      localStorage.removeItem('zen_user_handle');
+      // 1. Clear ALL Persistent Data (Centralized)
+      Storage.clearAll();
 
-      // 2. Clear ALL persistent caches
-      localStorage.removeItem('zen_cache_settings');
-      localStorage.removeItem('zen_cache_notes');
-      localStorage.removeItem('zen_cache_tasks');
-      localStorage.removeItem('zen_cache_habits');
-      localStorage.removeItem('zen_cache_session_name');
-
-      // Fix: Clear correct keys based on Storage.KEYS
-      localStorage.removeItem('zen_stats_current');
-      localStorage.removeItem('zen_pro_claim');     // Fixes the main bug
-      localStorage.removeItem('zen_cache_wallet');
-      localStorage.removeItem('zen_cache_inventory');
-      localStorage.removeItem('zen_timer_state');   // Clear personality/timer persistence
-
-      // 3. Reset UI State
+      // 2. Reset UI State
       setIsMigrating(false);
       setOnboardingStep(0);
       setIsPro(false); // Explicit state update
@@ -5217,6 +5325,7 @@ function MainApp() {
       setNotes([]);    // Reset notes UI
       setTasks([]);
       setHabits([]);
+      setStats(DEFAULT_STATS); // Reset stats UI
 
     } catch (error) {
       console.error("Error signing out: ", error);
@@ -5532,27 +5641,26 @@ function MainApp() {
   }, [settings.intentionMode, intentionTask]);
 
   const handleSettingsSave = async (newSettings) => {
-    // 1. ADD TIMESTAMP (The "Version Control")
-    // This marks these settings as the latest version
+    // 1. ADD TIMESTAMP
     const settingsWithTimestamp = {
       ...newSettings,
       updatedAt: Date.now()
     };
 
-    // FIX: Clear Intention Data if Intention Mode is disabled
+    // FIX: Clear Intention
     if (settings.intentionMode && !newSettings.intentionMode) {
       setIntentionTask("");
       localStorage.removeItem('zen_intention_task');
     }
 
-    // 2. Save to Local Storage IMMEDIATELY (The Authority)
+    // 2. Save locally
     Storage.saveSettingsLocally(settingsWithTimestamp);
 
     // 3. Update React State
     setSettings(settingsWithTimestamp);
     setShowSettings(false);
 
-    // 4. Calculate Timer Adjustments (Logic unchanged)
+    // 4. Calculate Timer Adjustments
     const oldDuration = settings[mode];
     const newDuration = newSettings[mode];
     const deltaMinutes = newDuration - oldDuration;
@@ -5571,31 +5679,24 @@ function MainApp() {
       }
 
       if (user) {
-        const payload = {
-          settings: settingsWithTimestamp, // <--- Send stamped settings
-          timerState: {
-            isActive: true,
-            targetEndTime: newTargetEndTime,
-            mode: mode,
-            timeLeft: newTimeLeft,
-            lastUpdated: Date.now()
-          }
+        const timerState = {
+          isActive: true,
+          targetEndTime: newTargetEndTime,
+          mode: mode,
+          timeLeft: newTimeLeft,
+          lastUpdated: Date.now()
         };
-        lastRemoteUpdate.current = payload.timerState.lastUpdated;
+        lastRemoteUpdate.current = timerState.lastUpdated;
 
-        await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+        // 1. Save Settings
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          settings: settingsWithTimestamp,
+          updated_at: new Date()
+        });
 
-        // --- PIGGYBACK STATS (Live Updates) ---
-        const todayStats = Storage.getTodayStats();
-        const fullHistory = Storage.getFullHistory();
-        const currentStreak = Storage.calculateStreak(fullHistory);
-
-        await setDoc(doc(db, "publicProfiles", user.uid), {
-          timerState: payload.timerState,
-          lastActive: Date.now(),
-          todayFocusTime: todayStats.dailyFocusTime || 0,
-          streak: currentStreak
-        }, { merge: true });
+        // 2. Sync Timer & Stats
+        await syncTimerState(timerState);
       }
 
     } else {
@@ -5605,54 +5706,42 @@ function MainApp() {
       endTimeRef.current = null;
 
       if (user) {
-        const payload = {
-          settings: settingsWithTimestamp, // <--- Send stamped settings
-          timerState: {
-            isActive: false,
-            targetEndTime: null,
-            mode: mode,
-            timeLeft: newDurationSeconds,
-            lastUpdated: Date.now()
-          }
+        const timerState = {
+          isActive: false,
+          targetEndTime: null,
+          mode: mode,
+          timeLeft: newDurationSeconds,
+          lastUpdated: Date.now()
         };
-        lastRemoteUpdate.current = payload.timerState.lastUpdated;
+        lastRemoteUpdate.current = timerState.lastUpdated;
 
-        await setDoc(doc(db, "users", user.uid), payload, { merge: true });
+        await supabase.from('user_settings').upsert({
+          user_id: user.uid,
+          settings: settingsWithTimestamp,
+          updated_at: new Date()
+        });
 
-        // --- PIGGYBACK STATS (Live Updates) ---
-        const todayStats = Storage.getTodayStats();
-        const fullHistory = Storage.getFullHistory();
-        const currentStreak = Storage.calculateStreak(fullHistory);
-
-        await setDoc(doc(db, "publicProfiles", user.uid), {
-          timerState: payload.timerState,
-          lastActive: Date.now(),
-          todayFocusTime: todayStats.dailyFocusTime || 0,
-          streak: currentStreak
-        }, { merge: true });
+        await syncTimerState(timerState);
       }
     }
   };
 
   const handleUpgradeToPro = async () => {
     if (!user) return;
-
-    // Simulate a Flow Upgrade for testing
     try {
-      // 1. Update Private User Doc
-      // Keeping plan: 'pro' for backward compatibility, but in UI we call it Flow
-      await setDoc(doc(db, "users", user.uid), {
-        subscription: { plan: 'pro', status: 'active', since: Date.now() }
-      }, { merge: true });
+      // 1. Update Subscription
+      await supabase.from('user_settings').upsert({
+        user_id: user.uid,
+        subscription: { plan: 'pro', status: 'active', since: Date.now() },
+        updated_at: new Date()
+      });
 
-      // 2. Update Public Profile (so friends see the cyan ring)
-      await setDoc(doc(db, "publicProfiles", user.uid), {
-        isPro: true
-      }, { merge: true });
+      // 2. Update Profile
+      await supabase.from('profiles').update({ is_pro: true }).eq('id', user.uid);
 
       // 3. Update Local State
       setIsPro(true);
-      setProModalSource(null); // Close the modal
+      setProModalSource(null);
 
     } catch (e) {
       console.error("Upgrade simulation failed:", e);
@@ -5660,19 +5749,23 @@ function MainApp() {
   };
 
   const handleSaveAmbienceSelection = async (selectedIds) => {
-    // Always update local state first
     setUnlockedAmbiences(selectedIds);
     setAmbienceSetupDone(true);
 
     if (!user || user.isAnonymous) return;
 
     try {
-      await setDoc(doc(db, "users", user.uid), {
-        preferences: {
-          unlockedAmbiences: selectedIds,
-          ambienceSetupDone: true
-        }
-      }, { merge: true });
+      // Merge preferences into settings blob
+      const newSettings = {
+        ...settings,
+        preferences: { unlockedAmbiences: selectedIds, ambienceSetupDone: true }
+      };
+
+      await supabase.from('user_settings').upsert({
+        user_id: user.uid,
+        settings: newSettings,
+        updated_at: new Date()
+      });
     } catch (e) {
       console.error("Failed to save ambience selection", e);
     }
@@ -5815,11 +5908,7 @@ function MainApp() {
       {/* --- ONBOARDING FLOW --- */}
       {onboardingStep < 3 && (
         <OnboardingFlow
-          db={db}
-          auth={auth}
-          provider={provider}
           user={user}
-          isMigrating={isMigrating}
           onComplete={() => setOnboardingStep(3)}
         />
       )}
@@ -6305,8 +6394,8 @@ function MainApp() {
         onClose={() => setVaultOpen(false)}
         balance={coins}
         onUpdateBalance={(newBalance) => setCoins(newBalance)}
-        onSync={() => Storage.syncWalletInventory(db, user)}
-        onActivatePro={(hours) => Storage.activateProSubscription(db, user, hours)}
+        onSync={() => Storage.syncWalletInventory(user)}
+        onActivatePro={(hours) => Storage.activateProSubscription(user, hours)}
       />
 
       {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}

@@ -28,7 +28,7 @@ const WalletIndicator = ({ balance, onClick }) => {
                         exit={{ y: -10, opacity: 0 }}
                         className="text-sm font-clock font-bold text-white/90 tracking-wide group-hover:text-yellow-100 transition-colors"
                     >
-                        {balance.toLocaleString()}
+                        {(balance || 0).toLocaleString()}
                     </motion.span>
                 </AnimatePresence>
             </div>
