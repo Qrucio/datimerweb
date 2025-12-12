@@ -12,6 +12,7 @@ import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
 import { FlowTag } from '../ui/FlowTag';
+import ProfileCard from '../profile/ProfileCard';
 
 const toggleStyles = `
   .toggle-switch {
@@ -195,254 +196,13 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
 };
 
 // --- MODERN ARC-INSPIRED MEMBERSHIP CARD ---
-const UserProfileCard = ({ user, isPro, signOut }) => {
-  const [copied, setCopied] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [newHandle, setNewHandle] = useState("");
-  const [handleStatus, setHandleStatus] = useState("idle");
-  const [statusMsg, setStatusMsg] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [cooldownDays, setCooldownDays] = useState(0);
-  const [displayHandle, setDisplayHandle] = useState(user?.handle || "");
-  const [rotation, setRotation] = useState(0);
-  const dominantColor = useDominantColor(user?.photoURL);
-
-  const themes = useMemo(() => [
-    { name: 'Warm Amber', gradient: "from-[#7A3B19] via-[#B95A2A] to-[#E8A15A]", glow: "rgba(185, 90, 42, 0.5)" },
-    { name: 'Rich Berry', gradient: "from-[#461934] via-[#7A2E56] to-[#C77BA7]", glow: "rgba(122, 46, 86, 0.5)" },
-    { name: 'Ocean Night', gradient: "from-[#06283D] via-[#0F4C75] to-[#3A7CA5]", glow: "rgba(15, 76, 117, 0.5)" },
-    { name: 'Forest Deep', gradient: "from-[#053826] via-[#0B6B58] to-[#2BAE9D]", glow: "rgba(11, 107, 88, 0.5)" },
-    { name: 'Graphite Cocoa', gradient: "from-[#0C0A0B] via-[#2B2324] to-[#5C4B4C]", glow: "rgba(92, 75, 76, 0.5)" },
-  ], []);
-
-  const roles = useMemo(() => ["Persistent Scholar", "Steady Achiever", "Focused Builder", "Flow State Explorer"], []);
-  const [themeIndex, setThemeIndex] = useState(0);
-  const [roleIndex, setRoleIndex] = useState(0);
-  const currentTheme = themes[themeIndex];
-  const currentRole = roles[roleIndex];
-
-  useEffect(() => {
-    if (user?.uid) {
-      let hash = 0;
-      for (let i = 0; i < user.uid.length; i++) {
-        hash = user.uid.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      setThemeIndex(Math.abs(hash) % themes.length);
-      setRoleIndex(Math.abs(hash) % roles.length);
-    }
-  }, [user, themes.length, roles.length]);
-
-  const handleRefresh = (e) => {
-    e.stopPropagation();
-    setRotation(prev => prev + 360);
-    setThemeIndex(prev => (prev + 1) % themes.length);
-    setRoleIndex(prev => (prev + 1) % roles.length);
-  };
-
-  useEffect(() => {
-    // Real-time listener for profile changes (like manual edits on another device)
-    if (!user?.uid) return;
-
-    const channel = supabase
-      .channel('public:profiles')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.uid}` },
-        (payload) => {
-          if (payload.new && payload.new.handle) {
-            setDisplayHandle(payload.new.handle);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user]);
-
-  useEffect(() => {
-    if (isEditing) setNewHandle(displayHandle.replace(/^@/, ''));
-  }, [isEditing, displayHandle]);
-
-  useEffect(() => {
-    const checkCooldown = async () => {
-      if (!user) return;
-      const DEV_IDS = ['cmxtLQPCqkfhkhNQZ04ZlXjCPbV2', 'QHlFAC3H34fiIVT2LaWlAoOrjmH2'];
-      if (DEV_IDS.includes(user.uid)) {
-        setCooldownDays(0);
-        return;
-      }
-      // Check profile for last handle change
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('last_handle_change')
-          .eq('id', user.uid)
-          .single();
-
-        if (data) {
-          const lastChange = data.last_handle_change ? new Date(data.last_handle_change).getTime() : 0;
-          const now = Date.now();
-          const diffTime = Math.abs(now - lastChange);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays < 14) setCooldownDays(14 - diffDays);
-          else setCooldownDays(0);
-        }
-      } catch (e) { console.error("Cooldown check failed", e); }
-    };
-    if (isEditing) checkCooldown();
-  }, [user, isEditing]);
-
-  useEffect(() => {
-    if (!isEditing) return;
-    const checkAvailability = async () => {
-      if (newHandle.length < 3) { setHandleStatus("idle"); return; }
-      const currentClean = (displayHandle || "").replace(/^@/, '');
-      if (newHandle.toLowerCase() === currentClean.toLowerCase()) { setHandleStatus("available"); setStatusMsg(""); return; }
-      setHandleStatus("checking");
-      try {
-        const fullHandle = `@${newHandle}`;
-        // Check case-insensitive handle uniqueness
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .ilike('handle', fullHandle)
-          .limit(1);
-
-        if (!data || data.length === 0) { setHandleStatus("available"); setStatusMsg(""); }
-        else {
-          if (data[0].id === user.uid) { setHandleStatus("available"); setStatusMsg(""); }
-          else { setHandleStatus("taken"); setStatusMsg("Taken"); }
-        }
-      } catch (e) { console.error(e); }
-    };
-    const timer = setTimeout(checkAvailability, 500);
-    return () => clearTimeout(timer);
-  }, [newHandle, isEditing, user, displayHandle]);
-
-  const handleCopy = (e) => {
-    e.stopPropagation();
-    if (displayHandle) {
-      navigator.clipboard.writeText(displayHandle);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  const handleSave = async () => {
-    if (handleStatus !== 'available' || newHandle.length < 3) return;
-    setIsSaving(true);
-    try {
-      const fullHandle = `@${newHandle}`;
-
-      // Update Profile
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          handle: fullHandle,
-          // handle_lowercase: fullHandle.toLowerCase(), // Supabase likely handles this or we use ILIKE
-          last_handle_change: new Date()
-        })
-        .eq('id', user.uid);
-
-      if (error) throw error;
-
-      setDisplayHandle(fullHandle);
-      setIsEditing(false);
-      setCooldownDays(14);
-    } catch (e) {
-      console.error("Save failed", e);
-      setStatusMsg("Error");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (!user) return null;
-
-  return (
-    <div className="flex flex-col items-center justify-center gap-6 py-8 w-full">
-      <div className="relative group perspective-1000 w-full max-w-[420px]">
-        <motion.div animate={{ backgroundColor: currentTheme.glow }} transition={{ duration: 0.8 }} className="absolute -inset-4 rounded-[40px] blur-[80px] opacity-40 group-hover:opacity-60 transition-opacity duration-700 pointer-events-none" />
-        <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 25 }} className="relative w-full aspect-[3/4] min-w-[360px] rounded-[28px] overflow-hidden shadow-2xl group select-none border border-white/10 bg-[#161616] flex flex-col p-8 font-sans">
-          <div className="absolute inset-0 bg-[#161616]" />
-          <AnimatePresence mode='wait'>
-            <motion.div key={currentTheme.name} initial={{ opacity: 0 }} animate={{ opacity: 0.9 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className={`absolute -top-[20%] -left-[20%] w-[160%] h-[160%] rounded-full bg-gradient-to-br ${currentTheme.gradient} blur-[90px] opacity-80`} />
-          </AnimatePresence>
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-[radial-gradient(closest-side,rgba(255,255,255,0.08),transparent_40%)] blur-[40px]" />
-          <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")` }} />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30 pointer-events-none" />
-          <div className="relative z-10 h-full flex flex-col justify-between w-full">
-            <div className="flex justify-between items-start gap-4 w-full shrink-0">
-
-              {/* UNIFIED AVATAR COMPONENT */}
-              <div className="relative group/avatar shrink-0">
-                <Avatar
-                  userData={user}
-                  photoURL={user.photoURL}
-                  name={user.displayName}
-                  isPro={isPro}
-                  size="xl"
-                />
-              </div>
-
-              {/* FLOW BADGE / FREE PILL */}
-              <div className="flex items-center gap-2">
-                <div className={`px-2 py-1 rounded-full flex items-center gap-2 backdrop-blur-md shadow-sm transition-all ${isPro ? 'bg-transparent border-none p-0' : 'bg-white/10 border border-white/10 px-3 py-1.5 text-white/60'}`}>
-                  {isPro ? (
-                    <div className="flex items-center gap-2 bg-black/20 rounded-full pr-3 pl-1 py-1 border border-white/10 backdrop-blur-md">
-                      <FlowTag isDev={user?.uid && DEV_USER_IDS.includes(user.uid)} className="h-6 w-auto object-contain drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" alt="Flow" />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 font-bold text-xs uppercase tracking-widest font-sans">Flow Member</span>
-                    </div>
-                  ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Free Plan</span>
-                  )}
-                </div>
-                <button onClick={handleRefresh} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/20 text-white/40 hover:text-white transition-all backdrop-blur-md border border-white/5 hover:border-white/20 flex items-center justify-center" title="Refresh Card Style">
-                  <motion.div animate={{ rotate: rotation }} transition={{ type: "spring", stiffness: 200, damping: 15 }}><RefreshCw size={14} /></motion.div>
-                </button>
-              </div>
-            </div>
-
-            {/* BODY */}
-            <div className="flex flex-col flex-1 justify-center gap-2.5 w-full my-6">
-              <h2 className="text-[36px] font-bold leading-[1.02] tracking-[-0.01em] text-white drop-shadow-sm font-sans">{user.displayName?.split(' ')[0] || "User"}</h2>
-              <div className="w-9 h-px bg-white/10 my-1.5" />
-              <AnimatePresence mode='wait'>
-                <motion.div key={currentRole} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 5 }} transition={{ duration: 0.3 }} className="text-[11px] uppercase tracking-[0.18em] font-semibold text-white/80 font-sans">{currentRole}</motion.div>
-              </AnimatePresence>
-              <div className="h-3" />
-              <div className="flex flex-col gap-1 min-h-[44px]">
-                {isEditing ? (
-                  <div className="flex flex-col gap-1 w-full max-w-[200px]">
-                    <div className="flex items-center border-b border-white/20 pb-1"><span className="text-white/40 text-sm mr-1">@</span><input autoFocus value={newHandle} onChange={(e) => setNewHandle(e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15))} className={`bg-transparent border-none outline-none text-sm font-semibold text-white w-full placeholder-white/20`} placeholder="username" />{handleStatus === 'checking' && <Loader2 size={12} className="animate-spin text-white/50" />}{handleStatus === 'available' && <Check size={12} className="text-green-400" />}{handleStatus === 'taken' && <AlertTriangle size={12} className="text-red-400" />}</div>
-                    <div className="flex justify-between items-center mt-1"><span className="text-[9px] text-red-400 h-3">{statusMsg}</span><div className="flex gap-2"><button onClick={() => setIsEditing(false)} className="text-[9px] text-white/40 hover:text-white uppercase font-bold">Cancel</button><button onClick={handleSave} disabled={handleStatus !== 'available' || isSaving} className={`text-[9px] uppercase font-bold ${handleStatus === 'available' ? 'text-green-400 hover:text-green-300' : 'text-white/20 cursor-not-allowed'}`}>Save</button></div></div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3 group/handle w-fit relative">
-                      <button onClick={handleCopy} className="text-[14px] text-white font-semibold tracking-wide font-sans shadow-black drop-shadow-sm hover:text-white/80 transition-colors text-left">{displayHandle || "@username"}</button>
-                      <button onClick={() => setIsEditing(true)} disabled={cooldownDays > 0} className={`opacity-0 group-hover/handle:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 ${cooldownDays > 0 ? 'text-white/20 cursor-not-allowed' : 'text-white/40 hover:text-white'}`}>{cooldownDays > 0 ? <Lock size={10} /> : <Pencil size={10} />}</button>
-                      <div className="absolute left-full ml-2 opacity-0 transition-opacity duration-300 pointer-events-none">{copied && <span className="text-[10px] text-green-400 font-bold bg-black/40 px-1.5 py-0.5 rounded backdrop-blur-md">Copied</span>}</div>
-                    </div>
-                    <span className="text-[12px] text-white/50 font-normal font-sans tracking-wide">{user.email}</span>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="absolute bottom-8 right-8 pointer-events-none select-none"><div className="bg-white/5 rounded-lg p-2 backdrop-blur-sm border border-white/5"><img src="/logo/altimerblack.png" alt="Altimer Logo" className="w-10 opacity-70" /></div></div>
-          </div>
-        </motion.div>
-      </div>
-      <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full max-w-[420px] h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
-    </div>
-  );
-};
+// (UserProfileCard removed)
 
 // --- MAIN MODAL COMPONENT ---
 const UnifiedSettingsModal = ({
   isOpen, onClose, user, signOut, settings, setSettings,
   handleSettingsSave, handleBackgroundChange, backgrounds = [],
-  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences'
+  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
 
@@ -654,6 +414,16 @@ const UnifiedSettingsModal = ({
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Experience</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Intention Mode" description="Focus on a specific goal with an immersive video background." checked={settings.intentionMode} onChange={(val) => toggleSetting('intentionMode', val)} icon={Sparkles} />
+                          <button onClick={onReplayOnboarding} className="flex items-center justify-between w-full py-4 px-5 hover:bg-white/5 transition-colors group border-t border-white/5">
+                            <div className="flex items-center gap-3">
+                              <RefreshCw size={18} className="text-white/40 group-hover:text-white transition-colors" />
+                              <div className="flex flex-col items-start">
+                                <span className="text-white/80 text-sm font-medium group-hover:text-white transition-colors">Replay Onboarding</span>
+                                <span className="text-white/40 text-xs">View the welcome sequence again.</span>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-white/20 group-hover:text-white/60 transition-colors" />
+                          </button>
                         </div>
                       </section>
                       <section>
@@ -707,7 +477,10 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'account' && (
                     <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-0 md:p-4">
                       {user && !user.isAnonymous ? (
-                        <UserProfileCard user={user} isPro={isPro} signOut={signOut} />
+                        <div className="w-full max-w-md flex flex-col gap-4">
+                          <ProfileCard user={user} currentUser={user} isSelf={true} />
+                          <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
+                        </div>
                       ) : (
                         <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 dashed flex flex-col items-center justify-center w-full max-w-lg aspect-video">
                           <User size={48} className="text-white/30 mb-4" />

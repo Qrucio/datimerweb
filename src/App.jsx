@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useUnreadMessages } from './hooks/useUnreadMessages';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
@@ -6,6 +7,7 @@ import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
 import { Storage } from './utils/storage';
 import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
+import { CommandMenu } from './components/CommandMenu';
 import OnboardingFlow from './components/OnboardingFlow';
 import SocialModal from './components/modals/SocialModal';
 import IntentionWizard from './components/IntentionWizard';
@@ -15,6 +17,7 @@ import SmartIntervention from './components/SmartIntervention';
 import BreakCheckIn from './components/BreakCheckIn'; // NEW
 import MusicModal from './components/modals/MusicModal';
 import VaultModal from './components/modals/VaultModal';
+import UserProfileModal from './components/modals/UserProfileModal';
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
@@ -3492,10 +3495,12 @@ function MainApp() {
   const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
   const [user, setUser] = useState(null);
+  const { totalUnread: unreadCount, markAsRead, getLastReadTime, unreadCounts } = useUnreadMessages(user);
   const [onboardingStep, setOnboardingStep] = useState(() => {
     const hasHandle = localStorage.getItem('zen_user_handle'); // <--- CHECK THIS
     return hasHandle ? 3 : (localStorage.getItem('pomodoro_user_name') ? 3 : 0);
   });
+  const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
@@ -3524,6 +3529,9 @@ function MainApp() {
   };
   // --- CAFFEINE TRACKER ---
   const [showCaffeine, setShowCaffeine] = useState(false);
+
+  // --- PROFILE VIEW STATE ---
+  const [viewingProfile, setViewingProfile] = useState(null);
 
   // Check if extension is installed (Universal Method)
   useEffect(() => {
@@ -3726,6 +3734,18 @@ function MainApp() {
     syncHistory();
   }, []);
 
+  const handleProfileUpdate = (updates) => {
+    setUser(prev => ({ ...prev, ...updates }));
+    setViewingProfile(prev => {
+      // Since the update came from the active profile modal (which only allows editing self),
+      // we can safely update the viewingProfile if it exists.
+      if (prev) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
+  };
+
   const [devMode, setDevMode] = useState(false);
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
@@ -3767,6 +3787,18 @@ function MainApp() {
 
   // FIX: Track if session has actually started to prevent premature interventions
   const [hasStartedSession, setHasStartedSession] = useState(false);
+
+  // --- QUICKLINKS STATE (New Feature) ---
+  const [quicklinks, setQuicklinks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('zen_quicklinks');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('zen_quicklinks', JSON.stringify(quicklinks));
+  }, [quicklinks]);
 
   // NEW: Track AI Planning State for Visual Feedback
   const [isAIPlanning, setIsAIPlanning] = useState(false);
@@ -4337,7 +4369,26 @@ function MainApp() {
       handleUserMapping(session?.user || null);
     });
 
-    return () => subscription.unsubscribe();
+    // REALTIME PROFILE SYNC
+    const profileChannel = supabase.channel('public:profiles_sync')
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload) => {
+          // If the update matches current user, refresh map
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user && session.user.id === payload.new.id) {
+              console.log("Profile updated externally, refreshing...");
+              handleUserMapping(session.user);
+            }
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(profileChannel);
+    };
   }, []);
 
   const handleUserMapping = async (supaUser) => {
@@ -4348,24 +4399,35 @@ function MainApp() {
       return;
     }
 
-    setIsAuthChecking(false);
+
 
     if (supaUser) {
-      // MAP Supabase User to App User Shape (Compatibility Layer)
+      // 1. FETCH PROFILE DATA (Handle, About, Pro Status)
+      let profileData = {};
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('handle, about, is_pro')
+          .eq('id', supaUser.id)
+          .maybeSingle();
+        if (data) profileData = data;
+      } catch (e) { console.error("Profile fetch error", e); }
+
+      // 2. MAP & MERGE USER
       const appUser = {
         ...supaUser,
         uid: supaUser.id, // CRITICAL: Maintain 'uid' for existing code
         displayName: supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0],
         photoURL: supaUser.user_metadata?.avatar_url,
-        isAnonymous: supaUser.is_anonymous
+        isAnonymous: supaUser.is_anonymous,
+        handle: profileData.handle || null,
+        about: profileData.about || null,
+        isPro: profileData.is_pro || false
       };
 
       setUser(appUser);
 
-      // ... (Rest of your user logic, adapted for Supabase)
-      // We can't rely on Firestore doc checks instantly, so we query profiles table.
-
-      // 1. GUEST LOGIC
+      // 3. STORAGE & ONBOARDING SYNC
       if (appUser.isAnonymous) {
         console.log("Guest session active.");
         localStorage.removeItem('zen_user_handle');
@@ -4376,34 +4438,25 @@ function MainApp() {
         return;
       }
 
-      // 2. REGISTERED USER LOGIC
-      // Check 'profiles' table for handle
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('handle')
-          .eq('id', appUser.uid)
-          .maybeSingle();
-
-        if (profile && profile.handle) {
-          localStorage.setItem('zen_user_handle', profile.handle);
-          setOnboardingStep(3);
-          setShowLoginBtn(false);
-        } else {
-          // No handle? Onboarding.
-          setIsMigrating(false); // Reset migration flag if any
-          setOnboardingStep(1);
-          setShowLoginBtn(false);
-        }
-      } catch (e) { console.error("Profile check failed", e); }
+      // Registered User Logic
+      if (appUser.handle) {
+        localStorage.setItem('zen_user_handle', appUser.handle);
+        setOnboardingStep(3);
+      } else {
+        // Fallback: If handle missing but user exists, just let them in.
+        // They can set handle in settings.
+        console.warn("Handle missing for user, defaulting to dashboard.");
+        setOnboardingStep(3);
+        setIsMigrating(false);
+      }
 
     } else {
       setUser(null);
-      setGreetingText("Hello, stranger");
-      setShowLoginBtn(true);
       if (onboardingStep !== 3) setOnboardingStep(0);
       setDataLoaded(false);
     }
+
+    setIsAuthChecking(false);
   };
 
   // --- DEMO MODE HANDLER ---
@@ -5312,14 +5365,16 @@ function MainApp() {
 
   const handleSignOut = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
 
       // 1. Clear ALL Persistent Data (Centralized)
       Storage.clearAll();
 
       // 2. Reset UI State
       setIsMigrating(false);
+      setIsMigrating(false);
       setOnboardingStep(0);
+      setOnboardingInnerStep(0);
       setIsPro(false); // Explicit state update
       setCoins(0);     // Reset wallet UI
       setNotes([]);    // Reset notes UI
@@ -5860,6 +5915,8 @@ function MainApp() {
   // FIX: Only show intervention if session has actually started (hasStartedSession)
   const showIntervention = settings.intentionMode && intentionTask && mode === 'focus' && !isActive && timeLeft !== settings.focus * 60 && timeLeft > 0 && hasStartedSession;
 
+  if (isAuthChecking) return <AppLoader />;
+
   return (
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
@@ -5910,6 +5967,8 @@ function MainApp() {
         <OnboardingFlow
           user={user}
           onComplete={() => setOnboardingStep(3)}
+          currentStep={onboardingInnerStep}
+          onStepChange={setOnboardingInnerStep}
         />
       )}
 
@@ -5966,9 +6025,14 @@ function MainApp() {
                 </div>
               )}
               <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) setShowFriends(true); }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center">
-                  <Users size={20} />
-                  <motion.span layout className="text-sm font-medium overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">Friends</motion.span>
+                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center">
+                  <div className="relative">
+                    <Users size={20} className={(unreadCount > 0 && mode !== 'focus') ? "text-white" : ""} />
+                    {(unreadCount > 0 && mode !== 'focus') && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#1a0c00]" />}
+                  </div>
+                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${(unreadCount > 0 && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
+                    {(unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
+                  </motion.span>
                 </motion.button>
                 <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
                 <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => setShowMusic(true)} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
@@ -6280,6 +6344,7 @@ function MainApp() {
         stats={stats}
         isPro={isPro}
         onOpenPro={() => setProModalSource('settings')}
+        onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
       />
 
       <FriendProfileModal
@@ -6349,6 +6414,10 @@ function MainApp() {
         }}
         initialView={socialView}
         user={user}
+        onMarkRead={markAsRead}
+        getLastReadTime={getLastReadTime}
+        unreadCounts={unreadCounts}
+        onViewProfile={setViewingProfile}
         friends={friends}
         friendRequests={friendRequests}
         blockedUsers={blockedUsers}
@@ -6362,6 +6431,26 @@ function MainApp() {
         onTogglePin={handleTogglePin}
         onSearchUsers={handleSearchUsers}
         onRemoveFriend={handleRemoveFriend}
+        isFocusing={mode === 'focus'}
+      />
+
+      <UserProfileModal
+        isOpen={!!viewingProfile}
+        onClose={() => setViewingProfile(null)}
+        viewingUser={viewingProfile}
+        currentUser={user}
+        onProfileUpdate={handleProfileUpdate}
+        onAddFriend={
+          // Only show Add Friend if NOT already friends and NOT self
+          (!viewingProfile || (viewingProfile.id !== user.uid && !friendUids.includes(viewingProfile.id)))
+            ? () => handleSendRequest(viewingProfile.id)
+            : null
+        }
+        onMessage={() => {
+          setViewingProfile(null);
+          setShowFriends(true);
+          // Ideally switch to DMs
+        }}
       />
 
       <NoteSystemModals
@@ -6402,6 +6491,38 @@ function MainApp() {
       <TaskReminderSystem tasks={tasks} />
 
 
+      {/* --- COMMAND MENU --- */}
+      {(onboardingStep >= 3 || onboardingInnerStep === 2) && (
+        <CommandMenu
+          onboardingMode={onboardingStep < 3}
+          onOnboardingNext={() => setOnboardingInnerStep(3)}
+          openNotes={() => setIsNoteLibraryOpen(true)}
+          openMusic={() => setShowMusic(true)}
+          openSocial={() => setShowFriends(true)}
+          openSettings={() => setIsUnifiedModalOpen(true)}
+          setTimerActive={setIsActive}
+
+          // Timer Controls
+          mode={mode}
+          setMode={handleModeChange}
+          timeLeft={timeLeft}
+          setTimeLeft={setTimeLeft}
+          isActive={isActive}
+          settings={settings}
+
+          // Shortcuts
+          setEditingNote={setEditingNote}
+
+          // Sounds
+          playAmbience={toggleAmbience}
+          unlockedAmbiences={unlockedAmbiences}
+          ambientSounds={AMBIENT_SOUNDS} // Pass data constant
+
+          // Quicklinks
+          quicklinks={quicklinks}
+          setQuicklinks={setQuicklinks}
+        />
+      )}
     </div >
   );
 }

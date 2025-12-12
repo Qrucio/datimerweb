@@ -1,18 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Users, Settings, Hash, Crown, Shield, UserPlus, UserMinus } from 'lucide-react';
+import { Trophy, Users, Hash, Crown, Shield, UserPlus, UserMinus, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import LiquidButton from '../ui/LiquidButton';
 import { getIconById } from '../../utils/iconOptions';
+import ChatArea from '../chat/ChatArea';
 
-const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate }) => {
+const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile }) => {
     // SAFETY CHECK: If server is missing (e.g. just kicked), don't crash
     if (!server) return null;
 
-    const [activeTab, setActiveTab] = useState('leaderboard');
+    const [activeTab, setActiveTab] = useState('chat'); // Default to Chat? Or Leaderboard? Chat seems primary now.
     const [adminHoverId, setAdminHoverId] = useState(null);
+
+    // MARK READ ON CHAT TAB
+    useEffect(() => {
+        if (activeTab === 'chat' && onMarkRead && server) {
+            onMarkRead(server.id);
+        }
+    }, [activeTab, onMarkRead, server]);
+
+    // Resolve Read Time
+    const currentReadTime = getLastReadTime ? getLastReadTime(server.id) : new Date(0);
 
     // MAP MEMBERS TO RICH DATA (Profiles/Status)
     // We prioritize Friend data (rich status), fallback to server member profile data
@@ -160,10 +171,14 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
     };
 
     const tabs = [
+        { id: 'chat', label: 'Chat', icon: MessageCircle },
         { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
         { id: 'members', label: 'Members', icon: Users },
         // Removed Settings Tab as requested
     ];
+
+    const currentUserMember = members.find(m => m.user_id === user.uid);
+    const userRole = currentUserMember?.role;
 
     return (
         <div className="flex flex-col h-full w-full bg-[#111]">
@@ -212,6 +227,16 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
             {/* TAB CONTENT AREA */}
             <div className="flex-1 overflow-hidden relative flex flex-col">
                 <AnimatePresence mode="wait">
+                    {activeTab === 'chat' && (
+                        <motion.div
+                            key="chat"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="flex-1 overflow-hidden"
+                        >
+                            <ChatArea serverId={server.id} user={user} isFocusing={isFocusing} userRole={userRole} lastReadTime={currentReadTime} onViewProfile={onViewProfile} />
+                        </motion.div>
+                    )}
+
                     {activeTab === 'leaderboard' && (
                         <motion.div
                             key="leaderboard"

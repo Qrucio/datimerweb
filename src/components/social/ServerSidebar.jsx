@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Home, Plus, Hash } from 'lucide-react';
 import { getIconById } from '../../utils/iconOptions';
 
-const ServerIcon = ({ server, isActive, onClick }) => {
+const ServerIcon = ({ server, isActive, onClick, unreadCount, isFocusing }) => {
     return (
         <div className="relative group flex items-center justify-center mb-2 w-full">
             {/* Active Indicator Pips */}
@@ -43,11 +43,17 @@ const ServerIcon = ({ server, isActive, onClick }) => {
             <div className="absolute left-14 px-2 py-1 bg-black border border-white/10 rounded-md text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                 {server.name}
             </div>
+            {/* Unread Badge */}
+            {unreadCount > 0 && !isActive && !isFocusing && (
+                <div className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 rounded-full border-2 border-black flex items-center justify-center pointer-events-none z-10">
+                    <span className="text-[9px] font-bold text-white leading-none">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                </div>
+            )}
         </div>
     );
 }
 
-const ServerSidebar = ({ servers = [], activeServerId, onSelectServer, onSelectHome, onCreateServer }) => {
+const ServerSidebar = ({ servers = [], activeServerId, onSelectServer, onSelectHome, onCreateServer, unreadCounts = {}, isFocusing }) => {
     return (
         <div className="w-[60px] flex flex-col items-center py-4 bg-black border-r border-white/10 shrink-0 overflow-y-auto no-scrollbar overflow-x-hidden">
             {/* HOME ICON (Friends) */}
@@ -79,6 +85,8 @@ const ServerSidebar = ({ servers = [], activeServerId, onSelectServer, onSelectH
                     server={server}
                     isActive={activeServerId === server.id}
                     onClick={() => onSelectServer(server.id)}
+                    unreadCount={unreadCounts[server.id] || 0}
+                    isFocusing={isFocusing}
                 />
             ))}
 

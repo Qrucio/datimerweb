@@ -11,7 +11,9 @@ import AddMemberModal from '../social/AddMemberModal';
 const SocialModal = ({
     isOpen, onClose, user, friends, friendRequests, onSendRequest, onAcceptRequest,
     onDeclineRequest, onBlockUser, onUnblockUser, checkOutgoingRequest,
-    onRemoveFriend, onTogglePin, onViewStats, onSearchUsers, blockedUsers
+    onRemoveFriend, onTogglePin, onViewStats, onSearchUsers, blockedUsers,
+    isFocusing, onMarkRead, getLastReadTime, unreadCounts,
+    onViewProfile // NEW PROP
 }) => {
     // --- STATE ---
     const [activeServerId, setActiveServerId] = useState(null); // null = Home/Friends
@@ -237,6 +239,8 @@ const SocialModal = ({
                             onSelectServer={setActiveServerId}
                             onSelectHome={() => setActiveServerId(null)}
                             onCreateServer={() => setIsCreateModalOpen(true)}
+                            unreadCounts={unreadCounts}
+                            isFocusing={isFocusing}
                         />
 
                         {/* 2. MAIN CONTENT */}
@@ -256,6 +260,10 @@ const SocialModal = ({
                                             friends={friends}
                                             onInvite={() => setInviteServerId(activeServerId)}
                                             onMemberUpdate={handleMemberUpdate}
+                                            isFocusing={isFocusing}
+                                            onMarkRead={onMarkRead}
+                                            getLastReadTime={getLastReadTime}
+                                            onViewProfile={onViewProfile}
                                         />
                                     </motion.div>
                                 ) : (
