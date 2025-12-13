@@ -147,10 +147,34 @@ const SocialModal = ({
     // Fetch members and pending invites when active server changes or invite opens
     useEffect(() => {
         // Fetch Membership
+        let channel;
+
         if (activeServerId) {
             fetchMembers(activeServerId);
-            // ... realtime subs handled above ...
+
+            // REALTIME: Listen for new members joining/leaving THIS server
+            // Use unique channel per server+user to prevent collision
+            channel = supabase
+                .channel(`members:${activeServerId}:${user.uid}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'server_members',
+                        filter: `server_id=eq.${activeServerId}`
+                    },
+                    (payload) => {
+                        console.log("Member change detected, refreshing...", payload);
+                        fetchMembers(activeServerId);
+                    }
+                )
+                .subscribe();
         }
+
+        return () => {
+            if (channel) supabase.removeChannel(channel);
+        };
     }, [activeServerId]);
 
     // Fetch Pending Invites when opening Invite Modal

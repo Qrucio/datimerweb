@@ -41,12 +41,40 @@ export const Storage = {
     // HYDRATE FROM SERVER (Fix for 0s bug)
     hydrateTodayStats: (serverData) => {
         if (!serverData) return;
-        const data = {
-            date: serverData.date_id,
-            dailyFocusTime: serverData.focus_time || 0,
-            dailyBreakTime: serverData.break_time || 0,
-            dailySessions: serverData.sessions || 0
-        };
+
+        const currentLocal = Storage.getTodayStats();
+        // If the server data is for the same day, we merge safely.
+        // If server data is for a NEW day (tomorrow), we accept it (rollover).
+        // If server data is OLD (yesterday), we ignore it.
+
+        let data = {};
+
+        if (currentLocal.date && currentLocal.date === serverData.date_id) {
+            // SAME DAY: Merge (Take Max to prevent regression)
+            console.log("[Stats] Merging Server Data", serverData);
+            data = {
+                date: serverData.date_id,
+                dailyFocusTime: Math.max(currentLocal.dailyFocusTime || 0, serverData.focus_time || 0),
+                dailyBreakTime: Math.max(currentLocal.dailyBreakTime || 0, serverData.break_time || 0),
+                dailySessions: Math.max(currentLocal.dailySessions || 0, serverData.sessions || 0)
+            };
+        } else {
+            // NEW DAY or UNINITIALIZED: Take Server Data specificially
+            // (We trust server if we have no local data for this day yet)
+            if (!currentLocal.date || serverData.date_id > currentLocal.date) {
+                console.log("[Stats] Hydrating New Day from Server");
+                data = {
+                    date: serverData.date_id,
+                    dailyFocusTime: serverData.focus_time || 0,
+                    dailyBreakTime: serverData.break_time || 0,
+                    dailySessions: serverData.sessions || 0
+                };
+            } else {
+                // OLD DATA: Ignore
+                return currentLocal;
+            }
+        }
+
         localStorage.setItem(KEYS.STATS, JSON.stringify(data));
         return data;
     },

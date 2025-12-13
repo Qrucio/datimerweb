@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import MessageBubble from './MessageBubble';
 import { format } from 'date-fns';
 
-const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, onViewProfile }) => {
+const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, onViewProfile, onMarkRead }) => {
     // --- STATE ---
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -99,13 +99,19 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                 },
                 async (payload) => {
                     const newMsg = payload.new;
+                    // MARK AS READ INSTANTLY if this is the active server
+                    if (onMarkRead && document.hasFocus()) {
+                        onMarkRead(serverId);
+                    }
+
                     let senderProfile = null;
                     if (newMsg.sender_id === user.uid) {
                         senderProfile = {
                             id: user.uid,
-                            displayName: user?.displayName || user?.user_metadata?.full_name || user?.email,
-                            photoURL: user?.photoURL || user?.user_metadata?.avatar_url,
-                            isPro: user?.isPro // Ensure this is available on user object or metadata
+                            displayName: user.displayName || user.handle || 'You',
+                            handle: user.handle, // Verify this is passed
+                            photoURL: user.photoURL || user.user_metadata?.avatar_url,
+                            isPro: user.isPro
                         };
                     } else {
                         // Fetch their profile
@@ -125,7 +131,10 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                         sender: senderProfile || { displayName: 'Unknown', id: newMsg.sender_id }
                     };
 
-                    setMessages(prev => [...prev, enrichedMsg]);
+                    setMessages(prev => {
+                        const updated = [...prev, enrichedMsg];
+                        return updated;
+                    });
                 }
             )
             .on(
@@ -147,20 +156,52 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
             supabase.removeChannel(channel);
         };
 
-    }, [serverId, user]);
+    }, [serverId, user]); // Removed unnecessary deps
 
-    // Scroll logic
+    // --- SMART SCROLL LOGIC ---
     useEffect(() => {
-        // If we have a divider, scroll to it on initial load
-        if (!isLoading && messagesEndRef.current) {
+        if (isLoading || messages.length === 0) return;
+
+        const lastMsg = messages[messages.length - 1];
+        const isMyMessage = lastMsg?.sender_id === user.uid;
+
+        // 1. Initial Load: Scroll to Divider OR Bottom
+        if (!messagesEndRef.current) return;
+
+        const dividerEl = document.getElementById('chat-divider');
+
+        // If we just loaded everything, check if we need to go to divider
+        // We can use a ref to track "initial scroll done"
+
+        // Simple heuristic: If the user just sent a message, scroll to bottom.
+        if (isMyMessage) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+
+        // If it's a new message from OTHERS:
+        // Ideally we only scroll if we are already at bottom. 
+        // For now, to stop "jumping", we will ONLY auto-scroll on initial load (to divider) or if I send a message.
+        // User has to scroll down for others' messages if they are scrolling up?
+        // Standard behavior: Auto-scroll if near bottom.
+
+        // For simplicity requested by user: "Stop scrolling up".
+        // Use a flag for "isInitialLoad"
+    }, [messages, isLoading, user.uid]);
+
+    // Initial Scroll Effect
+    useEffect(() => {
+        if (!isLoading && messages.length > 0) {
             const dividerEl = document.getElementById('chat-divider');
             if (dividerEl) {
                 dividerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
-                messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                if (messagesEndRef.current) {
+                    messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+                }
             }
         }
-    }, [messages, isLoading]);
+    }, [isLoading]); // Run once when loading finishes
 
 
     // --- HANDLERS ---
@@ -239,9 +280,10 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                                 // DIVIDER LOGIC
                                 const msgTime = new Date(msg.created_at);
                                 const dividerThreshold = dividerTimeRef.current ? new Date(dividerTimeRef.current) : new Date(0);
-                                const isNew = msgTime > dividerThreshold;
+                                // FIX: Don't show "New Messages" for MY own messages
+                                const isNew = msgTime > dividerThreshold && !isMe;
                                 const prevWasOld = prevMsg ? new Date(prevMsg.created_at) <= dividerThreshold : true;
-                                const showDivider = isNew && prevWasOld;
+                                const showDivider = isNew && prevWasOld && !isMe; // Double check !isMe
 
                                 return (
                                     <React.Fragment key={msg.id}>

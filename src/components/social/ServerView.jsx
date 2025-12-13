@@ -82,7 +82,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
             return {
                 uid: user.uid,
                 displayName: 'You',
-                handle: '@you',
+                handle: user?.handle || '@you',
                 avatarUrl: user.user_metadata?.avatar_url,
                 isOnline: true,
                 status: 'online',

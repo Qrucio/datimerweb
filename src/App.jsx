@@ -4574,7 +4574,7 @@ function MainApp() {
 
     fetchRequests();
 
-    const channel = supabase.channel('social_requests')
+    const channel = supabase.channel(`social_requests:${user.uid}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${user.uid}` },
         () => { fetchRequests(); }

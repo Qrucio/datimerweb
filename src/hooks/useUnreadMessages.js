@@ -8,7 +8,9 @@ export const useUnreadMessages = (user) => {
 
     // Helper to get read time for a server
     const getReadTime = (serverId) => {
-        const stored = localStorage.getItem(`last_read_chat_${user?.id}_${serverId}`);
+        const userId = user?.id || user?.uid;
+        if (!userId) return new Date(0);
+        const stored = localStorage.getItem(`last_read_chat_${userId}_${serverId}`);
         return stored ? new Date(stored) : new Date(0); // Epoch if never read
     };
 
@@ -23,6 +25,9 @@ export const useUnreadMessages = (user) => {
         let channel;
 
         const setup = async () => {
+            const userId = user?.id || user?.uid;
+            if (!userId) return;
+
             // Fetch messages from last 7 days (Reasonable lookback for "unread")
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -31,7 +36,7 @@ export const useUnreadMessages = (user) => {
                 .from('messages')
                 .select('server_id, created_at, sender_id')
                 .gt('created_at', sevenDaysAgo.toISOString())
-                .neq('sender_id', user.id);
+                .neq('sender_id', userId);
 
             if (recentMessages) {
                 const newCounts = {};
@@ -55,9 +60,10 @@ export const useUnreadMessages = (user) => {
                         table: 'messages'
                     },
                     (payload) => {
-                        if (payload.new.sender_id !== user.id) {
+                        const userId = user?.id || user?.uid;
+                        if (payload.new.sender_id !== userId) {
                             const msg = payload.new;
-                            // Check if it's new relative to our current read time (in case of race/lag, though unlikely for real-time)
+                            // Check if it's new relative to our current read time
                             // Basically always increment for incoming unless we are currently looking at it?
                             // For simplicity: Increment.
                             setUnreadCounts(prev => ({
@@ -78,11 +84,12 @@ export const useUnreadMessages = (user) => {
     }, [user]);
 
     const markAsRead = useCallback((serverId) => {
-        if (!user || !serverId) return;
+        const userId = user?.id || user?.uid;
+        if (!userId || !serverId) return;
         const now = new Date();
 
         // Update Local Storage
-        localStorage.setItem(`last_read_chat_${user.id}_${serverId}`, now.toISOString());
+        localStorage.setItem(`last_read_chat_${userId}_${serverId}`, now.toISOString());
 
         // Update State
         setUnreadCounts(prev => {
