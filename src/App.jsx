@@ -291,14 +291,14 @@ const loadTimerState = () => {
   try {
     const saved = localStorage.getItem('zen_timer_state');
     if (saved) {
-      const { mode, isActive, targetEndTime, timeLeft } = JSON.parse(saved);
+      const { mode, isActive, targetEndTime, timeLeft, pomoCount } = JSON.parse(saved);
       if (isActive && targetEndTime) {
         const remaining = Math.ceil((targetEndTime - Date.now()) / 1000);
         return remaining > 0
-          ? { mode, isActive: true, timeLeft: remaining }
-          : { mode, isActive: false, timeLeft: 0 };
+          ? { mode, isActive: true, timeLeft: remaining, pomoCount: pomoCount || 0 }
+          : { mode, isActive: false, timeLeft: 0, pomoCount: pomoCount || 0 };
       }
-      return { mode, isActive: false, timeLeft };
+      return { mode, isActive: false, timeLeft, pomoCount: pomoCount || 0 };
     }
   } catch (e) {
     console.warn("Failed to load timer state", e);
@@ -604,6 +604,8 @@ const BendingDivider = ({ activeSide, isDimmed }) => {
     </div>
   );
 };
+
+
 
 // --- SMART MESSAGE COMPONENT ---
 const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, overrideMessage, layoutId }) => {
@@ -3518,6 +3520,14 @@ function MainApp() {
   const [vaultOpen, setVaultOpen] = useState(false);
   const coinBufferRef = useRef(0); // Internal counter for seconds
 
+  // Ref to hold lateast state for Sync Replies without re-running effects
+  const latestStateRef = useRef({ isActive: false, mode: 'focus', timeLeft: 25 * 60 });
+  // Update this ref whenever state changes
+  useEffect(() => {
+    latestStateRef.current = { isActive, mode, timeLeft };
+  }, [isActive, mode, timeLeft]);
+
+
   // --- BUY ME A COFFEE ---
   const [isBmcDisabled, setIsBmcDisabled] = useState(() => {
     return localStorage.getItem('zen_bmc_disabled') === 'true';
@@ -3705,7 +3715,7 @@ function MainApp() {
     localStorage.removeItem('zen_intention_task');
   };
 
-  const [pomoCount, setPomoCount] = useState(0);
+  const [pomoCount, setPomoCount] = useState(initialState?.pomoCount || 0);
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
   // Load Stats from Cache
   const [stats, setStats] = useState(() => {
@@ -3733,6 +3743,41 @@ function MainApp() {
     };
     syncHistory();
   }, []);
+
+  // --- SYNC NOTES ON LOAD (Fix for Deletion Sync) ---
+  useEffect(() => {
+    if (!user || user.isAnonymous) return;
+
+    const syncNotes = async () => {
+      try {
+        const { data } = await supabase
+          .from('user_settings')
+          .select('notes')
+          .eq('user_id', user.uid)
+          .maybeSingle();
+
+        if (data) {
+          // Sync Notes - Force update even if empty (handles deletions)
+          const serverNotes = data.notes || [];
+          setNotes(serverNotes);
+          Storage.saveNotesLocally(serverNotes);
+        } else {
+          // If no row exists in user_settings, it means no notes on server.
+          // If we trust server as source of truth for DELETIONS, we should clear local.
+          // BUT, this risks wiping data for new offline users. 
+          // However, for the specific bug "I deleted on phone, still on web", the phone would have upserted an empty list or deleted the row.
+          // If the row is gone, we can assume empty notes.
+          console.log("No user_settings found, assuming empty notes.");
+          setNotes([]);
+          Storage.saveNotesLocally([]);
+        }
+      } catch (e) {
+        console.error("User Settings Sync Failed", e);
+      }
+    };
+
+    syncNotes();
+  }, [user]);
 
   const handleProfileUpdate = (updates) => {
     setUser(prev => ({ ...prev, ...updates }));
@@ -4099,13 +4144,27 @@ function MainApp() {
     if (!isExtensionConnected) return; // Guard: Don't enable if extension missing
     setStrictMode(true);
     setShowStrictConfirm(false);
-    // Note: We NO LONGER request fullscreen here. The extension handles blocking.
+
+    // Sync to Supabase
+    syncTimerState({
+      isActive,
+      mode,
+      timeLeft,
+      targetEndTime: isActive ? endTimeRef.current : null
+    });
   };
 
   const handleStrictDisable = () => {
     setStrictMode(false);
     setShowStrictDisableConfirm(false);
-    // Note: We NO LONGER exit fullscreen here.
+
+    // Sync to Supabase
+    syncTimerState({
+      isActive,
+      mode,
+      timeLeft,
+      targetEndTime: isActive ? endTimeRef.current : null
+    });
   };
 
   // (We deleted handleStrictResume and the "Trap" useEffect because we don't need them anymore)
@@ -4146,6 +4205,8 @@ function MainApp() {
   const lastStatSaveTime = useRef(Date.now());
   const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
   const prevNotes = useRef([]);
+
+
 
 
 
@@ -4304,7 +4365,12 @@ function MainApp() {
     const currentStreak = Storage.calculateStreak(fullHistory);
 
     const payload = {
-      timerState: { ...newState, lastUpdated: Date.now() },
+      timerState: {
+        pomoCount, // Include session count (bridge to Android)
+        ...newState, // Allow newState to override if needed
+        isStrict: strictMode,
+        lastUpdated: Date.now()
+      }, // newState contains { isActive, mode, timeLeft }
       stats: {
         dailyFocusTime: currentStats.dailyFocusTime || 0,
         dailyBreakTime: currentStats.dailyBreakTime || 0,
@@ -4962,7 +5028,12 @@ function MainApp() {
             // 4. WALLET / INVENTORY
             if (newS.wallet) {
               const localWallet = Storage.getWallet();
-              if ((newS.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0)) {
+              // FIX: If local wallet is fresh (no timestamp AND empty), take server data
+              // OR if server is explicitly newer always update.
+              const isLocalFresh = !localWallet.lastUpdated && (!localWallet.balance || localWallet.balance === 0);
+              const isServerNewer = (newS.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0);
+
+              if (isLocalFresh || isServerNewer) {
                 Storage.setWallet(newS.wallet);
                 setCoins(newS.wallet.balance || 0);
               }
@@ -5008,7 +5079,8 @@ function MainApp() {
       )
       .subscribe();
 
-    // Initial Streak Fetch on Mount
+
+
     const initStreak = async () => {
       // 1. Calculate Local Streak (Most up-to-date regarding today's activity)
       const localHistory = Storage.getFullHistory();
@@ -5109,7 +5181,11 @@ function MainApp() {
           // 3. WALLET / INVENTORY
           if (serverData.wallet) {
             const localWallet = Storage.getWallet();
-            if ((serverData.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0)) {
+            // FIX: If local wallet is fresh (no timestamp AND empty), take server data
+            const isLocalFresh = !localWallet.lastUpdated && (!localWallet.balance || localWallet.balance === 0);
+            const isServerNewer = (serverData.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0);
+
+            if (isLocalFresh || isServerNewer) {
               Storage.setWallet(serverData.wallet);
               setCoins(serverData.wallet.balance || 0);
             }
@@ -5172,8 +5248,78 @@ function MainApp() {
     return () => {
       supabase.removeChannel(settingsChannel);
       supabase.removeChannel(profileChannel);
+
     };
   }, [user]);
+
+
+  // --- REAL-TIME TIMER SYNC (RECEIVER + RESPONDER) ---
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`timer_sync_web_${user.uid}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.uid}`
+        },
+        (payload) => {
+          if (payload.new && payload.new.timer_state) {
+            const remote = payload.new.timer_state;
+            // 1. LISTEN FOR SYNC REQUESTS (From Mobile)
+            if (remote.requestSync) {
+              console.log("Received Sync Request from Mobile. Replying...");
+
+              // READ FROM REF (Cleanly, without tearing down connection)
+              const current = latestStateRef.current;
+              const now = Date.now();
+
+              const stateToSync = {
+                isActive: current.isActive,
+                mode: current.mode,
+                timeLeft: current.timeLeft,
+                targetEndTime: current.isActive ? endTimeRef.current : null,
+                lastUpdated: now
+              };
+
+              lastRemoteUpdate.current = now;
+
+              supabase.from('profiles').update({
+                timer_state: stateToSync
+              }).eq('id', user.uid);
+              return;
+            }
+            // PREVENT ECHO
+            if (remote.lastUpdated && lastRemoteUpdate.current >= remote.lastUpdated) return;
+            lastRemoteUpdate.current = remote.lastUpdated;
+            console.log("Remote Update Rec'd:", remote);
+            // 2. UPDATE LOCAL STATE
+            if (remote.mode) setMode(remote.mode);
+            // Sync Strict Mode
+            if (remote.isStrict !== undefined) {
+              setStrictMode(remote.isStrict);
+            }
+            setIsActive(remote.isActive);
+
+            // 3. SNAPSHOT SYNC
+            if (remote.isActive && remote.timeLeft) {
+              setTimeLeft(remote.timeLeft);
+              endTimeRef.current = Date.now() + (remote.timeLeft * 1000);
+            } else if (remote.timeLeft) {
+              setTimeLeft(remote.timeLeft);
+              endTimeRef.current = null;
+            }
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]); // STABLE DEPENDENCY: Does not include time/active/mode
 
   // --- OPTIMIZED SAVE LOGIC (Supabase) ---
   useEffect(() => {
@@ -5526,11 +5672,23 @@ function MainApp() {
 
           } else if (mode === 'shortBreak') {
             // ... (existing shortBreak end logic) ...
-            setPomoCount(prev => prev + 1);
+            const nextCount = pomoCount + 1;
+            setPomoCount(nextCount);
             nextMode = 'focus';
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
             nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
+
+            // Pass explicit count to sync so it sends the NEW value immediately
+            syncTimerState({
+              pomoCount: nextCount,
+              isActive: nextIsActive,
+              targetEndTime: nextIsActive ? Date.now() + (nextTimeLeft * 1000) : null,
+              mode: nextMode,
+              timeLeft: nextTimeLeft,
+              lastUpdated: Date.now()
+            });
+            return; // Exit here to avoid double sync below
 
           } else if (mode === 'longBreak') {
             // ... (existing longBreak end logic) ...
@@ -5539,6 +5697,17 @@ function MainApp() {
             if (strictMode) document.documentElement.requestFullscreen().catch(() => { });
             nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
+
+            // Pass explicit count
+            syncTimerState({
+              pomoCount: 0,
+              isActive: nextIsActive,
+              targetEndTime: nextIsActive ? Date.now() + (nextTimeLeft * 1000) : null,
+              mode: nextMode,
+              timeLeft: nextTimeLeft,
+              lastUpdated: Date.now()
+            });
+            return; // Exit here
           }
 
           setMode(nextMode);
@@ -5577,10 +5746,11 @@ function MainApp() {
         targetEndTime: endTimeRef.current,
         timestamp: Date.now(),
         // ADDED PERSISTENCE:
-        skipStats: skipStatsRef.current
+        skipStats: skipStatsRef.current,
+        pomoCount // Persist session count
       }));
     }
-  }, [isActive, mode]); // Added activePersonality to dependency array
+  }, [isActive, mode, pomoCount]); // Added pomoCount to dependency array
 
   useEffect(() => {
     if (!isActive) {
@@ -5590,10 +5760,11 @@ function MainApp() {
         timeLeft,
         timestamp: Date.now(),
         // ADDED PERSISTENCE:
-        skipStats: skipStatsRef.current
+        skipStats: skipStatsRef.current,
+        pomoCount // Persist session count
       }));
     }
-  }, [isActive, mode, timeLeft]);
+  }, [isActive, mode, timeLeft, pomoCount]);
 
   const isInitialMount = useRef(true);
   const prevDurationRef = useRef(settings[mode] * 60);

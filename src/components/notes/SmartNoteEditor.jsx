@@ -44,6 +44,7 @@ const REMINDER_OPTIONS = [
 
 const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = [], allTags = [], onSave, onDelete }) => {
     const [title, setTitle] = useState('');
+    const [text, setText] = useState('');
     const [type, setType] = useState('task');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [startTime, setStartTime] = useState('');
@@ -63,6 +64,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
         if (isOpen) {
             if (initialData) {
                 setTitle(initialData.title || '');
+                setText(initialData.text || '');
                 setType('task');
                 setDate(initialData.date || new Date().toISOString().split('T')[0]);
                 setStartTime(initialData.startTime || '');
@@ -89,6 +91,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                 setReminders(initialData.reminders || (initialData.reminder && initialData.reminder !== 'none' ? [initialData.reminder] : []));
             } else {
                 setTitle('');
+                setText('');
                 setType('task');
                 setDate(initialDate || new Date().toISOString().split('T')[0]);
                 setStartTime('');
@@ -136,6 +139,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
         const data = {
             id: initialData?.id || Date.now().toString(),
             title,
+            text,
             type: 'task',
             date,
             startTime,
@@ -256,6 +260,12 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder="What needs to be done?"
                                 className="w-full bg-transparent text-3xl font-bold text-white placeholder-white/20 border-none outline-none ring-0 p-0 leading-tight"
+                            />
+                            <textarea
+                                value={text}
+                                onChange={(e) => setText(e.target.value)}
+                                placeholder="Add functionality, details, or context..."
+                                className="w-full bg-transparent text-base text-white/80 placeholder-white/20 border-none outline-none ring-0 p-0 mt-4 resize-none min-h-[100px]"
                             />
 
                             <div className="grid grid-cols-1 gap-6">

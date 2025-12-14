@@ -4,7 +4,7 @@ import { Trash2 } from 'lucide-react';
 import Avatar from '../Avatar';
 import LiquidButton from '../ui/LiquidButton';
 
-const MessageBubble = ({ message, isMe, showHeader = true, onDelete, onViewProfile }) => {
+const MessageBubble = ({ message, isMe, showHeader = true, onDelete, onViewProfile, isPending = false }) => {
     // message: { id, content, created_at, sender: { ...profile } }
 
     // Safely handle timestamp
@@ -12,7 +12,7 @@ const MessageBubble = ({ message, isMe, showHeader = true, onDelete, onViewProfi
     const timeString = format(timestamp, 'h:mm a');
 
     return (
-        <div className={`flex gap-3 relative group/msg ${isMe ? 'flex-row-reverse' : 'flex-row'} mb-1`}>
+        <div className={`flex gap-3 relative group/msg ${isMe ? 'flex-row-reverse' : 'flex-row'} mb-1 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
             {/* Avatar */}
             <div className={`shrink-0 w-8 h-8 ${showHeader ? 'opacity-100' : 'opacity-0 h-0'}`}>
                 {showHeader && (

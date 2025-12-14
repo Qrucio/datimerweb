@@ -132,8 +132,26 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                     };
 
                     setMessages(prev => {
-                        const updated = [...prev, enrichedMsg];
-                        return updated;
+                        // Optimistic Update Handling:
+                        // Find matching pending message from ME
+                        if (newMsg.sender_id === user.uid) {
+                            const pendingIndex = prev.findIndex(m =>
+                                m.isPending &&
+                                m.content === enrichedMsg.content
+                            );
+
+                            if (pendingIndex !== -1) {
+                                // Replace pending with real
+                                const updated = [...prev];
+                                updated[pendingIndex] = enrichedMsg;
+                                return updated;
+                            }
+                        }
+
+                        // Deduplicate by ID just in case
+                        if (prev.some(m => m.id === enrichedMsg.id)) return prev;
+
+                        return [...prev, enrichedMsg];
                     });
                 }
             )
@@ -213,6 +231,25 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
         const content = inputText.trim();
         setInputText(''); // Optimistic clear
 
+        // OPTIMISTIC UI: Add fake message immediately
+        const tempId = 'temp-' + Date.now();
+        const optimisticMsg = {
+            id: tempId,
+            content,
+            sender_id: user.uid,
+            created_at: new Date().toISOString(),
+            isPending: true,
+            sender: {
+                id: user.uid,
+                displayName: user.displayName || user.handle || 'You',
+                handle: user.handle,
+                photoURL: user.photoURL || user.user_metadata?.avatar_url,
+                isPro: user.isPro
+            }
+        };
+
+        setMessages(prev => [...prev, optimisticMsg]);
+
         try {
             const { error } = await supabase
                 .from('messages')
@@ -223,7 +260,11 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                     // channel_id is now omitted
                 });
 
-            if (error) throw error;
+            if (error) {
+                // Remove optimistic message on error
+                setMessages(prev => prev.filter(m => m.id !== tempId));
+                throw error;
+            }
         } catch (err) {
             console.error("Send Error:", err);
             alert("Failed to send message");
@@ -300,6 +341,7 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                                             showHeader={showHeader}
                                             onDelete={handleDeleteMessage}
                                             onViewProfile={onViewProfile}
+                                            isPending={msg.isPending}
                                         />
                                     </React.Fragment>
                                 );

@@ -341,7 +341,11 @@ export const Storage = {
             });
         }
     },
-    getTasks: () => JSON.parse(localStorage.getItem(KEYS.TASKS) || '[]'),
+    getTasks: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.TASKS) || '[]');
+        } catch { return []; }
+    },
 
     saveHabitsLocally: async (habits) => {
         localStorage.setItem(KEYS.HABITS, JSON.stringify(habits));
@@ -355,11 +359,19 @@ export const Storage = {
             });
         }
     },
-    getHabits: () => JSON.parse(localStorage.getItem(KEYS.HABITS) || '[]'),
+    getHabits: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.HABITS) || '[]');
+        } catch { return []; }
+    },
 
     // --- 4. TRASH ---
     saveTrashLocally: (trashMap) => localStorage.setItem(KEYS.TRASH, JSON.stringify(trashMap)),
-    getTrash: () => JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}'),
+    getTrash: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}');
+        } catch { return {}; }
+    },
 
     // --- 5. SETTINGS ---
     saveSettingsLocally: async (settings) => {
@@ -484,7 +496,11 @@ export const Storage = {
     },
 
     // --- 9. WALLET & INVENTORY ---
-    getWallet: () => JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}'),
+    getWallet: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}');
+        } catch { return { balance: 0 }; }
+    },
     updateWallet: async (amountToAdd) => {
         const wallet = Storage.getWallet();
         wallet.balance = (wallet.balance || 0) + amountToAdd;
@@ -501,7 +517,11 @@ export const Storage = {
         return wallet;
     },
 
-    getInventory: () => JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]'),
+    getInventory: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.INVENTORY) || '[]');
+        } catch { return []; }
+    },
 
     addToInventory: async (item) => {
         const inv = Storage.getInventory();
@@ -553,7 +573,11 @@ export const Storage = {
     },
 
     // --- 11. CUSTOM STORE ITEMS ---
-    getCustomStoreItems: () => JSON.parse(localStorage.getItem(KEYS.CUSTOM_ITEMS) || '[]'),
+    getCustomStoreItems: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.CUSTOM_ITEMS) || '[]');
+        } catch { return []; }
+    },
     // ... Implement similar save/sync logic for custom items if they have a DB column, 
     // for now we'll stick to local storage for brevity as it wasn't in the core tables list.
     addCustomStoreItem: (item) => {
