@@ -199,16 +199,54 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
 // (UserProfileCard removed)
 
 // --- MAIN MODAL COMPONENT ---
+const MasterAppearanceView = ({ onNavigate }) => (
+  <div className="space-y-4 max-w-2xl animate-fade-in">
+    <div>
+      <h3 className="text-2xl font-serif-display text-white mb-1">Appearance</h3>
+      <p className="text-white/50 text-sm">Customize your focus environment.</p>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <button onClick={() => onNavigate('appearance-background')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
+        <div className="relative z-10">
+          <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Palette size={20} />
+          </div>
+          <h4 className="text-lg font-bold text-white mb-1">Background</h4>
+          <p className="text-xs text-white/50">Choose from curated scenes and gradients.</p>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+
+      <button onClick={() => onNavigate('appearance-clock')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
+        <div className="relative z-10">
+          <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Clock size={20} />
+          </div>
+          <h4 className="text-lg font-bold text-white mb-1">Clock Style</h4>
+          <p className="text-xs text-white/50">Customize typography and layout.</p>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+    </div>
+  </div>
+);
+
 const UnifiedSettingsModal = ({
   isOpen, onClose, user, signOut, settings, setSettings,
   handleSettingsSave, handleBackgroundChange, backgrounds = [],
   isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [expandedSections, setExpandedSections] = useState({ appearance: true });
 
   useEffect(() => {
-    if (isOpen) setActiveTab(initialTab);
-  }, [isOpen, initialTab]); // Reset tab when re-opened
+    if (isOpen) {
+      setActiveTab(initialTab);
+      // Ensure parents are expanded if a child is initially selected (logic can be enhanced)
+      if (initialTab.startsWith('appearance')) setExpandedSections(prev => ({ ...prev, appearance: true }));
+    }
+  }, [isOpen, initialTab]);
 
   const [statsView, setStatsView] = useState('today');
   const [historyData, setHistoryData] = useState({});
@@ -219,9 +257,15 @@ const UnifiedSettingsModal = ({
 
   // --- SETTING HANDLERS ---
   const updateSetting = (key, value) => {
-    if (value === '') { setSettings(prev => ({ ...prev, [key]: '' })); return; }
-    const val = parseInt(value, 10);
-    if (!isNaN(val)) { setSettings(prev => ({ ...prev, [key]: val })); }
+    // Whitelist numeric keys
+    const numericKeys = ['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'];
+    if (numericKeys.includes(key)) {
+      if (value === '') { setSettings(prev => ({ ...prev, [key]: '' })); return; }
+      const val = parseInt(value, 10);
+      if (!isNaN(val)) { setSettings(prev => ({ ...prev, [key]: val })); return; }
+    }
+    // For everything else (strings, booleans, etc.)
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const handleBlur = (key, defaultValue) => {
@@ -230,6 +274,7 @@ const UnifiedSettingsModal = ({
   };
 
   const toggleSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
+  const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
 
   const contentVariants = {
     hidden: { opacity: 0, y: 5 },
@@ -271,8 +316,6 @@ const UnifiedSettingsModal = ({
           if (data) {
             const historyMap = {};
             data.forEach(item => {
-              // FIX: Normalize data structure so UI finds 'dailyFocusTime'
-              // Prioritize the 'data' JSON column, fallback to mapping snake_case columns
               historyMap[item.date_id] = item.data || {
                 dailyFocusTime: item.focus_time,
                 dailyBreakTime: item.break_time,
@@ -281,7 +324,6 @@ const UnifiedSettingsModal = ({
             });
 
             const todayId = formatDateId(new Date());
-            // Piggyback current session if exists
             if (stats && stats.dailyFocusTime > 0) {
               historyMap[todayId] = { ...stats, date: new Date() };
             }
@@ -301,12 +343,17 @@ const UnifiedSettingsModal = ({
   const selectedStats = getSelectedStats();
 
   const tabs = [
-    { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow.' },
-    { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel.' },
-    { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress.' },
-    { id: 'account', label: 'Account', icon: User, description: 'Profile & subscription.' }
+    { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow' },
+    {
+      id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel',
+      children: [
+        { id: 'appearance-background', label: 'Background' },
+        { id: 'appearance-clock', label: 'Clock Style' }
+      ]
+    },
+    { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress' },
+    { id: 'account', label: 'Account', icon: User, description: 'Profile & subscription' }
   ];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -326,31 +373,22 @@ const UnifiedSettingsModal = ({
 
               {/* === MOBILE HEADER === */}
               <div className="md:hidden flex flex-col bg-[#0F0F0F] border-b border-white/5 shrink-0 z-20">
-                {/* Row 1: Title & Controls */}
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
                   <h2 className="text-2xl font-serif-display text-white tracking-tight">Settings</h2>
                   <div className="flex items-center gap-3">
-                    {/* Account Avatar */}
                     {user && (
-                      <button
-                        onClick={() => setActiveTab('account')}
-                        className="relative w-10 h-10 flex items-center justify-center transition-all duration-300"
-                      >
-                        {activeTab === 'account' && (
-                          <motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-full z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />
-                        )}
+                      <button onClick={() => setActiveTab('account')} className="relative w-10 h-10 flex items-center justify-center transition-all duration-300">
+                        {activeTab === 'account' && (<motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-full z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />)}
                         <div className="relative z-10 scale-90"><Avatar userData={user} isPro={isPro} size="sm" /></div>
                       </button>
                     )}
-                    {/* Close Button */}
                     <CloseButton onClick={onClose} />
                   </div>
                 </div>
-
-                {/* Row 2: Navigation Grid (RESTORED TO "PERFECT" STATE) */}
+                {/* Mobile Nav - simplified for now, hierarchy might be tricky on mobile so keeping flat-ish or parent only */}
                 <div className="grid grid-cols-3 gap-2 px-4 pb-4">
                   {tabs.filter(t => t.id !== 'account').map((tab) => {
-                    const isActive = activeTab === tab.id;
+                    const isActive = activeTab === tab.id || activeTab.startsWith(tab.id + '-');
                     const Icon = tab.icon;
                     return (
                       <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-300 ${isActive ? 'text-black' : 'text-white/60 bg-white/5'}`}>
@@ -362,38 +400,87 @@ const UnifiedSettingsModal = ({
                 </div>
               </div>
 
-              {/* === DESKTOP SIDEBAR === */}
-              <div className="hidden md:flex w-72 bg-[#0F0F0F] border-r border-white/5 p-6 flex-col shrink-0 relative">
-                <div className="flex mb-8 items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"><Settings size={16} className="text-black" /></div>
-                  <h2 className="text-xl font-serif-display text-white tracking-tight">Settings</h2>
+              {/* === DESKTOP SIDEBAR (COMPACT) === */}
+              <div className="hidden md:flex w-64 bg-[#0F0F0F] border-r border-white/5 p-4 flex-col shrink-0 relative">
+                <div className="flex mb-6 items-center gap-3 px-2">
+                  <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"><Settings size={14} className="text-black" /></div>
+                  <h2 className="text-lg font-serif-display text-white tracking-tight">Settings</h2>
                 </div>
-                <nav className="flex flex-col gap-2 flex-1 w-full">
+                <nav className="flex flex-col gap-1 flex-1 w-full overflow-y-auto custom-scrollbar">
                   {tabs.slice(0, 3).map((tab) => {
-                    const isActive = activeTab === tab.id; const Icon = tab.icon;
+                    const isSelected = activeTab === tab.id || (tab.children && activeTab.startsWith(tab.id + '-'));
+                    const isExpanded = expandedSections[tab.id];
+                    const Icon = tab.icon;
+
                     return (
-                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative p-4 rounded-2xl text-left transition-all duration-300 group overflow-hidden flex-shrink-0 ${isActive ? 'text-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}>
-                        {isActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-2xl" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
-                        <div className="relative z-10 flex items-center gap-3"><Icon size={20} className={isActive ? "text-black" : "group-hover:scale-110 transition-transform"} /><div><span className="block font-bold text-sm">{tab.label}</span><span className={`text-xs ${isActive ? 'text-black/60' : 'text-white/40'}`}>{tab.description}</span></div></div>
-                      </button>
+                      <div key={tab.id} className="flex flex-col gap-1">
+                        <button
+                          onClick={() => {
+                            setActiveTab(tab.id);
+                            if (tab.children) toggleSection(tab.id);
+                          }}
+                          className={`relative px-3 py-2.5 rounded-xl text-left transition-all duration-200 group flex items-center justify-between ${isSelected && !tab.children ? 'text-black' : isSelected ? 'text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                        >
+                          {/* Only show pill on parent if active AND no children (or if logic demands it, but here we want pill on children when children are active)
+                              Actually, user wants "flow through". So if a child is active, maybe the Parent shouldn't have the pill, but the child should.
+                              But the parent "Appearance" is also a clickable page.
+                              Let's just put the pill on the exact active item.
+                          */}
+                          {activeTab === tab.id && <motion.div layoutId="activeTabPill" className={`absolute inset-0 bg-white z-0 rounded-xl ${tab.children ? 'bg-white/10' : ''}`} transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                          <div className="relative z-10 flex items-center gap-3">
+                            <Icon size={18} className={activeTab === tab.id && !tab.children ? "text-black" : "group-hover:scale-105 transition-transform"} />
+                            <span className="text-sm font-bold tracking-wide">{tab.label}</span>
+                          </div>
+                          {tab.children && (
+                            <ChevronDown size={14} className={`relative z-10 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} ${isSelected ? 'text-white/70' : 'text-white/30'}`} />
+                          )}
+                        </button>
+
+                        {/* Sub-items */}
+                        <AnimatePresence>
+                          {tab.children && isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden flex flex-col gap-0.5 ml-9 border-l border-white/10 pl-2"
+                            >
+                              {tab.children.map(child => {
+                                const isChildActive = activeTab === child.id;
+                                return (
+                                  <button
+                                    key={child.id}
+                                    onClick={() => setActiveTab(child.id)}
+                                    className={`relative text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${isChildActive ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
+                                  >
+                                    {isChildActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                                    <span className="relative z-10">{child.label}</span>
+                                  </button>
+                                )
+                              })}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     );
                   })}
                 </nav>
+
                 {user && (
-                  <div className="mt-auto flex flex-col gap-3 w-full flex-shrink-0">
+                  <div className="mt-auto flex flex-col gap-2 w-full flex-shrink-0 pt-4 border-t border-white/5">
                     {!isPro && (
-                      <button onClick={onOpenPro} className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border border-cyan-500/30 flex items-center justify-between gap-3 group transition-all">
-                        <div className="flex items-center gap-3"><div className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={14} strokeWidth={2.5} /></div><div className="flex flex-col items-start"><span className="text-cyan-400 text-xs font-bold uppercase tracking-widest leading-none">Get Flow</span><span className="text-cyan-500/50 text-[10px] leading-none mt-1">Unlock everything</span></div></div><div className="text-cyan-500/50 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all"><ChevronRight size={14} /></div>
+                      <button onClick={onOpenPro} className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border border-cyan-500/30 flex items-center justify-between gap-3 group transition-all">
+                        <div className="flex items-center gap-2.5"><div className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={12} strokeWidth={2.5} /></div><span className="text-cyan-400 text-[10px] font-bold uppercase tracking-widest leading-none">Get Flow</span></div>
                       </button>
                     )}
-                    <button onClick={() => setActiveTab('account')} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left group w-full ${activeTab === 'account' ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}>
-                      <div className="relative"><Avatar userData={user} isPro={isPro} size="sm" /></div>
-                      <div className="overflow-hidden min-w-0 flex-1"><p className={`text-sm font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p><p className="text-white/40 text-[10px] truncate group-hover:text-white/60 transition-colors">Manage Account</p></div>
+                    <button onClick={() => setActiveTab('account')} className={`flex items-center gap-3 p-2 rounded-xl border transition-all text-left group w-full ${activeTab === 'account' ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}>
+                      <div className="relative"><Avatar userData={user} isPro={isPro} size="xs" /></div>
+                      <div className="overflow-hidden min-w-0 flex-1"><p className={`text-xs font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p></div>
                     </button>
                   </div>
                 )}
               </div>
-              <CloseButton onClick={onClose} className="hidden md:flex absolute top-6 right-6" />
+              <CloseButton onClick={onClose} className="hidden md:flex absolute top-6 right-6 z-50" />
 
               {/* === CONTENT AREA === */}
               <div className="flex-1 p-5 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#0A0A0A]">
@@ -402,7 +489,6 @@ const UnifiedSettingsModal = ({
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
                       <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Timer Configuration</h3>
-                        {/* CHANGED: Vertical List Layout (Apple Style) */}
                         <div className="flex flex-col bg-white/5 border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
                           <SettingInput label="Focus Duration" value={settings.focus} onChange={(e) => updateSetting('focus', e.target.value)} onBlur={() => handleBlur('focus', 25)} min={1} max={120} />
                           <SettingInput label="Short Break" value={settings.shortBreak} onChange={(e) => updateSetting('shortBreak', e.target.value)} onBlur={() => handleBlur('shortBreak', 5)} min={1} max={30} />
@@ -410,24 +496,28 @@ const UnifiedSettingsModal = ({
                           <SettingInput label="Intervals" value={settings.pomosBeforeLongBreak} onChange={(e) => updateSetting('pomosBeforeLongBreak', e.target.value)} onBlur={() => handleBlur('pomosBeforeLongBreak', 4)} min={1} max={10} />
                         </div>
                       </section>
-
-
-
                       <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
                           <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
-
-
                         </div>
                       </section>
                     </motion.div>
                   )}
 
                   {activeTab === 'appearance' && (
-                    <motion.div key="appear" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                      <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 pt-2 pb-1 leading-normal">Environment</h3><p className="text-white/50 text-sm">Choose your focus atmosphere.</p></div>
+                    <motion.div key="appear-master" variants={contentVariants} initial="hidden" animate="visible" exit="exit">
+                      <MasterAppearanceView onNavigate={setActiveTab} />
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'appearance-background' && (
+                    <motion.div key="appear-bg" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <button onClick={() => setActiveTab('appearance')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
+                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Background</h3></div>
+                      </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
@@ -441,6 +531,155 @@ const UnifiedSettingsModal = ({
                             </button>
                           );
                         })}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'appearance-clock' && (
+                    <motion.div key="appear-clock" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <button onClick={() => setActiveTab('appearance')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
+                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Clock Style</h3></div>
+                      </div>
+
+                      {/* LIVE PREVIEW CARD */}
+                      <div className="w-full aspect-video md:aspect-[21/9] bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center relative overflow-hidden group">
+                        {/* Background Preview */}
+                        {(settings.background && (settings.background.includes('.mp4') || settings.background.includes('.webm'))) ? (
+                          <video
+                            src={settings.background}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover opacity-20 z-0"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 z-0 opacity-20" style={{ backgroundImage: `url(${settings.background})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                        )}
+
+                        <div className={`relative z-10 transition-all duration-300 leading-none tracking-tight
+                             ${(settings.clockType || 'default') === 'default' ? 'font-clock' : ''}
+                             ${settings.clockType === 'sans' ? 'font-clock-sans' : ''}
+                             ${settings.clockType === 'serif' ? 'font-clock-serif' : ''}
+                             ${settings.clockType === 'mono' ? 'font-clock-mono' : ''}
+                             ${settings.clockType === 'display' ? 'font-clock-display' : ''}
+                             ${settings.clockType === 'digital' ? 'font-clock-digital' : ''}
+                             ${settings.clockType === 'pixel' ? 'font-clock-pixel' : ''}
+                             ${settings.clockType === 'cyber' ? 'font-clock-cyber' : ''}
+                             ${settings.clockType === 'hand' ? 'font-clock-hand' : ''}
+                             ${settings.clockType === 'block' ? 'font-clock-block' : ''}
+                             ${settings.clockType === 'elegant' ? 'font-clock-elegant' : ''}
+                             ${settings.clockType === 'neon' ? 'font-clock-neon' : ''}
+                             ${settings.clockType === 'round' ? 'font-clock-round' : ''}
+                             ${(settings.clockStyle || 'solid') === 'outline' ? 'text-transparent' : 'text-white'}
+                           `}
+                          style={{
+                            fontSize: settings.clockSize === 'small' ? '3rem' : settings.clockSize === 'medium' ? '5rem' : settings.clockSize === 'giant' ? '9rem' : (settings.clockSize === 'mammoth' ? '11rem' : '7rem'),
+                            WebkitTextStroke: (settings.clockStyle === 'outline') ? '2px rgba(255,255,255,0.9)' : '0px',
+                          }}
+                        >
+                          {settings.focus || 25}:00
+                        </div>
+
+                        <div className="absolute bottom-3 left-0 right-0 text-center text-[10px] text-white/30 uppercase tracking-widest font-bold">Preview</div>
+                      </div>
+
+                      <div className="space-y-6">
+                        {/* TYPEFACE SELECTOR -> Renamed to FONT & Collapsible */}
+                        <div className="space-y-3">
+                          <button
+                            onClick={() => toggleSection('font')}
+                            className="flex items-center justify-between w-full text-xs font-bold text-white/40 uppercase tracking-widest pl-1 hover:text-white transition-colors"
+                          >
+                            <span>Font</span>
+                            <ChevronDown size={14} className={`transition-transform duration-300 ${expandedSections.font ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          <AnimatePresence>
+                            {(expandedSections.font ?? true) && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                  {[
+                                    { id: 'default', label: 'Default', class: 'font-clock' },
+                                    { id: 'sans', label: 'San Francisco', class: 'font-clock-sans' },
+                                    { id: 'serif', label: 'Playfair', class: 'font-clock-serif pb-1' },
+                                    { id: 'mono', label: 'Space Mono', class: 'font-clock-mono text-xs' },
+                                    { id: 'display', label: 'Syne', class: 'font-clock-display font-extrabold' },
+                                    { id: 'pixel', label: '8-Bit', class: 'font-clock-pixel text-[10px]' },
+                                    { id: 'cyber', label: 'Cyberpunk', class: 'font-clock-cyber font-bold' },
+                                    { id: 'block', label: 'Impact', class: 'font-clock-block tracking-wide' },
+                                    { id: 'elegant', label: 'Vogue', class: 'font-clock-elegant italic' },
+                                    { id: 'hand', label: 'Marker', class: 'font-clock-hand text-sm' },
+                                    { id: 'neon', label: 'Neon', class: 'font-clock-neon text-[10px]' },
+                                    { id: 'round', label: 'Pop', class: 'font-clock-round' },
+                                  ].map(font => (
+                                    <button
+                                      key={font.id}
+                                      onClick={() => updateSetting('clockType', font.id)}
+                                      className={`h-20 rounded-2xl border flex flex-col items-center justify-center transition-all ${settings.clockType === font.id || (!settings.clockType && font.id === 'default') ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 text-white/60 hover:text-white hover:bg-white/10'}`}
+                                      title={font.label}
+                                    >
+                                      <span className={`text-2xl mb-1 ${font.class}`}>{settings.focus || 25}:00</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* SIZE SELECTOR - Reverted to Grid/Button Style */}
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-widest pl-1">Size</label>
+                            <div className="grid grid-cols-5 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
+                              {['small', 'medium', 'large', 'giant', 'mammoth'].map((size, idx) => (
+                                <button
+                                  key={size}
+                                  onClick={() => updateSetting('clockSize', size)}
+                                  className={`relative group h-full py-3 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 ${settings.clockSize === size || (!settings.clockSize && size === 'large') ? 'bg-white text-black shadow-md' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}
+                                  title={size.charAt(0).toUpperCase() + size.slice(1)}
+                                >
+                                  {/* Visual representation of size */}
+                                  <div className={`rounded-full bg-current transition-all duration-500`}
+                                    style={{
+                                      width: `${6 + (idx * 3)}px`,
+                                      height: `${6 + (idx * 3)}px`,
+                                      opacity: settings.clockSize === size ? 1 : 0.6
+                                    }}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex justify-between px-1">
+                              <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Small</span>
+                              <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Mammoth</span>
+                            </div>
+                          </div>
+
+                          {/* STYLE TOGGLE */}
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-white/40 uppercase tracking-widest pl-1">Style</label>
+                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 relative h-[52px]">
+                              {['solid', 'outline'].map(style => (
+                                <button
+                                  key={style}
+                                  onClick={() => updateSetting('clockStyle', style)}
+                                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all relative z-10 ${settings.clockStyle === style || (!settings.clockStyle && style === 'solid') ? 'text-black' : 'text-white/40 hover:text-white'}`}
+                                >
+                                  {style}
+                                  {(settings.clockStyle === style || (!settings.clockStyle && style === 'solid')) && <motion.div layoutId="stylePill" className="absolute inset-0 bg-white rounded-lg -z-10 shadow-sm" transition={{ type: "spring", bounce: 0.15, duration: 0.4 }} />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   )}

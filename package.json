@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/playfair-display": "^5.2.8",
+    "@fontsource/space-mono": "^5.2.9",
+    "@fontsource/syne": "^5.2.7",
     "@supabase/supabase-js": "^2.87.1",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",

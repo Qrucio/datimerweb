@@ -17,7 +17,7 @@ import SmartIntervention from './components/SmartIntervention';
 import BreakCheckIn from './components/BreakCheckIn'; // NEW
 import MusicModal from './components/modals/MusicModal';
 import VaultModal from './components/modals/VaultModal';
-import UserProfileModal from './components/modals/UserProfileModal';
+import SocialProfileModal from './components/modals/SocialProfileModal';
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
@@ -27,7 +27,7 @@ import TaskReminderSystem from './components/TaskReminderSystem';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
 // GoogleGenerativeAI import removed per user request
-import CaffeineTracker from './components/CaffeineTracker';
+// import CaffeineTracker from './components/CaffeineTracker';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -339,9 +339,8 @@ const formatDetailedDuration = (seconds) => {
 
 const GlobalStyles = () => (
   <style>{`
-   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@700&family=Rajdhani:wght@700&display=swap');
+   @import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bungee+Shade&family=Inter:wght@300;400;500;600&family=Montserrat:wght@700&family=Orbitron:wght@400;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Rajdhani:wght@700&family=Righteous&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
     @import url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css');
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Rajdhani:wght@700&display=swap');
     
     body { 
       background-color: #000000; 
@@ -370,6 +369,21 @@ const GlobalStyles = () => (
     
     .font-serif-display { font-family: 'Playfair Display', serif; }
     .font-clock { font-family: 'Montserrat', sans-serif; font-weight: 700; }
+    .font-clock-sans { font-family: 'Inter', sans-serif; }
+    .font-clock-serif { font-family: 'Playfair Display', serif; }
+    .font-clock-mono { font-family: 'Space Mono', monospace; }
+    .font-clock-display { font-family: 'Syne', sans-serif; }
+    
+    /* NEW CLOCK FONTS */
+    .font-clock-digital { font-family: 'DSEG7 Classic', monospace; } /* Already imported via CDN */
+    .font-clock-pixel { font-family: 'Press Start 2P', cursive; }
+    .font-clock-cyber { font-family: 'Orbitron', sans-serif; }
+    .font-clock-hand { font-family: 'Permanent Marker', cursive; }
+    .font-clock-block { font-family: 'Anton', sans-serif; }
+    .font-clock-elegant { font-family: 'Abril Fatface', serif; }
+    .font-clock-neon { font-family: 'Bungee Shade', cursive; }
+    .font-clock-round { font-family: 'Righteous', cursive; }
+    
     .font-logo { font-family: 'Rajdhani', sans-serif; font-weight: 700; }
     
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -925,412 +939,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
 
 // --- HELPERS FOR FRIEND STATS ---
 
-const FriendStatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlight = false }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, duration: 0.3 }}
-    className={`relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden group 
-      ${isHero ? 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10 col-span-2' : 'bg-black/20 border border-white/5 hover:border-white/10 transition-colors'} 
-      ${highlight ? 'ring-1 ring-white/20 bg-white/5' : ''}`
-    }
-  >
-    <div className="flex justify-between items-start z-10">
-      <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{label}</span>
-      <div className={`p-1.5 rounded-lg ${isHero ? 'bg-white/10 text-white' : 'bg-white/5 text-white/20 group-hover:text-white/50 transition-colors'}`}>
-        <Icon size={isHero ? 18 : 14} />
-      </div>
-    </div>
-    <div className={`mt-4 font-mono font-light tracking-wide text-white z-10 ${isHero ? 'text-3xl' : 'text-xl'}`}>
-      {value}
-    </div>
-    {isHero && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none" />}
-  </motion.div>
-);
 
-const FriendStreakCard = ({ streak }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
-    className="col-span-2 relative overflow-hidden rounded-2xl p-6 border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40 group"
-  >
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.15),transparent_50%)]" />
-    <div className="flex items-center justify-between relative z-10">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] font-bold text-orange-400/80 uppercase tracking-widest">Current Streak</span>
-        </div>
-        <div className="text-4xl font-serif-display text-white flex items-baseline gap-1">
-          {streak} <span className="text-sm font-sans text-white/40 font-medium">days</span>
-        </div>
-      </div>
-      <motion.div
-        animate={{ scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        className="text-orange-500"
-      >
-        <Flame size={48} fill="currentColor" fillOpacity={0.2} strokeWidth={1.5} />
-      </motion.div>
-    </div>
-  </motion.div>
-);
-
-const FriendHistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedDate, onSelectDate, isExpanded, setIsExpanded }) => {
-  const [viewMode, setViewMode] = useState('days');
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
-  // Basic Calendar Logic
-  const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
-
-  const handlePrevMonth = (e) => { e?.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); };
-  const handleNextMonth = (e) => { e?.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); };
-
-  // Navigation
-  const handlePrevDay = (e) => {
-    e?.stopPropagation();
-    const prev = new Date(selectedDate);
-    prev.setDate(prev.getDate() - 1);
-    onSelectDate(prev);
-    if (prev.getMonth() !== currentMonth.getMonth()) setCurrentMonth(new Date(prev.getFullYear(), prev.getMonth(), 1));
-  };
-  const handleNextDay = (e) => {
-    e?.stopPropagation();
-    const next = new Date(selectedDate);
-    next.setDate(next.getDate() + 1);
-    onSelectDate(next);
-    if (next.getMonth() !== currentMonth.getMonth()) setCurrentMonth(new Date(next.getFullYear(), next.getMonth(), 1));
-  };
-
-  const blanks = Array(firstDayOfMonth).fill(null);
-  const days = Array.from({ length: daysInMonth }, (_, i) => new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i + 1));
-  const allSlots = [...blanks, ...days];
-
-  return (
-    <motion.div layout className={`w-full bg-white/5 border border-white/5 rounded-3xl overflow-hidden relative transition-colors duration-300 ${isExpanded ? 'p-6' : 'p-4 hover:bg-white/10 cursor-pointer'}`} onClick={() => !isExpanded && setIsExpanded(true)}>
-      <AnimatePresence mode="popLayout" initial={false}>
-        {isExpanded ? (
-          <motion.div key="expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-lg font-serif-display text-white hover:text-white/80 transition-colors flex items-center gap-2">
-                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </button>
-              <div className="flex gap-1">
-                <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
-                <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronRight size={18} /></button>
-                <button onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors ml-2"><ChevronDown size={18} className="rotate-180" /></button>
-              </div>
-            </div>
-            {viewMode === 'days' ? (
-              <div className="animate-fade-in">
-                <div className="grid grid-cols-7 mb-2">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (<div key={i} className="text-center text-[10px] font-bold text-white/20 py-2">{d}</div>))}</div>
-                <div className="grid grid-cols-7 gap-y-2">
-                  {allSlots.map((date, i) => {
-                    if (!date) return <div key={i} />;
-                    const dateId = formatDateId(date);
-                    const data = historyData[dateId];
-                    const hasData = data && data.dailyFocusTime > 0;
-                    const isSelected = selectedDate && formatDateId(selectedDate) === dateId;
-                    const isToday = formatDateId(new Date()) === dateId;
-                    const intensity = hasData ? Math.min(data.dailyFocusTime / (4 * 3600), 1) : 0;
-
-                    return (
-                      <div key={i} className="flex justify-center">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onSelectDate(date); }}
-                          className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 relative group 
-                            ${isSelected ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.5)] scale-110 z-10' : ''} 
-                            ${!isSelected && hasData ? 'text-white hover:bg-white/10' : ''} 
-                            ${!isSelected && !hasData ? 'text-white/20 hover:text-white/50' : ''} 
-                            ${isToday && !isSelected ? 'border border-white/20' : ''}`}
-                        >
-                          {!isSelected && hasData && <div className="absolute inset-0 bg-white rounded-full opacity-10" style={{ opacity: 0.1 + (intensity * 0.2) }} />}
-                          {!isSelected && hasData && <div className="absolute bottom-1.5 w-1 h-1 rounded-full bg-green-400 shadow-[0_0_5px_rgba(74,222,128,0.8)]" />}
-                          {date.getDate()}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-3 animate-fade-in">
-                {monthNames.map((m, i) => (
-                  <button key={m} onClick={(e) => { e.stopPropagation(); setCurrentMonth(new Date(currentMonth.getFullYear(), i, 1)); setViewMode('days'); }} className={`p-3 rounded-xl text-sm font-medium transition-colors ${currentMonth.getMonth() === i ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'}`}>
-                    {m.substring(0, 3)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        ) : (
-          <motion.div key="collapsed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-white/10 rounded-full text-white"><CalendarIcon size={18} /></div>
-              <div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-lg font-serif-display text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div>
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={handlePrevDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
-              <button onClick={handleNextDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronRight size={16} /></button>
-              <div className="w-px h-4 bg-white/10 mx-2"></div>
-              <button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs text-white/70 hover:text-white transition-colors"><span>Expand</span><ChevronDown size={14} /></button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
-
-const FriendProfileModal = ({ isOpen, onClose, friend }) => {
-  const [activeTab, setActiveTab] = useState('today');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [historyData, setHistoryData] = useState({});
-  const [isCalendarExpanded, setIsCalendarExpanded] = useState(true);
-
-
-
-  const [profileData, setProfileData] = useState(friend || {});
-
-  // SYNC PROFILE DATA WHEN FRIEND PROP CHANGES
-  useEffect(() => {
-    setProfileData(friend || {});
-  }, [friend]);
-
-  useEffect(() => {
-    if (isOpen && friend) {
-      // 1. Listen to Profile Changes
-      const channel = supabase.channel(`friend_profile_${friend.uid}`)
-        .on('postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${friend.uid}` },
-          (payload) => {
-            const newP = payload.new;
-            setProfileData(prev => ({
-              ...prev,
-              displayName: newP.display_name,
-              handle: newP.handle,
-              photoURL: newP.photo_url,
-              isPro: newP.is_pro,
-              timerState: newP.timer_state,
-              // Ensure stats is not overwritten by null if the update lacks it, 
-              // but usually profiles update sends full row.
-              // Also merge streak from payload if present (custom column) or stats JSON
-              stats: newP.stats || {},
-              lastActive: newP.last_active,
-              streak: newP.stats?.currentStreak || 0
-            }));
-          }
-        )
-        .subscribe();
-
-      // 2. Fetch History
-      const fetchHistory = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('history')
-            .select('*')
-            .eq('user_id', friend.uid)
-            .order('date_id', { ascending: false })
-            .limit(100);
-
-          if (data) {
-            const historyMap = {};
-            data.forEach(row => {
-              historyMap[row.date_id] = row.data || {
-                dailyFocusTime: row.focus_time,
-                dailyBreakTime: row.break_time,
-                dailySessions: row.sessions
-              };
-            });
-            setHistoryData(historyMap);
-          }
-        } catch (e) {
-          console.log("History access restricted or failed", e);
-        }
-      };
-
-      fetchHistory();
-      return () => { supabase.removeChannel(channel); };
-    }
-  }, [isOpen, friend]);
-
-  const getStats = () => {
-    const s = profileData.stats || {};
-
-    // Check if data is from today to prevent showing yesterday's stats
-    const lastUpdateTimestamp = profileData.timerState?.lastUpdated || 0;
-    const isDataFromToday = isSameDay(new Date(lastUpdateTimestamp), new Date());
-
-    if (!isDataFromToday) {
-      return {
-        dailyFocusTime: 0,
-        dailyBreakTime: 0,
-        dailySessions: 0,
-        currentStreak: s.currentStreak ?? profileData.streak ?? 0 // Keep streak
-      };
-    }
-
-    return {
-      dailyFocusTime: s.dailyFocusTime ?? profileData.todayFocusTime ?? 0,
-      dailyBreakTime: s.dailyBreakTime ?? 0,
-      dailySessions: s.dailySessions ?? 0,
-      currentStreak: s.currentStreak ?? profileData.streak ?? 0
-    };
-  };
-  const currentStats = getStats();
-
-  const getSelectedStats = () => {
-    const dateId = formatDateId(selectedDate);
-    const todayId = formatDateId(new Date());
-    if (dateId === todayId) return currentStats;
-    return historyData[dateId] || { dailyFocusTime: 0, dailyBreakTime: 0, dailySessions: 0 };
-  };
-
-  const selectedStats = getSelectedStats();
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100]" />
-
-          <div className="fixed inset-0 z-[101] flex items-center justify-center pointer-events-none md:p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", bounce: 0, duration: 0.25 }}
-              className="w-full md:max-w-3xl h-[100dvh] md:h-[85vh] bg-[#0A0A0A] border-none md:border border-white/10 rounded-none md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col pointer-events-auto relative"
-            >
-
-              {/* --- HEADER --- */}
-              <div className="flex flex-col bg-[#0F0F0F] border-b border-white/5 shrink-0 z-20 pb-4 md:pb-6">
-
-                {/* Top Row: Info & Close */}
-                <div className="flex items-center justify-between px-5 pt-5 pb-4 md:px-8 md:pt-8">
-                  <div className="flex items-center gap-4">
-                    {/* AVATAR */}
-                    <div className="relative w-12 h-12 md:w-14 md:h-14 shrink-0">
-                      <Avatar userData={profileData} size="full" isPro={profileData?.isPro} />
-                    </div>
-
-                    <div className="flex flex-col justify-center">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-xl md:text-2xl font-serif-display text-white tracking-tight leading-none">
-                          {profileData?.displayName}
-                        </h2>
-
-                        {/* --- MINIMALIST FLOW BADGE --- */}
-                        {(profileData?.isPro || (profileData?.uid && DEV_USER_IDS.includes(profileData.uid))) && (
-                          <FlowTag
-                            isDev={profileData?.uid && DEV_USER_IDS.includes(profileData.uid)}
-                            alt="Flow Member"
-                            className={`h-5 w-auto object-contain mt-0.5 ${(profileData?.uid && DEV_USER_IDS.includes(profileData.uid)) ? 'drop-shadow-[0_0_12px_rgba(168,85,247,0.8)]' : 'drop-shadow-[0_0_12px_rgba(6,182,212,0.8)]'}`}
-                            title={(profileData?.uid && DEV_USER_IDS.includes(profileData.uid)) ? "Dev Member" : "Flow Member"}
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-white/50 font-medium">{profileData?.handle}</span>
-                        {profileData?.isOnline && (
-                          <span className={`flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full border font-medium uppercase tracking-wider ${profileData.isActive ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400'}`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${profileData.isActive ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                            {profileData.statusText?.split('•')[0]}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <CloseButton onClick={onClose} />
-                </div>
-
-                {/* View Switcher Pills */}
-                <div className="px-5 md:px-8">
-                  <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 relative">
-                    {['today', 'history'].map(view => (
-                      <button
-                        key={view}
-                        onClick={() => setActiveTab(view)}
-                        className={`relative flex items-center justify-center px-6 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
-                      >
-                        {activeTab === view && (
-                          <motion.div
-                            layoutId="friendStatsPill"
-                            className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          />
-                        )}
-                        {view}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* --- CONTENT AREA --- */}
-              <div className="flex-1 p-5 md:p-8 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#0A0A0A]">
-                <AnimatePresence mode="wait">
-                  {activeTab === 'today' ? (
-                    <motion.div
-                      key="today"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                    >
-                      <FriendStatCard label="Focus Today" value={formatDetailedDuration(currentStats.dailyFocusTime || 0)} icon={Zap} isHero={true} />
-                      <FriendStatCard label="Break Time" value={formatDetailedDuration(currentStats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} />
-                      <FriendStatCard label="Sessions" value={currentStats.dailySessions || 0} icon={TrendingUp} delay={0.15} />
-                      <FriendStreakCard streak={currentStats.currentStreak || 0} />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="history"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.15 }}
-                      className="flex flex-col gap-6"
-                    >
-                      <FriendHistoryCalendar
-                        historyData={historyData}
-                        currentMonth={currentMonth}
-                        setCurrentMonth={setCurrentMonth}
-                        selectedDate={selectedDate}
-                        onSelectDate={setSelectedDate}
-                        isExpanded={isCalendarExpanded}
-                        setIsExpanded={setIsCalendarExpanded}
-                      />
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3 border-t border-white/10 pt-6">
-                          <h4 className="font-serif-display text-lg text-white">
-                            {!isCalendarExpanded ? "Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                          </h4>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          <FriendStatCard label="Focus Time" value={formatDetailedDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight />
-                          <FriendStatCard label="Break Time" value={formatDetailedDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} />
-                          <FriendStatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-            </motion.div>
-          </div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-};
 
 const StrictConfirmationModal = ({ isOpen, onClose, onConfirm }) => (
   <AnimatePresence>
@@ -2553,7 +2162,7 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
                 `}
               >
                 <div className={`absolute inset-0 bg-gradient-to-r ${isIntentionMode ? 'from-purple-500/20 to-transparent' : 'from-white/10 to-transparent'}`} />
-                {isIntentionMode ? <Brain size={18} className="relative z-10 text-purple-400" /> : <Zap size={18} className="relative z-10 text-white/60 group-hover:text-white" />}
+                {/* {isIntentionMode ? <Brain size={18} className="relative z-10 text-purple-400" /> : <Zap size={18} className="relative z-10 text-white/60 group-hover:text-white" />} */}
                 <span className={`text-xs font-bold relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap ${isIntentionMode ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>
                   {buttonLabel}
                 </span>
@@ -4764,7 +4373,7 @@ function MainApp() {
         const friendIds = friendships.map(f => f.friend_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, display_name, handle, photo_url, is_pro, timer_state, last_active, stats')
+          .select('id, display_name, handle, photo_url, is_pro, timer_state, last_active, stats, about')
           .in('id', friendIds);
 
         if (profiles) {
@@ -4783,6 +4392,7 @@ function MainApp() {
               isPinned: f.is_pinned,
               timerState: p.timer_state,
               stats: p.stats,
+              about: p.about,
               ...status
             };
           }).filter(Boolean);
@@ -6322,12 +5932,12 @@ function MainApp() {
                 </motion.div>
                 <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
                 <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} isExtensionConnected={isExtensionConnected} mode={mode} onMenuChange={setIsStrictMenuOpen} />
-                <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
+                {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
                   <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
                   <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>Caffeine</motion.span>
-                </motion.button>
+                </motion.button> */}
               </motion.div>
             </div>
 
@@ -6536,7 +6146,39 @@ function MainApp() {
                 </div>
 
                 {/* --- TIMER --- */}
-                <div className={`font-clock text-[20vw] md:text-[10rem] lg:text-[12rem] leading-none tracking-normal select-none tabular-nums text-white/90 transition-all duration-700 ${isAIPlanning ? 'animate-pulse drop-shadow-[0_0_100px_rgba(192,132,252,1)] text-purple-100' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}`}>
+                <div
+                  className={`
+                    leading-none tracking-normal select-none tabular-nums transition-all duration-700
+                    
+                    ${/* FONT TYPE LOGIC */ ''}
+                    ${(settings.clockType || 'default') === 'default' ? 'font-clock' : ''}
+                    ${settings.clockType === 'sans' ? 'font-clock-sans' : ''}
+                    ${settings.clockType === 'serif' ? 'font-clock-serif' : ''}
+                    ${settings.clockType === 'mono' ? 'font-clock-mono' : ''}
+                    ${settings.clockType === 'display' ? 'font-clock-display' : ''}
+                    ${settings.clockType === 'digital' ? 'font-clock-digital' : ''}
+                    ${settings.clockType === 'pixel' ? 'font-clock-pixel' : ''}
+                    ${settings.clockType === 'cyber' ? 'font-clock-cyber' : ''}
+                    ${settings.clockType === 'hand' ? 'font-clock-hand' : ''}
+                    ${settings.clockType === 'block' ? 'font-clock-block' : ''}
+                    ${settings.clockType === 'elegant' ? 'font-clock-elegant' : ''}
+                    ${settings.clockType === 'neon' ? 'font-clock-neon' : ''}
+                    ${settings.clockType === 'round' ? 'font-clock-round' : ''}
+                    
+                    ${({
+                      'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                      'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                      'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
+                      'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
+                    })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
+
+                    ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
+                    ${isAIPlanning ? 'animate-pulse drop-shadow-[0_0_100px_rgba(192,132,252,1)] text-purple-100' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
+                  `}
+                  style={{
+                    WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
+                  }}
+                >
                   {formatTime(timeLeft)}
                 </div>
 
@@ -6574,7 +6216,7 @@ function MainApp() {
                   onOpenPro={() => setProModalSource('arcade')}
                 />
 
-                <TimerModeSelector
+                {/* <TimerModeSelector
                   mode={mode}
                   opacityClass={uiOpacityClass}
                   isIntentionMode={settings.intentionMode}
@@ -6585,7 +6227,7 @@ function MainApp() {
                   }}
                   isPro={isPro}
                   onOpenPro={() => setProModalSource('personalities')}
-                />
+                /> */}
 
               </div>
             </main>
@@ -6626,13 +6268,21 @@ function MainApp() {
         onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
       />
 
-      <FriendProfileModal
-        isOpen={showStats} // Using showStats state to trigger this
+      <SocialProfileModal
+        isOpen={showStats}
         onClose={() => {
           setShowStats(false);
           setViewingFriendStats(null);
         }}
-        friend={viewingFriendStats}
+        user={viewingFriendStats}
+        currentUser={user}
+        onAddFriend={null} // Already friends or viewing stats
+        onMessage={() => {
+          setShowStats(false); // Close modal
+          setShowFriends(true); // Open friends list
+          // Ideally switch to DMs
+        }}
+        onProfileUpdate={null} // Friends can't update friend profiles
       />
 
 
@@ -6680,10 +6330,10 @@ function MainApp() {
         onConfirm={handleStrictDisable}
       />
 
-      <CaffeineTracker
+      {/* <CaffeineTracker
         isOpen={showCaffeine}
         onClose={() => setShowCaffeine(false)}
-      />
+      /> */}
 
       <SocialModal
         isOpen={showFriends}
@@ -6714,10 +6364,10 @@ function MainApp() {
         onMentionClick={handleMentionClick}
       />
 
-      <UserProfileModal
+      <SocialProfileModal
         isOpen={!!viewingProfile}
         onClose={() => setViewingProfile(null)}
-        viewingUser={viewingProfile}
+        user={viewingProfile}
         currentUser={user}
         onProfileUpdate={handleProfileUpdate}
         onAddFriend={
@@ -6729,7 +6379,6 @@ function MainApp() {
         onMessage={() => {
           setViewingProfile(null);
           setShowFriends(true);
-          // Ideally switch to DMs
         }}
       />
 

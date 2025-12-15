@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Hash, Lock, Plus, Loader2, MessageCircle } from 'lucide-react';
+import { Send, Hash, Lock, Plus, Loader2, MessageCircle, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import MessageBubble from './MessageBubble';
 import { format } from 'date-fns';
+import { deleteOldMessages } from '../../utils/cleanup';
 
 const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, onViewProfile, onMarkRead, onMentionClick, members = [] }) => {
     // --- STATE ---
@@ -47,11 +48,18 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
 
         const fetchMessages = async () => {
             setIsLoading(true);
-            // Fetch last 50 messages for this SERVER
+            // Trigger cleanup for old messages (background)
+            deleteOldMessages();
+
+            // Calculate 24h ago
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+            // Fetch last 50 messages for this SERVER, created within last 24h
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
-                .eq('server_id', serverId) // Filter by SERVER now
+                .eq('server_id', serverId)
+                .gt('created_at', twentyFourHoursAgo) // Filter for last 24h
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -725,6 +733,12 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                         <Send size={18} />
                     </button>
                 </form>
+
+                {/* PRIVACY FOOTER */}
+                <div className="flex items-center justify-center gap-1.5 mt-3 text-[10px] text-white/20 select-none">
+                    <ShieldAlert size={10} />
+                    <span>Messages are not encrypted • Auto-deleted after 24h</span>
+                </div>
             </div>
         </div>
     );
