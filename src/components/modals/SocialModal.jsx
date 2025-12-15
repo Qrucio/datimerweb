@@ -13,7 +13,7 @@ const SocialModal = ({
     onDeclineRequest, onBlockUser, onUnblockUser, checkOutgoingRequest,
     onRemoveFriend, onTogglePin, onViewStats, onSearchUsers, blockedUsers,
     isFocusing, onMarkRead, getLastReadTime, unreadCounts,
-    onViewProfile // NEW PROP
+    onViewProfile, onMentionClick // NEW PROP
 }) => {
     // --- STATE ---
     const [activeServerId, setActiveServerId] = useState(null); // null = Home/Friends
@@ -288,6 +288,7 @@ const SocialModal = ({
                                             onMarkRead={onMarkRead}
                                             getLastReadTime={getLastReadTime}
                                             onViewProfile={onViewProfile}
+                                            onMentionClick={onMentionClick}
                                         />
                                     </motion.div>
                                 ) : (

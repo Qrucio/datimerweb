@@ -2802,6 +2802,8 @@ const NoteSystemModals = ({
     }
   };
 
+
+
   // --- SHORTCUTS ---
   useEffect(() => {
     const handleEsc = (e) => {
@@ -3497,7 +3499,7 @@ function MainApp() {
   const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
   const [user, setUser] = useState(null);
-  const { totalUnread: unreadCount, markAsRead, getLastReadTime, unreadCounts } = useUnreadMessages(user);
+  const { totalUnread: unreadCount, markAsRead, getLastReadTime, unreadCounts, mentionCounts, totalMentions } = useUnreadMessages(user);
   const [onboardingStep, setOnboardingStep] = useState(() => {
     const hasHandle = localStorage.getItem('zen_user_handle'); // <--- CHECK THIS
     return hasHandle ? 3 : (localStorage.getItem('pomodoro_user_name') ? 3 : 0);
@@ -3537,6 +3539,9 @@ function MainApp() {
     setIsBmcDisabled(true);
     localStorage.setItem('zen_bmc_disabled', 'true');
   };
+
+
+
   // --- CAFFEINE TRACKER ---
   const [showCaffeine, setShowCaffeine] = useState(false);
 
@@ -4102,6 +4107,64 @@ function MainApp() {
   }, []);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
+
+  // --- SMART MENTION NOTIFICATION LOGIC ---
+  const prevMentionsRef = useRef(totalMentions);
+  const hasPingedRef = useRef(false); // Track if we've pinged for the current "unread batch"
+  const prevModeRef = useRef(mode);
+
+  // 1. Reset Ping Suppression when Modal Closes
+  useEffect(() => {
+    if (!showFriends) {
+      // User closed the modal/checked friends -> Reset the suppression so strict helper or next batch can ping
+      hasPingedRef.current = false;
+    }
+  }, [showFriends]);
+
+  // 2. Monitoring Effect
+  useEffect(() => {
+    const isModeSwitchToBreak = prevModeRef.current === 'focus' && mode !== 'focus';
+    const isNewMention = totalMentions > prevMentionsRef.current;
+
+    // RULE: Never ping in Focus
+    if (mode === 'focus') {
+      prevMentionsRef.current = totalMentions;
+      prevModeRef.current = mode;
+      return;
+    }
+
+    // RULE: If Social Modal is OPEN -> Silence (User is presumably looking at it)
+    if (showFriends) {
+      prevMentionsRef.current = totalMentions;
+      prevModeRef.current = mode;
+      return;
+    }
+
+    let shouldPing = false;
+
+    // CASE A: Switching to Break with pending mentions
+    if (isModeSwitchToBreak && totalMentions > 0) {
+      shouldPing = true;
+    }
+    // CASE B: New Mention received while in Break (and modal closed)
+    else if (isNewMention) {
+      // Only ping if we haven't suppressed it yet
+      // (User requirement: "dont get pinged further until they open the social modal")
+      if (!hasPingedRef.current) {
+        shouldPing = true;
+      }
+    }
+
+    if (shouldPing) {
+      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869.wav'); // Subtle ping
+      audio.volume = 0.5;
+      audio.play().catch(e => console.error("Ping failed", e));
+      hasPingedRef.current = true; // Suppress future pings until reset via modal open/close
+    }
+
+    prevMentionsRef.current = totalMentions;
+    prevModeRef.current = mode;
+  }, [totalMentions, mode, showFriends]);
   const [friends, setFriends] = useState([]); // List of friend objects with live status
 
   // --- UNIFIED MODAL STATE & GUEST LOGIC ---
@@ -5679,6 +5742,12 @@ function MainApp() {
             nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
 
+            // UPDATE LOCAL STATE IMMEDIATELY (Fixes Loop Bug)
+            setMode(nextMode);
+            setTimeLeft(nextTimeLeft);
+            setIsActive(nextIsActive);
+            endTimeRef.current = nextIsActive ? Date.now() + (nextTimeLeft * 1000) : null;
+
             // Pass explicit count to sync so it sends the NEW value immediately
             syncTimerState({
               pomoCount: nextCount,
@@ -5688,6 +5757,8 @@ function MainApp() {
               timeLeft: nextTimeLeft,
               lastUpdated: Date.now()
             });
+            // CRITICAL FIX: Force useEffect to re-run
+            setTimerResetKey(prev => prev + 1);
             return; // Exit here to avoid double sync below
 
           } else if (mode === 'longBreak') {
@@ -5698,6 +5769,12 @@ function MainApp() {
             nextTimeLeft = (Number(settings.focus) || 25) * 60;
             if (settings.autoStartWork) nextIsActive = true;
 
+            // UPDATE LOCAL STATE IMMEDIATELY (Fixes Loop Bug)
+            setMode(nextMode);
+            setTimeLeft(nextTimeLeft);
+            setIsActive(nextIsActive);
+            endTimeRef.current = nextIsActive ? Date.now() + (nextTimeLeft * 1000) : null;
+
             // Pass explicit count
             syncTimerState({
               pomoCount: 0,
@@ -5707,6 +5784,8 @@ function MainApp() {
               timeLeft: nextTimeLeft,
               lastUpdated: Date.now()
             });
+            // CRITICAL FIX: Force useEffect to re-run
+            setTimerResetKey(prev => prev + 1);
             return; // Exit here
           }
 
@@ -5997,6 +6076,35 @@ function MainApp() {
     }
   };
 
+  const handleMentionClick = async (handle) => {
+    const cleanHandle = handle.replace(/^@/, '');
+
+    // 1. Check if it's ME
+    if (user && (user.handle === cleanHandle || user.handle === '@' + cleanHandle)) {
+      setViewingProfile(user);
+      return;
+    }
+
+    // 2. Check friends
+    const friend = friends.find(f => f.handle === cleanHandle || f.handle === '@' + cleanHandle);
+    if (friend) {
+      setViewingProfile(friend);
+      return;
+    }
+
+    // 3. Fetch from DB
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('handle', '@' + cleanHandle).single();
+      if (data) setViewingProfile(data);
+      else {
+        // Try without @
+        const { data: data2 } = await supabase.from('profiles').select('*').eq('handle', cleanHandle).single();
+        if (data2) setViewingProfile(data2);
+        else alert("User not found");
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const handleBackgroundChange = (bgSrc) => {
     // 1. Prepare New Settings with Timestamp
     // We must stamp this so the app knows this is the "Latest Version"
@@ -6198,11 +6306,11 @@ function MainApp() {
               <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center">
                   <div className="relative">
-                    <Users size={20} className={(unreadCount > 0 && mode !== 'focus') ? "text-white" : ""} />
-                    {(unreadCount > 0 && mode !== 'focus') && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#1a0c00]" />}
+                    <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
+                    {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
                   </div>
-                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${(unreadCount > 0 && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
-                    {(unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
+                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
+                    {(totalMentions > 0 && mode !== 'focus') ? `${totalMentions} Mention${totalMentions > 1 ? 's' : ''}` : (unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
                   </motion.span>
                 </motion.button>
                 <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
@@ -6603,6 +6711,7 @@ function MainApp() {
         onSearchUsers={handleSearchUsers}
         onRemoveFriend={handleRemoveFriend}
         isFocusing={mode === 'focus'}
+        onMentionClick={handleMentionClick}
       />
 
       <UserProfileModal

@@ -8,7 +8,7 @@ import LiquidButton from '../ui/LiquidButton';
 import { getIconById } from '../../utils/iconOptions';
 import ChatArea from '../chat/ChatArea';
 
-const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile }) => {
+const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile, onMentionClick }) => {
     // SAFETY CHECK: If server is missing (e.g. just kicked), don't crash
     if (!server) return null;
 
@@ -233,7 +233,16 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="flex-1 overflow-hidden"
                         >
-                            <ChatArea serverId={server.id} user={user} isFocusing={isFocusing} userRole={userRole} lastReadTime={currentReadTime} onViewProfile={onViewProfile} />
+                            <ChatArea
+                                serverId={server.id}
+                                user={user}
+                                isFocusing={isFocusing}
+                                userRole={userRole}
+                                lastReadTime={currentReadTime}
+                                onViewProfile={onViewProfile}
+                                onMentionClick={onMentionClick}
+                                members={resolvedMembers}
+                            />
                         </motion.div>
                     )}
 
