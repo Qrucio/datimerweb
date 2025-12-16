@@ -3454,15 +3454,12 @@ function MainApp() {
   const [hasStartedSession, setHasStartedSession] = useState(false);
 
   // --- QUICKLINKS STATE (New Feature) ---
-  const [quicklinks, setQuicklinks] = useState(() => {
-    try {
-      const saved = localStorage.getItem('zen_quicklinks');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [quicklinks, setQuicklinks] = useState(() => Storage.getQuicklinks());
 
   useEffect(() => {
-    localStorage.setItem('zen_quicklinks', JSON.stringify(quicklinks));
+    if (quicklinks) {
+      Storage.saveQuicklinksLocally(quicklinks);
+    }
   }, [quicklinks]);
 
   // NEW: Track AI Planning State for Visual Feedback

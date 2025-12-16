@@ -15,6 +15,7 @@ const KEYS = {
     INVENTORY: 'zen_cache_inventory',
     SUBSCRIPTION: 'zen_cache_subscription',
     CUSTOM_ITEMS: 'zen_custom_store_items',
+    QUICKLINKS: 'zen_quicklinks',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -371,6 +372,17 @@ export const Storage = {
         try {
             return JSON.parse(localStorage.getItem(KEYS.TRASH) || '{}');
         } catch { return {}; }
+    },
+
+    // --- QUICKLINKS ---
+    saveQuicklinksLocally: (links) => {
+        localStorage.setItem(KEYS.QUICKLINKS, JSON.stringify(links));
+    },
+    getQuicklinks: () => {
+        try {
+            const saved = localStorage.getItem(KEYS.QUICKLINKS);
+            return saved ? JSON.parse(saved) : [];
+        } catch { return []; }
     },
 
     // --- 5. SETTINGS ---
