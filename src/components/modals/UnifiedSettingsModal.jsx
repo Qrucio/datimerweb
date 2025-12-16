@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { DEV_USER_IDS } from '../../utils/data'; // Import DEV_USER_IDS
@@ -13,6 +13,7 @@ import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
 import { FlowTag } from '../ui/FlowTag';
 import ProfileCard from '../profile/ProfileCard';
+import { ALARM_SOUNDS } from '../../utils/data';
 
 const toggleStyles = `
   .toggle-switch {
@@ -48,6 +49,71 @@ const toggleStyles = `
     transform: translateX(18px);
     background: #ffffff;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+  /* Liquid Glass Slider Styles (from videospeed/popup.css) */
+  .modern-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 7px;
+    background: #4a4a4e; /* Fallback/Track Color */
+    border-radius: 18px;
+    outline: none;
+    opacity: 0.9;
+    transition: opacity .2s;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+  .modern-slider:hover {
+    opacity: 1;
+  }
+  
+  /* --- THUMB: Normal State (Solid White) --- */
+  .modern-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 28px;
+    height: 20px;
+    background: #ffffff;
+    border: none;
+    border-radius: 18px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  
+  /* --- THUMB: Active State (Liquid Glass) --- */
+  .modern-slider:active::-webkit-slider-thumb {
+    transform: scale(1.6);
+    background: rgba(169, 89, 188, 0.1); /* Purple tint from reference */
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 
+      inset 0 4px 6px rgba(255, 255, 255, 0.25), 
+      inset 0 -4px 6px rgba(0, 0, 0, 0.1), 
+      0 5px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(1.5px);
+  }
+
+  .modern-slider::-moz-range-thumb {
+    width: 28px;
+    height: 20px;
+    background: #ffffff;
+    border: none;
+    border-radius: 18px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  .modern-slider:active::-moz-range-thumb {
+    transform: scale(1.6);
+    background: rgba(169, 89, 188, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 
+      inset 0 4px 6px rgba(255, 255, 255, 0.25), 
+      inset 0 -4px 6px rgba(0, 0, 0, 0.1), 
+      0 5px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(1.5px);
   }
 `;
 
@@ -199,15 +265,15 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
 // (UserProfileCard removed)
 
 // --- MAIN MODAL COMPONENT ---
-const MasterAppearanceView = ({ onNavigate }) => (
+const MasterCustomizeView = ({ onNavigate }) => (
   <div className="space-y-4 max-w-2xl animate-fade-in">
     <div>
-      <h3 className="text-2xl font-serif-display text-white mb-1">Appearance</h3>
-      <p className="text-white/50 text-sm">Customize your focus environment.</p>
+      <h3 className="text-2xl font-serif-display text-white mb-1">Customize</h3>
+      <p className="text-white/50 text-sm">Personalize your focus environment.</p>
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <button onClick={() => onNavigate('appearance-background')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
+      <button onClick={() => onNavigate('customize-background')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
         <div className="relative z-10">
           <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Palette size={20} />
@@ -218,7 +284,7 @@ const MasterAppearanceView = ({ onNavigate }) => (
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
 
-      <button onClick={() => onNavigate('appearance-clock')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
+      <button onClick={() => onNavigate('customize-clock')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden">
         <div className="relative z-10">
           <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Clock size={20} />
@@ -228,6 +294,17 @@ const MasterAppearanceView = ({ onNavigate }) => (
         </div>
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
+
+      {/* <button onClick={() => onNavigate('customize-sound')} className="group relative p-6 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-3xl transition-all text-left overflow-hidden md:col-span-2">
+        <div className="relative z-10">
+          <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Volume2 size={20} />
+          </div>
+          <h4 className="text-lg font-bold text-white mb-1">Timer Sound</h4>
+          <p className="text-xs text-white/50">Select alarm sounds and volume.</p>
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button> */}
     </div>
   </div>
 );
@@ -238,13 +315,13 @@ const UnifiedSettingsModal = ({
   isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [expandedSections, setExpandedSections] = useState({ appearance: true });
+  const [expandedSections, setExpandedSections] = useState({ customize: true });
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
       // Ensure parents are expanded if a child is initially selected (logic can be enhanced)
-      if (initialTab.startsWith('appearance')) setExpandedSections(prev => ({ ...prev, appearance: true }));
+      if (initialTab.startsWith('customize')) setExpandedSections(prev => ({ ...prev, customize: true }));
     }
   }, [isOpen, initialTab]);
 
@@ -259,19 +336,36 @@ const UnifiedSettingsModal = ({
   const updateSetting = (key, value) => {
     // Whitelist numeric keys
     const numericKeys = ['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'];
+
     if (numericKeys.includes(key)) {
-      if (value === '') { setSettings(prev => ({ ...prev, [key]: '' })); return; }
+      if (value === '') {
+        setSettings(prev => ({ ...prev, [key]: '' }));
+        return;
+      }
       const val = parseInt(value, 10);
-      if (!isNaN(val)) { setSettings(prev => ({ ...prev, [key]: val })); return; }
+      if (!isNaN(val)) {
+        const newSettings = { ...settings, [key]: val };
+        setSettings(newSettings);
+        if (handleSettingsSave) handleSettingsSave(newSettings);
+        return;
+      }
     }
+
     // For everything else (strings, booleans, etc.)
-    setSettings(prev => ({ ...prev, [key]: value }));
+    const newSettings = { ...settings, [key]: value };
+    setSettings(newSettings);
+    if (handleSettingsSave) handleSettingsSave(newSettings);
   };
 
   const handleBlur = (key, defaultValue) => {
     const val = settings[key];
-    if (val === '' || val === 0 || isNaN(val)) { setSettings(prev => ({ ...prev, [key]: defaultValue })); }
+    if (val === '' || val === 0 || isNaN(val)) {
+      const newSettings = { ...settings, [key]: defaultValue };
+      setSettings(newSettings);
+      if (handleSettingsSave) handleSettingsSave(newSettings);
+    }
   };
+
 
   const toggleSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
   const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
@@ -345,10 +439,11 @@ const UnifiedSettingsModal = ({
   const tabs = [
     { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow' },
     {
-      id: 'appearance', label: 'Appearance', icon: Palette, description: 'Look & feel',
+      id: 'customize', label: 'Customize', icon: Palette, description: 'Look & feel',
       children: [
-        { id: 'appearance-background', label: 'Background' },
-        { id: 'appearance-clock', label: 'Clock Style' }
+        { id: 'customize-background', label: 'Background' },
+        { id: 'customize-clock', label: 'Clock Style' },
+        // { id: 'customize-sound', label: 'Timer Sound' }
       ]
     },
     { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress' },
@@ -506,16 +601,16 @@ const UnifiedSettingsModal = ({
                     </motion.div>
                   )}
 
-                  {activeTab === 'appearance' && (
-                    <motion.div key="appear-master" variants={contentVariants} initial="hidden" animate="visible" exit="exit">
-                      <MasterAppearanceView onNavigate={setActiveTab} />
+                  {activeTab === 'customize' && (
+                    <motion.div key="cust-master" variants={contentVariants} initial="hidden" animate="visible" exit="exit">
+                      <MasterCustomizeView onNavigate={setActiveTab} />
                     </motion.div>
                   )}
 
-                  {activeTab === 'appearance-background' && (
-                    <motion.div key="appear-bg" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                  {activeTab === 'customize-background' && (
+                    <motion.div key="cust-bg" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => setActiveTab('appearance')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
+                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
                         <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Background</h3></div>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
@@ -535,10 +630,10 @@ const UnifiedSettingsModal = ({
                     </motion.div>
                   )}
 
-                  {activeTab === 'appearance-clock' && (
-                    <motion.div key="appear-clock" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                  {activeTab === 'customize-clock' && (
+                    <motion.div key="cust-clock" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => setActiveTab('appearance')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
+                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
                         <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Clock Style</h3></div>
                       </div>
 
@@ -680,6 +775,69 @@ const UnifiedSettingsModal = ({
                             </div>
                           </div>
                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {activeTab === 'customize-sound' && (
+                    <motion.div key="cust-sound" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
+                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Timer Sound</h3></div>
+                      </div>
+
+                      {/* Volume Slider */}
+                      <div className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                          <label className="text-sm font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
+                            <Volume2 size={14} /> Alarm Volume
+                          </label>
+                          <span className="text-white font-mono">{Math.round((settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setSettings(prev => ({ ...prev, alarmVolume: vol }));
+                          }}
+                          style={{
+                            // Use the fill color #b200e9 from reference, or match app theme? 
+                            // Reference: background: linear-gradient(to right, #b200e9 var(--fill-percentage), #4a4a4e var(--fill-percentage));
+                            // I will use white for the fill to keep it clean as per original request, but use #4a4a4e for the empty track to match reference.
+                            background: `linear-gradient(to right, white 0%, white ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e 100%)`
+                          }}
+                          className="modern-slider"
+                        />
+                      </div>
+
+                      {/* Sound Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {ALARM_SOUNDS.map((sound) => {
+                          const isSelected = (settings.alarmSound || 'digital') === sound.id;
+                          return (
+                            <button
+                              key={sound.id}
+                              onClick={() => {
+                                setSettings(prev => ({ ...prev, alarmSound: sound.id }));
+                                // Preview sound
+                                const audio = new Audio(sound.src);
+                                audio.volume = settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5;
+                                audio.play().catch(e => console.error("Preview failed", e));
+                              }}
+                              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isSelected
+                                ? 'bg-white text-black border-white'
+                                : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                                }`}
+                            >
+                              <span className="font-medium">{sound.title}</span>
+                              {isSelected && <div className="p-1 bg-black/10 rounded-full"><Check size={14} strokeWidth={3} /></div>}
+                            </button>
+                          );
+                        })}
                       </div>
                     </motion.div>
                   )}

@@ -19,7 +19,7 @@ import MusicModal from './components/modals/MusicModal';
 import VaultModal from './components/modals/VaultModal';
 import SocialProfileModal from './components/modals/SocialProfileModal';
 import Avatar from './components/Avatar';
-import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS } from './utils/data';
+import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS, ALARM_SOUNDS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
@@ -2213,7 +2213,7 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
                 </div>
 
                 {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full pointer-events-auto overflow-y-auto custom-scrollbar pb-32 pt-4 px-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 w-full pointer-events-auto overflow-y-auto custom-scrollbar pb-32 pt-4 px-4">
                   {modes.map((m, i) => {
                     const isActive = activeModeId === m.id;
                     const Icon = m.icon;
@@ -2945,25 +2945,29 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
     <>
       {/* TRIGGER PILL - No longer unmounts when open, no layoutId */}
       <div className="absolute top-full mt-8 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
-        <motion.div
-          key="game-pill"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          className="relative"
-        >
-          <motion.button
-            // layoutId="game-container" <--- REMOVED to stop portal effect
-            onClick={() => setIsOpen(true)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
-            <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
-          </motion.button>
-        </motion.div>
+        <AnimatePresence mode="wait">
+          {!isOpen && (
+            <motion.div
+              key="game-pill"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative"
+            >
+              <motion.button
+                // layoutId="game-container" <--- REMOVED to stop portal effect
+                onClick={() => setIsOpen(true)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative group flex items-center gap-3 px-6 py-3 bg-[#111] border border-white/10 hover:border-white/30 rounded-full shadow-2xl backdrop-blur-md overflow-hidden transition-colors"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(168,85,247,0.15)_0%,rgba(59,130,246,0.15)_50%,rgba(34,197,94,0.15)_100%)] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <Gamepad2 size={18} className="text-white/80 group-hover:text-white relative z-10 transition-colors" />
+                <span className="text-xs font-bold text-white/80 group-hover:text-white relative z-10 tracking-widest uppercase transition-colors whitespace-nowrap">Play Arcade</span>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* MODAL - Standard Fade In/Out */}
@@ -3116,7 +3120,7 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D' };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium' };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
@@ -3204,6 +3208,8 @@ function MainApp() {
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
 
   const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
+
+
 
   // --- INTENTION MODE STATE ---
   const [intentionTask, setIntentionTask] = useState(() => localStorage.getItem('zen_intention_task') || "");
@@ -3887,9 +3893,20 @@ function MainApp() {
 
 
   useEffect(() => {
-    const sounds = { 'focus': '/sounds/timer-end.mp3', 'shortBreak': '/sounds/timer-end.mp3', 'longBreak': '/sounds/timer-end.mp3' };
-    Object.keys(sounds).forEach(key => { const audio = new Audio(sounds[key]); audio.preload = 'auto'; audio.volume = 1.0; audioRefs.current[key] = audio; });
-  }, []);
+    // Initialize audio refs for ALL available alarm sounds
+    ALARM_SOUNDS.forEach(sound => {
+      const audio = new Audio(sound.src);
+      audio.preload = 'auto';
+      // Volume will be set dynamically on play
+      audioRefs.current[sound.id] = audio;
+    });
+  }, []); // Run once on mount
+
+  // Update audio source if custom sounds are added (future proofing)
+  // or if we needed to reload them. For now, static list is fine.
+
+  // No longer need keys 'focus', 'shortBreak', 'longBreak' mapping to same file.
+  // We map by sound ID now.
   useEffect(() => { localStorage.setItem('zen_custom_bgs', JSON.stringify(customBackgrounds)); }, [customBackgrounds]);
   // --- GLOBAL KEYBOARD SHORTCUTS ---
   useEffect(() => {
@@ -4011,7 +4028,31 @@ function MainApp() {
     // Inputs
   ]);
 
-  const playAlarm = (currentMode) => { const audio = audioRefs.current[currentMode]; if (audio) { audio.currentTime = 0; const playPromise = audio.play(); if (playPromise !== undefined) { playPromise.catch(error => { console.warn("Audio play failed, falling back to beep:", error); fallbackBeep(); }); } } else { fallbackBeep(); } };
+  const playAlarm = (currentMode) => {
+    // 1. Get the current alarm sound ID from settings, default to 'digital'
+    const soundId = settings.alarmSound || 'digital';
+
+    // 2. Try to find the audio element in our ref map
+    const audio = audioRefs.current[soundId];
+
+    if (audio) {
+      audio.currentTime = 0;
+      // 3. Apply volume from settings
+      audio.volume = settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.warn("Audio play failed, falling back to beep:", error);
+          fallbackBeep();
+        });
+      }
+    } else {
+      // 4. Fallback if audio ref not found
+      console.warn(`Audio ref not found for ${soundId}`);
+      fallbackBeep();
+    }
+  };
   const fallbackBeep = () => { try { const AudioContext = window.AudioContext || window.webkitAudioContext; if (AudioContext) { const ctx = new AudioContext(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.connect(gain); gain.connect(ctx.destination); osc.frequency.value = 440; osc.type = 'sine'; gain.gain.value = 0.1; osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 1); osc.stop(ctx.currentTime + 1); } } catch (e) { console.error("Audio fallback failed", e); } };
 
 

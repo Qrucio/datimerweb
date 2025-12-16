@@ -96,3 +96,11 @@ export const AMBIENT_SOUNDS = [
     { id: 'train', title: 'Train Ride', icon: Train, src: 'https://cdn.pixabay.com/download/audio/2022/02/07/audio_21e77afab8.mp3?filename=train-riding-inside-17188.mp3' },
     { id: 'keyboard', title: 'Typing', icon: Keyboard, src: 'https://cdn.pixabay.com/download/audio/2025/03/03/audio_9ecd5092f4.mp3?filename=typing-on-laptop-keyboard-308455.mp3' },
 ];
+
+export const ALARM_SOUNDS = [
+    { id: 'digital', title: 'Digital', src: '/sounds/timer-end.mp3' },
+    { id: 'classic', title: 'Classic', src: 'https://assets.mixkit.co/active_storage/sfx/2869/2869.wav' },
+    { id: 'bell', title: 'Bell', src: 'https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=service-bell-ring-14610.mp3' },
+    { id: 'bird', title: 'Bird', src: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_00685e8d8b.mp3?filename=bird-chirping-sound-effect-1234.mp3' },
+    { id: 'lofi-alarm', title: 'Lofi Alarm', src: 'https://cdn.pixabay.com/download/audio/2022/03/09/audio_d661445731.mp3?filename=soft-alarm-ringtone-25384.mp3' },
+];
