@@ -210,8 +210,9 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
 
     // FETCH DATA & REALTIME
     useEffect(() => {
-        if (isOpen && user?.id) { // user.id or user.uid depending on source (friends use id usually)
-            const targetId = user.id;
+        const targetId = user?.id || user?.uid;
+
+        if (isOpen && targetId) {
 
             // 1. Listen to Profile Changes
             const channel = supabase.channel(`profile_${targetId}`)
@@ -266,7 +267,43 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
                 }
             };
 
+            // 3. Fetch Full Profile (if missing data)
+            const fetchProfile = async () => {
+                // Optimisation: If it's ME, use local currentUser state first!
+                if (currentUser && (currentUser.uid === targetId || currentUser.id === targetId)) {
+                    setProfileData(prev => ({ ...prev, ...currentUser, stats: currentUser.stats || {} }));
+                    // We typically don't need to fetch from DB if we have rich local state, 
+                    // but doing so ensures we are in sync with what OTHERS see.
+                }
+
+                try {
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', targetId)
+                        .single();
+
+                    if (data) {
+                        setProfileData(prev => ({
+                            ...prev,
+                            displayName: data.display_name,
+                            handle: data.handle,
+                            photoURL: data.photo_url,
+                            isPro: data.is_pro,
+                            timerState: data.timer_state,
+                            about: data.about,
+                            stats: data.stats || {},
+                            lastActive: data.last_active,
+                            streak: data.stats?.currentStreak || 0
+                        }));
+                    }
+                } catch (e) {
+                    console.error("Profile fetch failed", e);
+                }
+            };
+
             fetchHistory();
+            fetchProfile();
             return () => { supabase.removeChannel(channel); };
         }
     }, [isOpen, user]);

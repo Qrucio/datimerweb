@@ -287,7 +287,7 @@ const SocialModal = ({
                                             isFocusing={isFocusing}
                                             onMarkRead={onMarkRead}
                                             getLastReadTime={getLastReadTime}
-                                            onViewProfile={onViewProfile}
+                                            onViewProfile={onViewStats} // Use Uniform Profile Modal
                                             onMentionClick={onMentionClick}
                                         />
                                     </motion.div>
