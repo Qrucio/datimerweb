@@ -27,7 +27,7 @@ const SpotifyIcon = ({ size = 24, className, innerFillClassName }) => (
 
 const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause, isLoading, progress, duration, onSeek, ambienceState, onToggleAmbience, onAmbienceVolume, onStopAllAmbience, volume, onVolumeChange, isLofiPlaying, onToggleLofi, isPro, unlockedAmbiences = [], ambienceSetupDone = false, onSaveAmbienceSelection, onOpenPro }) => {
     const [activeTab, setActiveTab] = useState('ambience');
-
+    const [simulateFree, setSimulateFree] = useState(false);
     const [focusPlaylists, setFocusPlaylists] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -135,7 +135,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
     }, [activeTab, token]);
 
     const isSelectionMode = !isPro && !ambienceSetupDone;
-    const isSpotifyPremium = userProfile?.product === 'premium';
+    const isSpotifyPremium = !simulateFree && userProfile?.product === 'premium';
     useEffect(() => { if (!isOpen && isSelectionMode) { onStopAllAmbience(); } }, [isOpen, isSelectionMode, onStopAllAmbience]);
     const toggleMute = () => onVolumeChange(volume > 0 ? 0 : 0.5);
     const formatTime = (time) => { if (isNaN(time)) return "0:00"; const totalSeconds = Math.floor(time); const m = Math.floor(totalSeconds / 60); const s = totalSeconds % 60; return `${m}:${s.toString().padStart(2, '0')}`; };
@@ -325,6 +325,16 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
                                                                             {/* Actions */}
                                                                             <div className="flex flex-col gap-2">
+                                                                                <button
+                                                                                    onClick={() => setSimulateFree(!simulateFree)}
+                                                                                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${simulateFree ? 'bg-amber-500/20 text-amber-300' : 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white'}`}
+                                                                                >
+                                                                                    <span>Simulate Free Plan</span>
+                                                                                    <div className={`w-8 h-4 rounded-full relative transition-colors ${simulateFree ? 'bg-amber-500' : 'bg-white/20'}`}>
+                                                                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${simulateFree ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                                                    </div>
+                                                                                </button>
+
                                                                                 <button
                                                                                     onClick={logout}
                                                                                     className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"

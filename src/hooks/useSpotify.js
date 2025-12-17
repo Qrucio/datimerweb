@@ -426,20 +426,9 @@ export const useSpotify = () => {
                 // No, let's assume if deviceId exists, we stick to native errors.
             }
         } else {
-            // 2. Check for Premium Status to Avoid Deep Link for Premium Users (Race Condition Fix)
-            const isPremium = userProfile?.product === 'premium';
-
-            if (isPremium) {
-                // If Premium but no Device ID, it means the player is still initializing or failed.
-                // Do NOT open the app. Just warn the user to wait.
-                console.warn("Premium user, but Device ID missing. Waiting for Player...");
-                alert("Player is connecting... please wait a moment and try again.");
-                return;
-            }
-
-            // 3. Fallback: Deep Link (Free Users Only)
+            // 2. Fallback: Deep Link (Free Users or SDK Error)
             // SDK is not ready or not supported. Open in App.
-            console.log("SDK not ready or Free User. Opening in App:", uri);
+            console.log("SDK not ready. Opening in App:", uri);
             window.open(uri, '_blank');
         }
     };
