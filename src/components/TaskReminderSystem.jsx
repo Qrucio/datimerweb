@@ -56,8 +56,9 @@ const TaskReminderSystem = ({ tasks = [] }) => {
             let allFutureReminders = [];
 
             // 2. Gather ALL pending future reminders
+            // 2. Gather ALL pending future reminders
             tasks.forEach(task => {
-                if (task.isDone || !task.date || !task.startTime) return;
+                if (task.isDone || !task.startTime) return; // Note: !task.date check removed to allow floating recurring tasks if designed, but usually date is required.
 
                 // Normalize Reminders
                 let taskReminders = [];
@@ -69,23 +70,77 @@ const TaskReminderSystem = ({ tasks = [] }) => {
 
                 if (taskReminders.length === 0) return;
 
-                // Parse Date
-                let taskDate;
-                try {
-                    const [year, month, day] = task.date.split('-').map(Number);
-                    const [hours, mins] = task.startTime.split(':').map(Number);
+                // --- RECURRENCE PROJECTION HELPER ---
+                const getNextOccurrence = (t, fromDate) => {
+                    if (!t.date) return null;
+                    const baseDateStr = t.date; // YYYY-MM-DD
+                    const [y, m, d] = baseDateStr.split('-').map(Number);
+                    if (!y || !m || !d) return null;
 
-                    if (!year || !month || !day || isNaN(hours) || isNaN(mins)) {
-                        const fallbackString = `${task.date}T${task.startTime}`;
-                        taskDate = new Date(fallbackString);
-                    } else {
-                        taskDate = new Date(year, month - 1, day, hours, mins, 0);
+                    const [th, tm] = t.startTime.split(':').map(Number);
+                    if (isNaN(th) || isNaN(tm)) return null;
+
+                    const baseDate = new Date(y, m - 1, d, th, tm, 0);
+
+                    // If not recurring, return base date only
+                    const isRecurring = (t.repeatDays && t.repeatDays.length > 0) || (t.recurrence && t.recurrence !== 'none');
+
+                    if (!isRecurring) {
+                        return baseDate;
                     }
-                } catch (e) {
-                    return;
-                }
 
-                if (isNaN(taskDate.getTime())) return;
+                    // If Recurring, find next instance >= fromDate (minus buffer? No, we warn X mins before)
+                    // Actually, we want the instance where (InstanceTime - ReminderOffset) > Now.
+                    // But effectively we just want the next occurrence that hasn't finished yet.
+
+                    // A. Setup
+                    const nowMs = fromDate.getTime();
+                    let cursor = new Date(baseDate);
+
+                    // If base is already in future, great.
+                    if (cursor.getTime() > nowMs) return cursor;
+
+                    // If in past, project forward.
+                    // SAFEGUARD: Limit iterations to avoid infinite loops (e.g. 1 year out)
+                    for (let i = 0; i < 500; i++) {
+                        // Advance cursor based on logic
+                        if (t.repeatDays && t.repeatDays.length > 0) {
+                            // Custom Days (0=Sun, 1=Mon...)
+                            // Add 1 day until we hit a match
+                            cursor.setDate(cursor.getDate() + 1);
+                            if (t.repeatDays.includes(cursor.getDay())) {
+                                // Match found. Is it in future?
+                                if (cursor.getTime() > nowMs) return cursor;
+                            }
+                        } else if (t.recurrence === 'daily') {
+                            cursor.setDate(cursor.getDate() + 1);
+                            if (cursor.getTime() > nowMs) return cursor; // Optimization: we can jump days but loop is safe enough
+                        } else if (t.recurrence === 'weekly') {
+                            cursor.setDate(cursor.getDate() + 7);
+                            if (cursor.getTime() > nowMs) return cursor;
+                        } else if (t.recurrence === 'monthly') {
+                            cursor.setMonth(cursor.getMonth() + 1);
+                            if (cursor.getTime() > nowMs) return cursor;
+                        } else if (t.recurrence === 'yearly') {
+                            cursor.setFullYear(cursor.getFullYear() + 1);
+                            if (cursor.getTime() > nowMs) return cursor;
+                        } else {
+                            // Unknown recurrence
+                            return null;
+                        }
+                    }
+                    return null;
+                };
+
+                const nextDate = getNextOccurrence(task, new Date(currentMs - (24 * 60 * 60 * 1000))); // Look back 24h just in case? No, 'now' is fine.
+                // Actually, if I have a task at 10:00 AM and it's 9:55 AM, and reminder is 10 min, I want it to fire?
+                // The loop logic handles the "offset".
+                // We should find the next occurrence that satisfies: (OccurrenceTime - ReminderOffset) > Now OR (OccurrenceTime - ReminderOffset) is effectively "Active".
+
+                // Simplified: Look back 1 hour to catch "Just Missed" instances (e.g. late by 2 mins)
+                const targetDate = getNextOccurrence(task, new Date(currentMs - 3600000));
+
+                if (!targetDate || isNaN(targetDate.getTime())) return;
 
                 // Calculate Trigger Times
                 taskReminders.forEach(reminderVal => {
@@ -93,22 +148,25 @@ const TaskReminderSystem = ({ tasks = [] }) => {
                     if (isNaN(reminderMinutes)) return;
 
                     const reminderOffsetMs = reminderMinutes * 60 * 1000;
-                    const triggerTimeMs = taskDate.getTime() - reminderOffsetMs;
-                    const alertId = `${task.id}-${reminderMinutes}`;
+                    const triggerTimeMs = targetDate.getTime() - reminderOffsetMs;
+
+                    // Unique ID now needs to include the DATE to allow re-alerting for next instance
+                    // Format: ID-ReminderMin-EpochTime
+                    const uniqueInstanceId = `${task.id}-${reminderMinutes}-${targetDate.getTime()}`;
 
                     // Check if already alerted
-                    if (!alertedTaskIds.current.has(alertId)) {
-                        // If it's in the past but within last 2 minutes, fire immediately (missed valid window)
-                        if (triggerTimeMs <= currentMs && (currentMs - triggerTimeMs) < 120000) {
-                            fireReminder(task, reminderMinutes, alertId);
+                    if (!alertedTaskIds.current.has(uniqueInstanceId)) {
+                        // If it's in the past but within last 5 minutes (increased window), fire immediately
+                        if (triggerTimeMs <= currentMs && (currentMs - triggerTimeMs) < 300000) {
+                            fireReminder(task, reminderMinutes, uniqueInstanceId);
                         }
-                        // If it's strictly in the future, add to schedule candidates
+                        // If strictly future
                         else if (triggerTimeMs > currentMs) {
                             allFutureReminders.push({
                                 triggerTimeMs,
                                 task,
                                 reminderMinutes,
-                                alertId
+                                alertId: uniqueInstanceId
                             });
                         }
                     }

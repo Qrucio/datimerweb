@@ -54,8 +54,10 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
         const task = tasks.find(t => t.id === taskId);
         if (!task) return;
 
-        // Check if recurring
-        const isRecurring = (task.repeatDays && task.repeatDays.length > 0) || (task.recurrence && task.recurrence !== 'none');
+        // Check if recurring (Robust)
+        const hasRepeatDays = Array.isArray(task.repeatDays) && task.repeatDays.length > 0;
+        const hasRecurrenceString = typeof task.recurrence === 'string' && task.recurrence !== 'none' && task.recurrence !== '';
+        const isRecurring = hasRepeatDays || hasRecurrenceString;
 
         if (isRecurring) {
             setRecurrenceModal({

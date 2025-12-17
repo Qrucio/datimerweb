@@ -4716,121 +4716,11 @@ function MainApp() {
     if (!user) return;
 
     // A. SYNC SETTINGS (Notes, Trash, Wallet, Inventory, App Settings)
-    const settingsChannel = supabase.channel(`sync_settings_${user.uid}`)
-      .on('postgres_changes',
-        { event: '*', schema: 'public', table: 'user_settings', filter: `user_id=eq.${user.uid}` },
-        (payload) => {
-          const newS = payload.new;
-          if (newS) {
-            // 1. NOTES SYNC
-            const serverNotes = newS.notes || [];
-            const localNotes = Storage.getNotes() || [];
-
-            // 2. TRASH SYNC
-            const serverTrash = newS.trash || {};
-            const localTrash = Storage.getTrash();
-
-            // Merge Trash
-            const mergedTrash = { ...serverTrash, ...localTrash };
-            Object.keys(localTrash).forEach(id => {
-              if (serverTrash[id] && serverTrash[id] > localTrash[id]) mergedTrash[id] = serverTrash[id];
-            });
-
-            // Merge Notes
-            const mergedNotesMap = new Map();
-            serverNotes.forEach(note => mergedNotesMap.set(note.id, note));
-            localNotes.forEach(localNote => {
-              const serverNote = mergedNotesMap.get(localNote.id);
-              if (!serverNote || (localNote.updatedAt || 0) > (serverNote.updatedAt || 0)) {
-                mergedNotesMap.set(localNote.id, localNote);
-              }
-            });
-
-            // Apply Hit List (Trash)
-            Object.keys(mergedTrash).forEach(deletedId => {
-              const note = mergedNotesMap.get(deletedId);
-              if (note) {
-                if (mergedTrash[deletedId] > (note.updatedAt || 0)) {
-                  mergedNotesMap.delete(deletedId);
-                } else {
-                  delete mergedTrash[deletedId];
-                }
-              }
-            });
-
-            // Save Merged State
-            const finalNotes = Array.from(mergedNotesMap.values());
-            if (JSON.stringify(finalNotes) !== JSON.stringify(localNotes)) {
-              setNotes(finalNotes);
-              Storage.saveNotesLocally(finalNotes);
-            }
-            Storage.saveTrashLocally(mergedTrash);
-
-            // 3. SETTINGS SYNC
-            if (newS.settings) {
-              const remote = newS.settings;
-              const local = Storage.getSettings(DEFAULT_SETTINGS);
-              if ((remote.updatedAt || 0) > (local.updatedAt || 0)) {
-                const merged = { ...DEFAULT_SETTINGS, ...remote };
-                setSettings(merged);
-                Storage.saveSettingsLocally(merged);
-                prevSettings.current = merged;
-              }
-            }
-
-            // 4. WALLET / INVENTORY
-            if (newS.wallet) {
-              const localWallet = Storage.getWallet();
-              // FIX: If local wallet is fresh (no timestamp AND empty), take server data
-              // OR if server is explicitly newer always update.
-              const isLocalFresh = !localWallet.lastUpdated && (!localWallet.balance || localWallet.balance === 0);
-              const isServerNewer = (newS.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0);
-
-              if (isLocalFresh || isServerNewer) {
-                Storage.setWallet(newS.wallet);
-                setCoins(newS.wallet?.balance ?? 0);
-              }
-            }
-            if (newS.inventory) Storage.setInventory(newS.inventory);
-          }
-          setDataLoaded(true);
-        }
-      )
-      .subscribe();
+    // [LOCAL-FIRST] Listener removed to prevent overwrite loops. 
+    // We now trust local state and only fetch once on mount.
 
     // B. SYNC PROFILE (Handle, Pro Status, Streak)
-    const profileChannel = supabase.channel(`sync_profile_${user.uid}`)
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.uid}` },
-        (payload) => {
-          const p = payload.new;
-          if (p) {
-            setUserHandle(p.handle || "");
-            const newIsPro = p.is_pro || false;
-            setIsPro(newIsPro);
-
-            if (newIsPro) {
-              // Mock claim for offline persistence since we don't sync full sub details yet
-              const claim = { isPro: true, lastVerified: Date.now(), expiresAt: Date.now() + 86400000 * 30 };
-              localStorage.setItem('zen_pro_claim', JSON.stringify(claim));
-            }
-
-            // Sync Streak Check (Authoritative)
-            if (p) {
-              // 1. Trigger RPC to get real calc
-              const fetchRealStreak = async () => {
-                const { data: realStreak } = await supabase.rpc('get_current_streak', { user_id_input: user.uid });
-                if (realStreak !== null) {
-                  setStats(prev => ({ ...prev, currentStreak: realStreak }));
-                  Storage.syncServerStreak(realStreak, new Date().toISOString());
-                }
-              };
-              fetchRealStreak();
-            }
-          }
-        }
-      )
-      .subscribe();
+    // [LOCAL-FIRST] Listener removed. We rely on initial fetch and local optimistic updates.
 
 
 
@@ -4999,80 +4889,14 @@ function MainApp() {
     fetchInitialData();
 
     return () => {
-      supabase.removeChannel(settingsChannel);
-      supabase.removeChannel(profileChannel);
-
+      // Channels removed in local-first refactor
     };
   }, [user]);
 
 
   // --- REAL-TIME TIMER SYNC (RECEIVER + RESPONDER) ---
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel(`timer_sync_web_${user.uid}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-          filter: `id=eq.${user.uid}`
-        },
-        (payload) => {
-          if (payload.new && payload.new.timer_state) {
-            const remote = payload.new.timer_state;
-            // 1. LISTEN FOR SYNC REQUESTS (From Mobile)
-            if (remote.requestSync) {
-              console.log("Received Sync Request from Mobile. Replying...");
-
-              // READ FROM REF (Cleanly, without tearing down connection)
-              const current = latestStateRef.current;
-              const now = Date.now();
-
-              const stateToSync = {
-                isActive: current.isActive,
-                mode: current.mode,
-                timeLeft: current.timeLeft,
-                targetEndTime: current.isActive ? endTimeRef.current : null,
-                lastUpdated: now
-              };
-
-              lastRemoteUpdate.current = now;
-
-              supabase.from('profiles').update({
-                timer_state: stateToSync
-              }).eq('id', user.uid);
-              return;
-            }
-            // PREVENT ECHO
-            if (remote.lastUpdated && lastRemoteUpdate.current >= remote.lastUpdated) return;
-            lastRemoteUpdate.current = remote.lastUpdated;
-            console.log("Remote Update Rec'd:", remote);
-            // 2. UPDATE LOCAL STATE
-            if (remote.mode) setMode(remote.mode);
-            // Sync Strict Mode
-            if (remote.isStrict !== undefined) {
-              setStrictMode(remote.isStrict);
-            }
-            setIsActive(remote.isActive);
-
-            // 3. SNAPSHOT SYNC
-            if (remote.isActive && remote.timeLeft) {
-              setTimeLeft(remote.timeLeft);
-              endTimeRef.current = Date.now() + (remote.timeLeft * 1000);
-            } else if (remote.timeLeft) {
-              setTimeLeft(remote.timeLeft);
-              endTimeRef.current = null;
-            }
-          }
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]); // STABLE DEPENDENCY: Does not include time/active/mode
+  // [LOCAL-FIRST] Removed to prevent ghost timer resets.
+  // We still PUSH state in toggleTimer/handleModeChange, but we don't listen for echoes.
 
   // --- OPTIMIZED SAVE LOGIC (Supabase) ---
   useEffect(() => {
