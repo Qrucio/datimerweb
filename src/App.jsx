@@ -582,6 +582,14 @@ const StatCard = ({ label, value, icon: Icon }) => (
   </div>
 );
 
+// Custom Spotify Icon (Reused here for Promo Popup)
+const SpotifyIcon = ({ size = 24, className, innerFillClassName }) => (
+  <svg width={size} height={size} viewBox="0 0 496 512" className={className} xmlns="http://www.w3.org/2000/svg">
+    <path fill="currentColor" d="M248 8C111.1 8 0 119.1 0 256s111.1 248 248 248 248-111.1 248-248S384.9 8 248 8Z" />
+    <path fill={innerFillClassName ? undefined : "black"} className={innerFillClassName} d="M406.6 231.1c-5.2 0-8.4-1.3-12.9-3.9-71.2-42.5-198.5-52.7-280.9-29.7-3.6 1-8.1 2.6-12.9 2.6-13.2 0-23.3-10.3-23.3-23.6 0-13.6 8.4-21.3 17.4-23.9 35.2-10.3 74.6-15.2 117.5-15.2 73 0 149.5 15.2 205.4 47.8 7.8 4.5 12.9 10.7 12.9 22.6 0 13.6-11 23.3-23.2 23.3zm-31 76.2c-5.2 0-8.7-2.3-12.3-4.2-62.5-37-155.7-51.9-238.6-29.4-4.8 1.3-7.4 2.6-11.9 2.6-10.7 0-19.4-8.7-19.4-19.4s5.2-17.8 15.5-20.7c27.8-7.8 56.2-13.6 97.8-13.6 64.9 0 127.6 16.1 177 45.5 8.1 4.8 11.3 11 11.3 19.7-.1 10.8-8.5 19.5-19.4 19.5zm-26.9 65.6c-4.2 0-6.8-1.3-10.7-3.6-62.4-37.6-135-39.2-206.7-24.5-3.9 1-9 2.6-11.9 2.6-9.7 0-15.8-7.7-15.8-15.8 0-10.3 6.1-15.2 13.6-16.8 81.9-18.1 165.6-16.5 237 26.2 6.1 3.9 9.7 7.4 9.7 16.5s-7.1 15.4-15.2 15.4z" />
+  </svg>
+);
+
 const BendingDivider = ({ activeSide, isDimmed }) => {
   // activeSide: 'left', 'right', or null
 
@@ -3820,7 +3828,10 @@ function MainApp() {
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
   const [showStrictConfirm, setShowStrictConfirm] = useState(false);
   const [showStrictWarning, setShowStrictWarning] = useState(false);
-  const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false); // <--- NEW STATE
+  const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
+
+  // NEW: Spotify Promo Popup State
+  const [showSpotifyPromo, setShowSpotifyPromo] = useState(true); // <--- NEW STATE
   const wasMusicPlayingRef = useRef(false);
   // --- STRICT MODE LOGIC (UPDATED: EXTENSION BASED) ---
   const strictModeRef = useRef(strictMode);
@@ -6035,8 +6046,38 @@ function MainApp() {
                   </motion.span>
                 </motion.button>
                 <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => setShowMusic(true)} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
-                  <Music size={20} className={isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''} />
+                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); setShowSpotifyPromo(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+
+                  {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
+                  <div className="relative flex items-center justify-center">
+                    {/* Spotify Promo Popup */}
+                    <AnimatePresence>
+                      {showSpotifyPromo && !isMusicPlaying && !showMusic && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
+                          exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
+                          className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="relative bg-[#1DB954] text-black px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#1DB954]">
+                            {/* Fix: Set inner fill to #1DB954 (Green) to match background, simulating transparency */}
+                            <SpotifyIcon size={20} innerFillClassName="fill-[#1DB954]" className="shrink-0 text-black appearance-none" />
+                            <span className="text-xs font-bold tracking-tight">Play Spotify directly from altimer!</span>
+                            <button
+                              onClick={() => setShowSpotifyPromo(false)}
+                              className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
+                            >
+                              <X size={10} strokeWidth={3} />
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
+                  </div>
+
                   <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">
                     {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
                   </motion.div>

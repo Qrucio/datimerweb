@@ -165,7 +165,12 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
     const handleGoogleLogin = async () => {
         try {
             localStorage.setItem('lastAuthMethod', 'google');
-            await supabase.auth.signInWithOAuth({ provider: 'google' });
+            await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/`
+                }
+            });
         } catch (e) { console.error(e); }
     };
 
