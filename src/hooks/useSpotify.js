@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 
 // Hardcoded to avoid localhost vs 127.0.0.1 mismatches
-const REDIRECT_URI = "http://127.0.0.1:5173/";
+const REDIRECT_URI = "http://altimer.netlify.app/";
 
 const SCOPES = [
     "user-read-private",
