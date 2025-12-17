@@ -52,7 +52,7 @@ export const Storage = {
 
         if (currentLocal.date && currentLocal.date === serverData.date_id) {
             // SAME DAY: Merge (Take Max to prevent regression)
-            console.log("[Stats] Merging Server Data", serverData);
+            // console.log("[Stats] Merging Server Data", serverData);
             data = {
                 date: serverData.date_id,
                 dailyFocusTime: Math.max(currentLocal.dailyFocusTime || 0, serverData.focus_time || 0),

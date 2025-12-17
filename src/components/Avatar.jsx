@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Pin } from 'lucide-react';
-import { DEV_USER_IDS } from '../utils/data';
-
 const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro = false, isDev = false, className = "" }) => {
     const [imageError, setImageError] = useState(false);
 
@@ -11,7 +9,7 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
     const uid = userData?.uid;
 
     // Check Status
-    const userIsDev = isDev || (uid && DEV_USER_IDS.includes(uid));
+    const userIsDev = isDev;
     const finalIsFlow = userIsDev || isPro || userData?.isPro || userData?.subscription?.plan === 'pro' || userData?.subscription?.plan === 'flow';
     const finalIsPinned = isPinned || userData?.isPinned;
 

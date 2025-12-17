@@ -7,7 +7,6 @@ import {
   Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { DEV_USER_IDS } from '../../utils/data'; // Import DEV_USER_IDS
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
@@ -637,7 +636,7 @@ const UnifiedSettingsModal = ({
                       <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-6">
                         <div className="flex justify-between items-center mb-2">
                           <label className="text-xs font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
-                            Overlay Opacity
+                            Brightness
                           </label>
                           <span className="text-white font-mono text-xs">{Math.round((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) * 100)}%</span>
                         </div>

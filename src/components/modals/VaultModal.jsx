@@ -404,7 +404,8 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
     const [editingItem, setEditingItem] = useState(null);
 
     // Check Localhost
-    const isDev = window.location.hostname === 'localhost';
+    // Check Localhost
+    const isDev = import.meta.env.DEV;
 
     useEffect(() => {
         if (isOpen) {
@@ -488,6 +489,9 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
 
     const handleDevAddCoins = (e) => {
         e.preventDefault();
+        // Strict Double-Check
+        if (!import.meta.env.DEV) return;
+
         const amount = parseInt(devInput);
         if (!isNaN(amount)) {
             const newWallet = Storage.updateWallet(amount);
@@ -587,7 +591,7 @@ const VaultModal = ({ isOpen, onClose, balance, onUpdateBalance, onSync, onActiv
                             <div className="flex items-center gap-3 mb-8 scale-110">
                                 <span className="text-4xl filter drop-shadow-[0_0_20px_rgba(234,179,8,0.3)]">🪙</span>
                                 <span className="text-5xl font-clock font-bold text-white tracking-tight">
-                                    {balance.toLocaleString()}
+                                    {(balance || 0).toLocaleString()}
                                 </span>
                             </div>
 

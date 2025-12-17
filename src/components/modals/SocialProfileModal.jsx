@@ -5,7 +5,6 @@ import { Zap, Coffee, TrendingUp, ChevronLeft, ChevronRight, ChevronDown, Calend
 import ProfileCard from '../profile/ProfileCard';
 import { supabase } from '../../lib/supabase';
 import CloseButton from '../ui/CloseButton';
-import { DEV_USER_IDS } from '../../utils/data';
 
 // --- HELPERS (Copied from App.jsx to ensure portability) ---
 

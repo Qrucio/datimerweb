@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { usePiP } from './hooks/usePiP';
+import { PictureInPicture2 } from 'lucide-react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
@@ -19,7 +21,7 @@ import MusicModal from './components/modals/MusicModal';
 import VaultModal from './components/modals/VaultModal';
 import SocialProfileModal from './components/modals/SocialProfileModal';
 import Avatar from './components/Avatar';
-import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, DEV_USER_IDS, ALARM_SOUNDS } from './utils/data';
+import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, ALARM_SOUNDS } from './utils/data';
 import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
@@ -3077,7 +3079,7 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 100, opacity: 0, scale: 0.9 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-6 right-6 z-50 hidden md:block"
+          className="fixed bottom-6 right-24 z-50 hidden md:block"
         >
           <div className="relative w-80 aspect-video shadow-2xl group">
             <div className="absolute inset-0 rounded-2xl overflow-hidden border border-white/20 bg-black">
@@ -3108,6 +3110,21 @@ const DEFAULT_STATS = {
 };
 
 function MainApp() {
+  const { isActive: isPiPActive, togglePiP, PiPPortal } = usePiP();
+  /* --- PIP VIDEO PAUSE LOGIC --- */
+  const mainVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (mainVideoRef.current) {
+      if (isPiPActive) {
+        mainVideoRef.current.pause();
+      } else {
+        mainVideoRef.current.play().catch(e => console.log("Video autoplay prevented:", e));
+      }
+    }
+  }, [isPiPActive]);
+
+  /* --- EXISTING STATE --- */
   const [userHandle, setUserHandle] = useState("");
   const [showLoginBtn, setShowLoginBtn] = useState(true);
   const [isAppReady, setIsAppReady] = useState(false);
@@ -4747,7 +4764,7 @@ function MainApp() {
 
               if (isLocalFresh || isServerNewer) {
                 Storage.setWallet(newS.wallet);
-                setCoins(newS.wallet.balance || 0);
+                setCoins(newS.wallet?.balance ?? 0);
               }
             }
             if (newS.inventory) Storage.setInventory(newS.inventory);
@@ -5849,7 +5866,7 @@ function MainApp() {
     <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
 
-      {/* 1. BACKGROUND LAYERS */}
+      {/* 1. BACKGROUND LAYERS (Main Window) */}
       {useIntentionTheme ? (
         // HOLO GRAIN THEME (Replaces Gradient)
         <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
@@ -5859,6 +5876,7 @@ function MainApp() {
           isVideo(activeBackground) ? (
             <div className="fixed inset-0 z-0 overflow-hidden">
               <video
+                ref={mainVideoRef}
                 src={activeBackground}
                 autoPlay loop muted playsInline disablePictureInPicture
                 style={{
@@ -5888,13 +5906,61 @@ function MainApp() {
           backgroundColor: (activeBackground && !useIntentionTheme)
             ? 'transparent' // We handle dimming via image opacity
             : useIntentionTheme
-              ? 'rgba(0,0,0,0)' // Transparent for Gradient
+              ? 'rgba(0,0,0,0)'
               : focusMode
                 ? 'rgba(0, 0, 0, 0.5)'
                 : 'rgba(0, 0, 0, 0.55)'
         }}
       />
       {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
+
+      {/* 1.5 BACKGROUND LAYERS (PiP Window - Duplicated) */}
+      <PiPPortal>
+        {useIntentionTheme ? (
+          <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
+        ) : (
+          activeBackground && (
+            isVideo(activeBackground) ? (
+              <div className="fixed inset-0 z-0 overflow-hidden">
+                <video
+                  ref={mainVideoRef}
+                  src={activeBackground}
+                  autoPlay loop muted playsInline disablePictureInPicture
+                  style={{
+                    filter: 'brightness(1.2) contrast(1.1)',
+                    transform: 'translateZ(0)',
+                    opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+                style={{
+                  backgroundImage: `url(${activeBackground})`,
+                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                }}
+              />
+            )
+          )
+        )}
+        <div
+          className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
+          style={{
+            backgroundColor: (activeBackground && !useIntentionTheme)
+              ? 'transparent'
+              : useIntentionTheme
+                ? 'rgba(0,0,0,0)'
+                : focusMode
+                  ? 'rgba(0, 0, 0, 0.5)'
+                  : 'rgba(0, 0, 0, 0.55)'
+          }}
+        />
+        {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
+      </PiPPortal>
+
+
 
       {/* --- ONBOARDING FLOW --- */}
       {onboardingStep < 3 && (
@@ -5992,63 +6058,64 @@ function MainApp() {
             </div>
 
             {/* --- TIMER SECTION (Main) --- */}
-            <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
-              <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
+            <PiPPortal>
+              <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
+                <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
-                {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
-                <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-10">
-                  <AnimatePresence mode="wait">
+                  {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
+                  <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-10">
+                    <AnimatePresence mode="wait">
 
-                    {/* 1. STANDARD MESSAGE PILL (Only show if Intervention is CLOSED) */}
-                    {!showIntervention && (
-                      <motion.div
-                        key="smart-message"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="pointer-events-auto"
-                      >
-                        <SmartMessage
-                          isActive={isActive}
-                          timeLeft={timeLeft}
-                          targetEndTime={endTimeRef.current}
-                          mode={mode}
-                          isUserActive={isUserActive}
-                          focusMode={focusMode}
-                          // Removed layoutId prop
-                          overrideMessage={
-                            settings.intentionMode && intentionTask
-                              ? (
-                                isActive
-                                  ? `I will work on ${intentionTask}`
-                                  : (
-                                    timeLeft === settings.focus * 60
-                                      ? "Ready when you are"
-                                      : (remindMessage || `Remember: ${intentionTask}`)
-                                  )
-                              )
-                              : smartMessageOverride
-                          }
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                      {/* 1. STANDARD MESSAGE PILL (Only show if Intervention is CLOSED) */}
+                      {!showIntervention && (
+                        <motion.div
+                          key="smart-message"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          className="pointer-events-auto"
+                        >
+                          <SmartMessage
+                            isActive={isActive}
+                            timeLeft={timeLeft}
+                            targetEndTime={endTimeRef.current}
+                            mode={mode}
+                            isUserActive={isUserActive}
+                            focusMode={focusMode}
+                            // Removed layoutId prop
+                            overrideMessage={
+                              settings.intentionMode && intentionTask
+                                ? (
+                                  isActive
+                                    ? `I will work on ${intentionTask}`
+                                    : (
+                                      timeLeft === settings.focus * 60
+                                        ? "Ready when you are"
+                                        : (remindMessage || `Remember: ${intentionTask}`)
+                                    )
+                                )
+                                : smartMessageOverride
+                            }
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
-                {/* 2. SMART INTERVENTION (Standard Modal Trigger) */}
-                <SmartIntervention
-                  isVisible={showIntervention}
-                  isActive={isActive}
-                  intention={intentionTask}
-                  duration={settings.focus}
-                  timeLeft={timeLeft}
-                  userName={user?.displayName?.split(' ')[0]}
-                  onClose={() => toggleTimer()}
-                  onApplyAction={handleApplyAction}
-                  getGeminiAdvice={getGeminiAdvice}
-                />
+                  {/* 2. SMART INTERVENTION (Standard Modal Trigger) */}
+                  <SmartIntervention
+                    isVisible={showIntervention}
+                    isActive={isActive}
+                    intention={intentionTask}
+                    duration={settings.focus}
+                    timeLeft={timeLeft}
+                    userName={user?.displayName?.split(' ')[0]}
+                    onClose={() => toggleTimer()}
+                    onApplyAction={handleApplyAction}
+                    getGeminiAdvice={getGeminiAdvice}
+                  />
 
-                {/* SMART INTERVENTION OVERLAY
+                  {/* SMART INTERVENTION OVERLAY
                 <SmartIntervention
                   isVisible={useIntentionTheme && !isActive && timeLeft !== settings.focus * 60 && timeLeft > 0}
                   isActive={isActive}
@@ -6060,139 +6127,139 @@ function MainApp() {
                   onApplyAction={handleApplyAction}
                   getGeminiAdvice={getGeminiAdvice}
                 /> */}
-                {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
-                <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
-                  {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
-                    const isCurrent = mode === m.id;
-                    const isEditing = editingModeId === m.id;
-                    const totalSeconds = settings[m.id] * 60;
-                    const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
+                  {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
+                  <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
+                    {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
+                      const isCurrent = mode === m.id;
+                      const isEditing = editingModeId === m.id;
+                      const totalSeconds = settings[m.id] * 60;
+                      const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
 
-                    let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
+                      let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
 
-                    if (isActive) {
-                      if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
-                      else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
-                    } else {
-                      containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
-                      if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
-                      else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-pointer "; }
-                    }
+                      if (isActive) {
+                        if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
+                        else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
+                      } else {
+                        containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
+                        if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
+                        else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-pointer "; }
+                      }
 
-                    return (
-                      <motion.button
-                        key={m.id}
-                        layout
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!isActive) {
-                            if (isCurrent) {
-                              setEditInputValue(settings[m.id].toString());
-                              setEditingModeId(m.id);
-                            } else {
-                              handleModeChange(m.id);
-                            }
-                          }
-                        }}
-                        className={containerClass}
-                        disabled={isActive}
-                        animate={{ x: 0 }}
-                        transition={{ duration: 0.5 }}
-                      >
-                        {/* Progress Bar Background */}
-                        <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
-
-                        {/* CONTENT: Either Input or Label */}
-                        {isEditing ? (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="relative z-20 flex items-center justify-center w-full h-full"
-                          >
-                            <input
-                              autoFocus
-                              type="number"
-                              min="1"
-                              max="120"
-                              className="bg-transparent border-none outline-none text-center font-bold text-black w-12 p-0 m-0 focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              value={editInputValue}
-                              onChange={(e) => setEditInputValue(e.target.value)}
-                              onBlur={commitInlineEdit}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') { e.preventDefault(); commitInlineEdit(); }
-                                if (e.key === 'Escape') { e.preventDefault(); setEditingModeId(null); }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <span className="text-xs font-medium text-black/50 ml-0.5">m</span>
-                          </motion.div>
-                        ) : (
-                          <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
-                            <span className="whitespace-nowrap">{m.label}</span>
-                            {!isActive && isCurrent && (
-                              <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
-                                <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
-                              </div>
-                            )}
-                          </span>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-
-                {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
-                <div
-                  className="flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
-                  onMouseEnter={() => setIsTallyHovered(true)}
-                  onMouseLeave={() => setIsTallyHovered(false)}
-                  onDoubleClick={() => {
-                    if (!isActive) {
-                      setSessionEditValue(settings.pomosBeforeLongBreak.toString());
-                      setIsEditingSessions(true);
-                    }
-                  }}
-                  title={!isActive ? "Double-click to edit sessions" : ""}
-                >
-                  {isEditingSessions ? (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
-                    >
-                      <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Intervals:</span>
-                      <input
-                        autoFocus
-                        type="number"
-                        min="1"
-                        max="16"
-                        className="bg-transparent border-none outline-none text-center font-bold text-white w-8 p-0 m-0 focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        value={sessionEditValue}
-                        onChange={(e) => setSessionEditValue(e.target.value)}
-                        onBlur={commitSessionEdit}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); commitSessionEdit(); }
-                          if (e.key === 'Escape') { e.preventDefault(); setIsEditingSessions(false); }
-                        }}
-                      />
-                    </motion.div>
-                  ) : (
-                    Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
-                      const isCompleted = i < pomoCount;
-                      const isCurrent = i === pomoCount;
-                      const shouldExpand = isCurrent && isTallyHovered;
                       return (
-                        <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
-                          {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                        <motion.button
+                          key={m.id}
+                          layout
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isActive) {
+                              if (isCurrent) {
+                                setEditInputValue(settings[m.id].toString());
+                                setEditingModeId(m.id);
+                              } else {
+                                handleModeChange(m.id);
+                              }
+                            }
+                          }}
+                          className={containerClass}
+                          disabled={isActive}
+                          animate={{ x: 0 }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          {/* Progress Bar Background */}
+                          <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
 
-                {/* --- TIMER --- */}
-                <div
-                  className={`
+                          {/* CONTENT: Either Input or Label */}
+                          {isEditing ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="relative z-20 flex items-center justify-center w-full h-full"
+                            >
+                              <input
+                                autoFocus
+                                type="number"
+                                min="1"
+                                max="120"
+                                className="bg-transparent border-none outline-none text-center font-bold text-black w-12 p-0 m-0 focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={editInputValue}
+                                onChange={(e) => setEditInputValue(e.target.value)}
+                                onBlur={commitInlineEdit}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitInlineEdit(); }
+                                  if (e.key === 'Escape') { e.preventDefault(); setEditingModeId(null); }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <span className="text-xs font-medium text-black/50 ml-0.5">m</span>
+                            </motion.div>
+                          ) : (
+                            <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
+                              <span className="whitespace-nowrap">{m.label}</span>
+                              {!isActive && isCurrent && (
+                                <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
+                                  <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
+                                </div>
+                              )}
+                            </span>
+                          )}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+
+                  {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
+                  <div
+                    className="relative z-50 flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
+                    onMouseEnter={() => setIsTallyHovered(true)}
+                    onMouseLeave={() => setIsTallyHovered(false)}
+                    onDoubleClick={() => {
+                      if (!isActive) {
+                        setSessionEditValue(settings.pomosBeforeLongBreak.toString());
+                        setIsEditingSessions(true);
+                      }
+                    }}
+                    title={!isActive ? "Double-click to edit sessions" : ""}
+                  >
+                    {isEditingSessions ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
+                      >
+                        <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Intervals:</span>
+                        <input
+                          autoFocus
+                          type="number"
+                          min="1"
+                          max="16"
+                          className="bg-transparent border-none outline-none text-center font-bold text-white w-8 p-0 m-0 focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          value={sessionEditValue}
+                          onChange={(e) => setSessionEditValue(e.target.value)}
+                          onBlur={commitSessionEdit}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitSessionEdit(); }
+                            if (e.key === 'Escape') { e.preventDefault(); setIsEditingSessions(false); }
+                          }}
+                        />
+                      </motion.div>
+                    ) : (
+                      Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
+                        const isCompleted = i < pomoCount;
+                        const isCurrent = i === pomoCount;
+                        const shouldExpand = isCurrent && isTallyHovered;
+                        return (
+                          <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
+                            {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* --- TIMER --- */}
+                  <div
+                    className={`
                     leading-none tracking-normal select-none tabular-nums transition-all duration-700
                     
                     ${/* FONT TYPE LOGIC */ ''}
@@ -6211,57 +6278,69 @@ function MainApp() {
                     ${settings.clockType === 'round' ? 'font-clock-round' : ''}
                     
                     ${({
-                      'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                      'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                      'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                      'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
-                    })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
+                        'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                        'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                        'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
+                        'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
+                      })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
 
                     ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
                     ${isAIPlanning ? 'animate-pulse drop-shadow-[0_0_100px_rgba(192,132,252,1)] text-purple-100' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                   `}
-                  style={{
-                    WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
-                  }}
-                >
-                  {formatTime(timeLeft)}
-                </div>
-
-                {/* --- CONTROLS --- */}
-                <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
-                  <button
-                    ref={playBtnRef}
-                    onClick={toggleTimer}
-                    disabled={isAIPlanning}
-                    className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                    style={{
+                      WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
+                    }}
                   >
-                    <div className="relative w-8 h-8 flex items-center justify-center">
-                      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
-                        <Pause size={32} fill="black" />
-                      </div>
-                      <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${!isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 -rotate-90 opacity-0'}`}>
-                        <Play size={32} fill="black" className="ml-1" />
-                      </div>
-                    </div>
-                  </button>
+                    {formatTime(timeLeft)}
+                  </div>
 
-                  <LiquidResetBtn
-                    onReset={handleConfirmReset}
-                    disabled={strictMode && mode === 'focus'}
+                  {/* --- CONTROLS --- */}
+                  <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
+
+                    {/* PiP Button - Hide when active (it's in the PiP window) */}
+                    {!isPiPActive && (
+                      <button
+                        onClick={togglePiP}
+                        className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-all hover:scale-105 active:scale-95"
+                        title="Picture-in-Picture"
+                      >
+                        <PictureInPicture2 size={20} />
+                      </button>
+                    )}
+
+                    <button
+                      ref={playBtnRef}
+                      onClick={toggleTimer}
+                      disabled={isAIPlanning}
+                      className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                    >
+                      <div className="relative w-8 h-8 flex items-center justify-center">
+                        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
+                          <Pause size={32} fill="black" />
+                        </div>
+                        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${!isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 -rotate-90 opacity-0'}`}>
+                          <Play size={32} fill="black" className="ml-1" />
+                        </div>
+                      </div>
+                    </button>
+
+                    <LiquidResetBtn
+                      onReset={handleConfirmReset}
+                      disabled={strictMode && mode === 'focus'}
+                    />
+                  </div>
+
+                  <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
+
+                  <GameCenter
+                    mode={mode}
+                    timeLeft={timeLeft}
+                    background={settings.background}
+                    isPro={isPro}
+                    onOpenPro={() => setProModalSource('arcade')}
                   />
-                </div>
 
-                <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
-
-                <GameCenter
-                  mode={mode}
-                  timeLeft={timeLeft}
-                  background={settings.background}
-                  isPro={isPro}
-                  onOpenPro={() => setProModalSource('arcade')}
-                />
-
-                {/* <TimerModeSelector
+                  {/* <TimerModeSelector
                   mode={mode}
                   opacityClass={uiOpacityClass}
                   isIntentionMode={settings.intentionMode}
@@ -6274,8 +6353,9 @@ function MainApp() {
                   onOpenPro={() => setProModalSource('personalities')}
                 /> */}
 
-              </div>
-            </main>
+                </div>
+              </main>
+            </PiPPortal>
 
             {/* STICKY NOTE WIDGET CONTAINER */}
             <div className={`
@@ -6296,6 +6376,8 @@ function MainApp() {
         )
         }
       </AnimatePresence >
+
+
 
       <UnifiedSettingsModal
         isOpen={isUnifiedModalOpen}
@@ -6467,37 +6549,39 @@ function MainApp() {
 
 
       {/* --- COMMAND MENU --- */}
-      {(onboardingStep >= 3 || onboardingInnerStep === 2) && (
-        <CommandMenu
-          onboardingMode={onboardingStep < 3}
-          onOnboardingNext={() => setOnboardingInnerStep(3)}
-          openNotes={() => setIsNoteLibraryOpen(true)}
-          openMusic={() => setShowMusic(true)}
-          openSocial={() => setShowFriends(true)}
-          openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
-          setTimerActive={setIsActive}
+      {
+        (onboardingStep >= 3 || onboardingInnerStep === 2) && (
+          <CommandMenu
+            onboardingMode={onboardingStep < 3}
+            onOnboardingNext={() => setOnboardingInnerStep(3)}
+            openNotes={() => setIsNoteLibraryOpen(true)}
+            openMusic={() => setShowMusic(true)}
+            openSocial={() => setShowFriends(true)}
+            openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
+            setTimerActive={setIsActive}
 
-          // Timer Controls
-          mode={mode}
-          setMode={handleModeChange}
-          timeLeft={timeLeft}
-          setTimeLeft={setTimeLeft}
-          isActive={isActive}
-          settings={settings}
+            // Timer Controls
+            mode={mode}
+            setMode={handleModeChange}
+            timeLeft={timeLeft}
+            setTimeLeft={setTimeLeft}
+            isActive={isActive}
+            settings={settings}
 
-          // Shortcuts
-          setEditingNote={setEditingNote}
+            // Shortcuts
+            setEditingNote={setEditingNote}
 
-          // Sounds
-          playAmbience={toggleAmbience}
-          unlockedAmbiences={unlockedAmbiences}
-          ambientSounds={AMBIENT_SOUNDS} // Pass data constant
+            // Sounds
+            playAmbience={toggleAmbience}
+            unlockedAmbiences={unlockedAmbiences}
+            ambientSounds={AMBIENT_SOUNDS} // Pass data constant
 
-          // Quicklinks
-          quicklinks={quicklinks}
-          setQuicklinks={setQuicklinks}
-        />
-      )}
+            // Quicklinks
+            quicklinks={quicklinks}
+            setQuicklinks={setQuicklinks}
+          />
+        )
+      }
     </div >
   );
 }
