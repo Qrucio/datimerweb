@@ -3,9 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 // !IMPORTANT: Add VITE_SPOTIFY_CLIENT_ID to your .env file
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
 
-// Hardcoded to avoid localhost vs 127.0.0.1 mismatches
-const REDIRECT_URI = "https://altimer.netlify.app/";
-
 const SCOPES = [
     "user-read-private",
     "user-read-email",

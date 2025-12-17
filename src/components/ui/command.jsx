@@ -7,7 +7,7 @@ const Command = React.forwardRef(({ className, ...props }, ref) => (
     <CommandPrimitive
         ref={ref}
         className={cn(
-            "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+            "flex h-full w-full flex-col overflow-hidden rounded-md bg-transparent text-popover-foreground",
             className
         )}
         {...props} />
@@ -32,7 +32,7 @@ const CommandDialog = ({
             aria-describedby="command-menu-description"
             className="fixed z-[999] inset-0 flex items-center justify-center p-4 pt-[20vh] bg-black/50 backdrop-blur-[2px]">
             <div className="sr-only" id="command-menu-description">Command Menu for navigation and actions</div>
-            <div className="w-full max-w-[640px] bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 pb-3">
+            <div className="dark w-full max-w-[640px] bg-zinc-900 border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 pb-3">
                 <Command filter={filter} shouldFilter={shouldFilter} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
                     {children}
                 </Command>
