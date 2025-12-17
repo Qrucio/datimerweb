@@ -572,6 +572,25 @@ const UnifiedSettingsModal = ({
                       <div className="relative"><Avatar userData={user} isPro={isPro} size="xs" /></div>
                       <div className="overflow-hidden min-w-0 flex-1"><p className={`text-xs font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p></div>
                     </button>
+
+                    {/* Dev Tools (Localhost Only) */}
+                    {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+                      <div className="p-2 mt-2 border-t border-white/10 select-none">
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1.5">Dev: Trigger Pro Modal</p>
+                        <div className="grid grid-cols-3 gap-1">
+                          {['notes', 'arcade', 'ambience', 'music', 'settings', 'personalities'].map(src => (
+                            <button
+                              key={src}
+                              onClick={(e) => { e.stopPropagation(); onOpenPro(src); }}
+                              className="px-1.5 py-1 bg-white/5 hover:bg-white/10 hover:text-white rounded text-[8px] text-white/40 uppercase tracking-wider text-center border border-white/5 transition-colors"
+                              title={`Trigger ${src} feature modal`}
+                            >
+                              {src.slice(0, 3)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -613,6 +632,29 @@ const UnifiedSettingsModal = ({
                         <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
                         <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Background</h3></div>
                       </div>
+
+                      {/* Opacity Slider */}
+                      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-6">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-xs font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
+                            Overlay Opacity
+                          </label>
+                          <span className="text-white font-mono text-xs">{Math.round((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="1"
+                          step="0.05"
+                          value={settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5}
+                          onChange={(e) => updateSetting('backgroundOpacity', parseFloat(e.target.value))}
+                          style={{
+                            background: `linear-gradient(to right, white 0%, white ${((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) - 0.1) / 0.9 * 100}%, #4a4a4e ${((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) - 0.1) / 0.9 * 100}%, #4a4a4e 100%)`
+                          }}
+                          className="modern-slider"
+                        />
+                      </div>
+
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);

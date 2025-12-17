@@ -1032,7 +1032,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
 
   const handleToggle = (key, value) => { setLocalSettings(prev => ({ ...prev, [key]: value })); }
 
-  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; return { hasError, newErrors, finalSettings }; };
+  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; finalSettings.backgroundOpacity = localSettings.backgroundOpacity; return { hasError, newErrors, finalSettings }; };
 
   const handleCloseAction = () => {
     const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(settings);
@@ -5862,15 +5862,19 @@ function MainApp() {
                 autoPlay loop muted playsInline disablePictureInPicture
                 style={{
                   filter: 'brightness(1.2) contrast(1.1)', // Brightened as requested
-                  transform: 'translateZ(0)'
+                  transform: 'translateZ(0)',
+                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
                 }}
-                className="w-full h-full object-cover opacity-80" // Reduced opacity to verify
+                className="w-full h-full object-cover"
               />
             </div>
           ) : (
             <div
               className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
-              style={{ backgroundImage: `url(${activeBackground})` }}
+              style={{
+                backgroundImage: `url(${activeBackground})`,
+                opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+              }}
             />
           )
         )
@@ -5880,11 +5884,13 @@ function MainApp() {
       <div
         className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
         style={{
-          backgroundColor: useIntentionTheme
-            ? 'rgba(0,0,0,0)' // Transparent for Gradient
-            : focusMode
-              ? 'rgba(0, 0, 0, 0.5)'
-              : 'rgba(0, 0, 0, 0.55)'
+          backgroundColor: (activeBackground && !useIntentionTheme)
+            ? 'transparent' // We handle dimming via image opacity
+            : useIntentionTheme
+              ? 'rgba(0,0,0,0)' // Transparent for Gradient
+              : focusMode
+                ? 'rgba(0, 0, 0, 0.5)'
+                : 'rgba(0, 0, 0, 0.55)'
         }}
       />
       {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
@@ -6302,7 +6308,7 @@ function MainApp() {
         backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
         stats={stats}
         isPro={isPro}
-        onOpenPro={() => setProModalSource('settings')}
+        onOpenPro={(source) => setProModalSource(source || 'settings')}
         onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
       />
 
