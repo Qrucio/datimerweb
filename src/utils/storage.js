@@ -16,6 +16,9 @@ const KEYS = {
     SUBSCRIPTION: 'zen_cache_subscription',
     CUSTOM_ITEMS: 'zen_custom_store_items',
     QUICKLINKS: 'zen_quicklinks',
+    REMOVE_ADS: 'zen_remove_ads',   // Purchase flag to hide ads
+    VOLUME: 'zen_volume',           // Global Volume
+    SPOTIFY_PROMO_DISMISSED: 'zen_spotify_promo_dismissed',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -613,7 +616,29 @@ export const Storage = {
         return items;
     },
 
-    // --- 12. SESSION CLEANUP ---
+
+
+    // ... (existing code) ...
+
+    // --- 13. UI PERSISTENCE ---
+    getVolume: () => {
+        try {
+            const vol = localStorage.getItem(KEYS.VOLUME);
+            return vol !== null ? parseFloat(vol) : 0.5;
+        } catch { return 0.5; }
+    },
+    setVolume: (vol) => {
+        localStorage.setItem(KEYS.VOLUME, vol.toString());
+    },
+
+    getSpotifyPromoDismissed: () => {
+        return localStorage.getItem(KEYS.SPOTIFY_PROMO_DISMISSED) === 'true';
+    },
+    setSpotifyPromoDismissed: (dismissed) => {
+        localStorage.setItem(KEYS.SPOTIFY_PROMO_DISMISSED, dismissed.toString());
+    },
+
+    // --- 14. SESSION CLEANUP ---
     clearAll: () => {
         Object.values(KEYS).forEach(key => localStorage.removeItem(key));
         // Clear legacy/other keys if they exist

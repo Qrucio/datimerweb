@@ -3694,8 +3694,15 @@ function MainApp() {
   const ambienceRefs = useRef({});// NEW: Separate Engine for Ambience
 
   // --- AUDIO STATE ---
-  const [volume, setVolume] = useState(0.5);
+  const [volume, setVolume] = useState(() => Storage.getVolume());
 
+  // Wrapper to save volume on change
+  const handleSetVolume = (newVol) => {
+    setVolume(newVol);
+    Storage.setVolume(newVol);
+  };
+
+  // 1. MUSIC (Focus Tracks)
   // 1. MUSIC (Focus Tracks)
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -3830,9 +3837,14 @@ function MainApp() {
   const [showStrictConfirm, setShowStrictConfirm] = useState(false);
   const [showStrictWarning, setShowStrictWarning] = useState(false);
   const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
-
   // NEW: Spotify Promo Popup State
-  const [showSpotifyPromo, setShowSpotifyPromo] = useState(true); // <--- NEW STATE
+  const [showSpotifyPromo, setShowSpotifyPromo] = useState(() => !Storage.getSpotifyPromoDismissed()); // <--- NEW STATE
+
+  const handleDismissSpotifyPromo = () => {
+    setShowSpotifyPromo(false);
+    Storage.setSpotifyPromoDismissed(true);
+  };
+
   const wasMusicPlayingRef = useRef(false);
   // --- STRICT MODE LOGIC (UPDATED: EXTENSION BASED) ---
   const strictModeRef = useRef(strictMode);
@@ -6047,7 +6059,7 @@ function MainApp() {
                   </motion.span>
                 </motion.button>
                 <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); setShowSpotifyPromo(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
 
                   {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
                   <div className="relative flex items-center justify-center">
@@ -6066,7 +6078,7 @@ function MainApp() {
                             <SpotifyIcon size={20} innerFillClassName="fill-[#1DB954]" className="shrink-0 text-black appearance-none" />
                             <span className="text-xs font-bold tracking-tight">Play Spotify directly from altimer!</span>
                             <button
-                              onClick={() => setShowSpotifyPromo(false)}
+                              onClick={() => handleDismissSpotifyPromo()}
                               className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
                             >
                               <X size={10} strokeWidth={3} />
