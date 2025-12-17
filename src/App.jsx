@@ -3208,6 +3208,7 @@ function MainApp() {
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
 
   const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
+  const [settingsTab, setSettingsTab] = useState('preferences');
 
 
 
@@ -6310,6 +6311,7 @@ function MainApp() {
         isPro={isPro}
         onOpenPro={(source) => setProModalSource(source || 'settings')}
         onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
+        initialTab={settingsTab}
       />
 
       <SocialProfileModal
@@ -6472,7 +6474,7 @@ function MainApp() {
           openNotes={() => setIsNoteLibraryOpen(true)}
           openMusic={() => setShowMusic(true)}
           openSocial={() => setShowFriends(true)}
-          openSettings={() => setIsUnifiedModalOpen(true)}
+          openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
           setTimerActive={setIsActive}
 
           // Timer Controls

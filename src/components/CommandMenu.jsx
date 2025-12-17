@@ -41,8 +41,32 @@ import {
 
 } from "lucide-react";
 import confetti from "canvas-confetti";
-import { Music as MusicIcon, StickyNote } from "lucide-react";
+import { Music as MusicIcon, StickyNote, Sliders, Palette, BarChart2, Clock as ClockIcon } from "lucide-react";
 import { isMac } from "../lib/utils";
+
+const Favicon = ({ url, fallback: FallbackIcon, className }) => {
+    const [error, setError] = useState(false);
+    const domain = useMemo(() => {
+        try {
+            return new URL(url).hostname;
+        } catch {
+            return null;
+        }
+    }, [url]);
+
+    if (!domain || error) {
+        return <FallbackIcon className={className} />;
+    }
+
+    return (
+        <img
+            src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+            alt="icon"
+            className={`rounded-sm mr-2 w-4 h-4 object-contain block ${className}`} // Adjust sizing to match lucide icons if needed
+            onError={() => setError(true)}
+        />
+    );
+};
 
 export function CommandMenu({
     onboardingMode,
@@ -498,7 +522,7 @@ export function CommandMenu({
                                         onSelect={() => { window.open(link.url, '_blank'); setOpen(false); }}
                                         className="group"
                                     >
-                                        <LinkIcon className="mr-2 h-4 w-4 text-blue-300" />
+                                        <Favicon url={link.url} fallback={LinkIcon} className="mr-2 h-4 w-4 text-blue-300" />
                                         <span>{link.title}</span>
 
                                         {/* Edit Trigger (Hidden unless group hover or focused, but cmdk handling of focus is specific) */}
@@ -562,9 +586,25 @@ export function CommandMenu({
                             </CommandGroup>
 
                             <CommandGroup heading="Settings">
-                                <CommandItem onSelect={() => { openSettings?.(); setOpen(false); }}>
+                                <CommandItem onSelect={() => { openSettings?.('preferences'); setOpen(false); }}>
+                                    <Sliders className="mr-2 h-4 w-4" />
+                                    <span>Preferences</span>
+                                </CommandItem>
+                                <CommandItem onSelect={() => { openSettings?.('customize-background'); setOpen(false); }}>
+                                    <Palette className="mr-2 h-4 w-4" />
+                                    <span>Background</span>
+                                </CommandItem>
+                                <CommandItem onSelect={() => { openSettings?.('customize-clock'); setOpen(false); }}>
+                                    <ClockIcon className="mr-2 h-4 w-4" />
+                                    <span>Clock Style</span>
+                                </CommandItem>
+                                <CommandItem onSelect={() => { openSettings?.('stats'); setOpen(false); }}>
+                                    <BarChart2 className="mr-2 h-4 w-4" />
+                                    <span>Stats</span>
+                                </CommandItem>
+                                <CommandItem onSelect={() => { openSettings?.('account'); setOpen(false); }}>
                                     <Settings className="mr-2 h-4 w-4" />
-                                    <span>Settings</span>
+                                    <span>All Settings</span>
                                     <CommandShortcut>{shortcutKey}{!isMac() && "+"}S</CommandShortcut>
                                 </CommandItem>
                             </CommandGroup>
