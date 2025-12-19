@@ -6178,7 +6178,7 @@ function MainApp() {
                       WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
                     }}
                   >
-                    <CountdownTimer timeLeft={timeLeft} />
+                    <CountdownTimer timeLeft={timeLeft} disableAnimation={isPiPActive} />
                   </div>
 
                   {/* --- CONTROLS --- */}

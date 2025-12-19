@@ -2,7 +2,11 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Digit Component: Handles the animation of a single character
-const Digit = ({ value }) => {
+const Digit = ({ value, animated = true }) => {
+    if (!animated) {
+        return <span className="inline-block">{value}</span>;
+    }
+
     return (
         <div className="relative inline-block">
             {/* 
@@ -45,7 +49,7 @@ const Separator = ({ value }) => {
     )
 }
 
-const CountdownTimer = ({ timeLeft }) => {
+const CountdownTimer = ({ timeLeft, disableAnimation = false }) => {
     // Format MM:SS
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
@@ -64,7 +68,7 @@ const CountdownTimer = ({ timeLeft }) => {
                 }
                 // KEY FIX: Use 'index' as key so the component doesn't unmount, allowing AnimatePresence to work
                 return (
-                    <Digit key={index} value={char} />
+                    <Digit key={index} value={char} animated={!disableAnimation} />
                 );
             })}
         </div>
