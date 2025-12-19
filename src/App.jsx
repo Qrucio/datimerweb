@@ -3146,7 +3146,7 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
   const [isMigrating, setIsMigrating] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium' };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', backgroundOpacity: 0.3, backgroundBrightnessMap: {}, alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium' };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
@@ -5620,24 +5620,31 @@ function MainApp() {
   };
 
   const handleBackgroundChange = (bgSrc) => {
-    // 1. Prepare New Settings with Timestamp
-    // We must stamp this so the app knows this is the "Latest Version"
+    // 1. Save Current Brightness to Map
+    const currentBg = settings.background;
+    const currentOpacity = settings.backgroundOpacity;
+    const brightnessMap = { ...(settings.backgroundBrightnessMap || {}) };
+    if (currentBg) {
+      brightnessMap[currentBg] = currentOpacity;
+    }
+
+    // 2. Retrieve Saved Brightness for New Bg (or default to 0.3)
+    const savedOpacity = brightnessMap[bgSrc] !== undefined ? brightnessMap[bgSrc] : 0.3;
+
+    // 3. Prepare New Settings with Timestamp
     const newSettings = {
       ...settings,
       background: bgSrc,
+      backgroundOpacity: savedOpacity,
+      backgroundBrightnessMap: brightnessMap,
       updatedAt: Date.now()
     };
 
-    // 2. Save to Local Storage IMMEDIATELY
-    // This ensures that if they reload 1 second later, the background persists.
+    // 4. Save to Local Storage IMMEDIATELY
     Storage.saveSettingsLocally(newSettings);
 
-    // 3. Update React State (Visuals)
+    // 5. Update React State (Visuals)
     setSettings(newSettings);
-
-    // 4. (Optional) Force a Cloud Sync if you want it to happen instantly
-    // The existing 'useEffect' will catch this state change and sync to Firebase 
-    // automatically in ~1 second, so we don't strictly need to force it here.
   };
   const handleAddCustomBackground = (newBg) => { setCustomBackgrounds(prev => [...prev, newBg]); };
   const handleDeleteCustomBackground = (bgId) => { const bgToDelete = customBackgrounds.find(b => b.id === bgId); if (bgToDelete && settings.background === bgToDelete.src) { setSettings(prev => ({ ...prev, background: '' })); } setCustomBackgrounds(prev => prev.filter(bg => bg.id !== bgId)); };

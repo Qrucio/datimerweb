@@ -424,7 +424,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
                                     <motion.div
                                         key={task.id}
                                         layout={!isBeingResized}
-                                        layoutId={task.id}
+
 
                                         initial={{ opacity: 0, scale: 0.95 }}
                                         animate={{
