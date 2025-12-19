@@ -26,6 +26,7 @@ import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
 import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
+import CountdownTimer from './components/CountdownTimer';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
 // GoogleGenerativeAI import removed per user request
@@ -502,7 +503,7 @@ const GlobalStyles = () => (
 const RevealLogo = ({ src, className, disableReveal = false }) => {
   return (
     <motion.div
-      className={`group relative flex items-center justify-center ${disableReveal ? '' : 'cursor-pointer'}`}
+      className={`group relative flex items-center justify-center ${disableReveal ? '' : 'cursor-default'}`}
       initial="rest"
       whileHover={disableReveal ? "rest" : "hover"}
       animate="rest"
@@ -549,7 +550,7 @@ const RevealLogo = ({ src, className, disableReveal = false }) => {
 
 const Toggle = ({ label, checked, onChange }) => (
   <div
-    className="flex justify-between items-center w-full group cursor-pointer py-3 select-none"
+    className="flex justify-between items-center w-full group cursor-default py-3 select-none"
     onClick={() => onChange(!checked)}
   >
     <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
@@ -1364,7 +1365,7 @@ const StickyNote = ({ text, onClick, className = "", style = {}, scale = 1 }) =>
     style={style}
     whileHover={onClick ? { scale: scale * 1.05, rotate: 0 } : {}}
     whileTap={onClick ? { scale: scale * 0.95 } : {}}
-    className={`bg-[#ffeb3b] text-black p-4 shadow-xl cursor-pointer relative overflow-hidden flex flex-col ${className}`}
+    className={`bg-[#ffeb3b] text-black p-4 shadow-xl cursor-default relative overflow-hidden flex flex-col ${className}`}
   >
     <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
     <div className="relative z-10 flex-1 overflow-hidden text-left">
@@ -1730,7 +1731,7 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
         initial={false}
         // Anchor to Top-Left (0,0) so it expands Right (desktop) or Down (mobile)
         style={{ transformOrigin: "0% 0%" }}
-        className="absolute top-0 left-0 border flex items-center justify-center overflow-hidden cursor-pointer shadow-lg bg-[#111]"
+        className="absolute top-0 left-0 border flex items-center justify-center overflow-hidden cursor-default shadow-lg bg-[#111]"
         animate={status === 'confirming'
           ? {
             // 2. Conditional Dimensions based on isMobile
@@ -1760,7 +1761,7 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
               exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
               transition={{ duration: 0.2 }}
               onClick={(e) => { e.stopPropagation(); setStatus('confirming'); }}
-              className="absolute inset-0 w-full h-full flex items-center justify-center text-white/80 hover:text-white"
+              className="absolute inset-0 w-full h-full flex items-center justify-center text-white/80 hover:text-white cursor-default"
             >
               <RotateCcw size={22} />
             </motion.button>
@@ -1945,7 +1946,7 @@ const LiquidStrictBtn = ({
           if (!isMissing && isLocked && !isBreak) return;
           setStatus(prev => prev === 'idle' ? 'confirming' : 'idle');
         }}
-        className={`relative p-2 rounded-full transition-all group flex items-center ${btnBg} ${btnText} ${isMenuOpen ? 'bg-white/10' : ''}`}
+        className={`relative p-2 rounded-full transition-all group flex items-center cursor-default ${btnBg} ${btnText} ${isMenuOpen ? 'bg-white/10' : ''}`}
       >
         {isMissing
           ? <Lock size={20} className={iconColor} />
@@ -2698,7 +2699,7 @@ const NoteSystemModals = ({
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenPro();
@@ -2716,7 +2717,7 @@ const NoteSystemModals = ({
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onMouseMove={handleGlowMove}
-                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group cursor-pointer w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group !cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
                         onClick={(e) => {
                           e.stopPropagation();
                           const initialTags = selectedTag !== "All" ? [selectedTag] : [];
@@ -2765,8 +2766,8 @@ const NoteSystemModals = ({
                           onClick={(e) => e.stopPropagation()}
 
                           // --- STYLING ---
-                          style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none' }}
-                          className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group cursor-grab active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
+                          style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none', cursor: 'default' }}
+                          className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group !cursor-default active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
 
                           // --- ANIMATIONS ---
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -2862,7 +2863,7 @@ const NoteSystemModals = ({
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-[85vw] md:w-[550px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-2xl max-h-[85vh]"
+            className="w-[85vw] md:w-[550px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-sm max-h-[85vh]"
             style={{ backgroundColor: editorColor }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
@@ -5880,7 +5881,7 @@ function MainApp() {
                 </div>
               )}
               <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center">
+                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
                   <div className="relative">
                     <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
                     {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
@@ -5890,7 +5891,7 @@ function MainApp() {
                   </motion.span>
                 </motion.button>
                 <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
 
                   {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
                   <div className="relative flex items-center justify-center">
@@ -6028,7 +6029,7 @@ function MainApp() {
                       } else {
                         containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
                         if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
-                        else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-pointer "; }
+                        else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-default "; }
                       }
 
                       return (
@@ -6144,8 +6145,9 @@ function MainApp() {
 
                   {/* --- TIMER --- */}
                   <div
+                    onClick={toggleTimer}
                     className={`
-                    leading-none tracking-normal select-none tabular-nums transition-all duration-700
+                    leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                     
                     ${/* FONT TYPE LOGIC */ ''}
                     ${(settings.clockType || 'default') === 'default' ? 'font-clock' : ''}
@@ -6176,7 +6178,7 @@ function MainApp() {
                       WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
                     }}
                   >
-                    {formatTime(timeLeft)}
+                    <CountdownTimer timeLeft={timeLeft} />
                   </div>
 
                   {/* --- CONTROLS --- */}
@@ -6186,7 +6188,7 @@ function MainApp() {
                     {!isPiPActive && (
                       <button
                         onClick={togglePiP}
-                        className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-all hover:scale-105 active:scale-95"
+                        className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-default"
                         title="Picture-in-Picture"
                       >
                         <PictureInPicture2 size={20} />
@@ -6197,7 +6199,7 @@ function MainApp() {
                       ref={playBtnRef}
                       onClick={toggleTimer}
                       disabled={isAIPlanning}
-                      className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                      className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-default ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
                     >
                       <div className="relative w-8 h-8 flex items-center justify-center">
                         <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>

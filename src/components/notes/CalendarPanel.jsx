@@ -447,7 +447,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
 
                                         whileDrag={{ zIndex: 50, scale: 1.02, cursor: 'grabbing', boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
 
-                                        className={`absolute left-14 right-4 rounded-lg border border-black/10 p-2 overflow-visible hover:brightness-110 hover:z-20 transition-all shadow-sm group pointer-events-auto ${!isBeingResized ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                        className={`absolute left-14 right-4 rounded-lg border border-black/10 p-2 overflow-visible hover:brightness-110 hover:z-20 transition-all shadow-sm group pointer-events-auto ${!isBeingResized ? '!cursor-default active:cursor-grabbing' : ''}`}
                                         style={{
                                             top: getTopOffset(displayStartTime),
                                             height: Math.max(getHeight(displayDuration) - 2, 30),

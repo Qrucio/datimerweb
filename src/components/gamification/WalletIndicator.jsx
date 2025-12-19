@@ -8,7 +8,7 @@ const WalletIndicator = ({ balance, onClick }) => {
             onClick={onClick}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="group relative h-9 flex items-center gap-2.5 px-4 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 hover:border-yellow-500/50 rounded-full transition-all duration-500 cursor-pointer overflow-hidden shadow-lg"
+            className="group relative h-9 flex items-center gap-2.5 px-4 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 hover:border-yellow-500/50 rounded-full transition-all duration-500 cursor-default overflow-hidden shadow-lg"
         >
             {/* Liquid Gold Glow */}
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.25)_0%,transparent_70%)]" />
