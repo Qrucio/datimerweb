@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Users, Hash, Crown, Shield, UserPlus, UserMinus, MessageCircle } from 'lucide-react';
+import { Trophy, Users, Hash, Crown, Shield, UserPlus, UserMinus, MessageCircle, Video } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import LiquidButton from '../ui/LiquidButton';
 import { getIconById } from '../../utils/iconOptions';
 import ChatArea from '../chat/ChatArea';
+import ServerVideo from './ServerVideo';
 
 const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile, onMentionClick }) => {
     // SAFETY CHECK: If server is missing (e.g. just kicked), don't crash
@@ -172,6 +173,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
 
     const tabs = [
         { id: 'chat', label: 'Chat', icon: MessageCircle },
+        { id: 'video', label: 'Video', icon: Video },
         { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
         { id: 'members', label: 'Members', icon: Users },
         // Removed Settings Tab as requested
@@ -243,6 +245,16 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
                                 onMentionClick={onMentionClick}
                                 members={resolvedMembers}
                             />
+                        </motion.div>
+                    )}
+
+                    {activeTab === 'video' && (
+                        <motion.div
+                            key="video"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="flex-1 overflow-hidden h-full"
+                        >
+                            <ServerVideo serverId={server.id} user={user} />
                         </motion.div>
                     )}
 
@@ -374,7 +386,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
             </div>
 
             {/* BOTTOM TABS - PILL NAVIGATION */}
-            <div className="flex justify-center p-6 bg-[#111] shrink-0">
+            <div className="flex justify-center p-3 bg-[#111] shrink-0">
                 <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 relative">
                     {tabs.map(tab => {
                         const isActive = activeTab === tab.id;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { usePiP } from './hooks/usePiP';
 import { PictureInPicture2 } from 'lucide-react';
@@ -27,6 +27,9 @@ import TypingGame from './components/games/TypingGame';
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
+import { VideoManager } from './components/video/VideoManager';
+import VideoPipWindow from './components/video/VideoPipWindow';
+import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
 // GoogleGenerativeAI import removed per user request
@@ -1123,7 +1126,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
 
   const handleToggle = (key, value) => { setLocalSettings(prev => ({ ...prev, [key]: value })); }
 
-  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak', 'pomosBeforeLongBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; finalSettings.backgroundOpacity = localSettings.backgroundOpacity; return { hasError, newErrors, finalSettings }; };
+  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; finalSettings.backgroundOpacity = localSettings.backgroundOpacity; return { hasError, newErrors, finalSettings }; };
 
   const handleCloseAction = () => {
     const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(settings);
@@ -1183,7 +1186,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                         className={`
                           w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
                           font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
-                          ${errors[mode] ? 'bg-red-500/10 ring-2 ring-red-500/50' : ''}
+                          ${errors[mode] ? 'bg-red-500/10 ring-2 ring-500/50' : ''}
                         `}
                         placeholder={settings[mode]}
                       />
@@ -1202,7 +1205,7 @@ const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, 
                           className={`
                             w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
                             font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
-                            ${errors['pomosBeforeLongBreak'] ? 'bg-red-500/10 ring-2 ring-red-500/50' : ''}
+                            ${errors['pomosBeforeLongBreak'] ? 'bg-red-500/10 ring-2 ring-500/50' : ''}
                           `}
                         />
                       </div>
@@ -2389,6 +2392,7 @@ const ExtraTimePopup = ({ minutes, visible }) => (
         initial={{ opacity: 0, y: -50, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -20, scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 backdrop-blur-md border border-white/20 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4"
       >
         <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
@@ -2757,14 +2761,14 @@ const NoteSystemModals = ({
           className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
           onClick={closeLibrary}
         >
-          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative">
+          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative pt-12">
             {/* GLOBAL CLOSE BUTTON */}
             <div className="absolute top-6 right-6 z-[70]">
               <CloseButton onClick={closeLibrary} />
             </div>
 
             {/* LEFT: STANDARD NOTES (60%) */}
-            <div className="w-full lg:w-[60%] flex flex-col h-full relative pt-12">
+            <div className="w-full lg:w-[60%] flex flex-col h-full relative">
               <div className="w-full flex flex-col items-center pt-2 md:pt-6 pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
                 <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
@@ -3976,11 +3980,17 @@ function MainApp() {
   const [showStrictWarning, setShowStrictWarning] = useState(false);
   const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
   // NEW: Spotify Promo Popup State
-  const [showSpotifyPromo, setShowSpotifyPromo] = useState(() => !Storage.getSpotifyPromoDismissed()); // <--- NEW STATE
-
+  const [showSpotifyPromo, setShowSpotifyPromo] = useState(() => !localStorage.getItem('zen_spotify_promo_dismissed'));
+  const [showVideoPromo, setShowVideoPromo] = useState(() => !localStorage.getItem('zen_video_promo_dismissed'));
+  
   const handleDismissSpotifyPromo = () => {
     setShowSpotifyPromo(false);
-    Storage.setSpotifyPromoDismissed(true);
+    localStorage.setItem('zen_spotify_promo_dismissed', 'true');
+  };
+  
+  const handleDismissVideoPromo = () => {
+    setShowVideoPromo(false);
+    localStorage.setItem('zen_video_promo_dismissed', 'true');
   };
 
   const wasMusicPlayingRef = useRef(false);
@@ -5919,8 +5929,11 @@ function MainApp() {
 
   if (isAuthChecking) return <AppLoader />;
 
+
   return (
-    <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
+    <VideoManager user={user}>
+      <VideoPipWindow />
+      <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
 
       {/* 1. BACKGROUND LAYERS (Main Window) */}
@@ -6082,7 +6095,37 @@ function MainApp() {
                 </div>
               )}
               <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
+                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
+                  
+                  {/* Video Promo Popup */}
+                  <AnimatePresence>
+                    {showVideoPromo && !isMusicPlaying && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
+                        exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
+                        className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                       <div className="relative bg-[#0018b8] text-white px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(45,140,255,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#0018b8]">
+                          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                            <Video size={16} className="text-white" />
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-xs font-bold tracking-tight leading-tight">Video chat is now available</span>
+                             <span className="text-[10px] text-white/80 font-medium leading-tight">Find it in Servers &gt; Video</span>
+                          </div>
+                          <button
+                            onClick={() => handleDismissVideoPromo()}
+                            className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
+                          >
+                            <X size={10} strokeWidth={3} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  
                   <div className="relative">
                     <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
                     {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
@@ -6675,7 +6718,8 @@ function MainApp() {
           />
         )
       }
-    </div >
+      </div>
+    </VideoManager>
   );
 }
 

@@ -1,0 +1,186 @@
+/* Global CSS for Altimer Video - AGGRESSIVE OVERHAUL */
+
+/* ==========================================================================
+   1. MIRRORING
+   ========================================================================== */
+/* Mirror ALL Camera feeds (Local + Remote) for Selfie Mode */
+[data-lk-source="camera"] video {
+    transform: scaleX(-1) !important;
+    -webkit-transform: scaleX(-1) !important;
+}
+
+/* Ensure Screen Shares are NEVER mirrored */
+[data-lk-source="screen_share"] video {
+    transform: none !important;
+    -webkit-transform: none !important;
+}
+
+/* Hide default chat toggle */
+.lk-chat-toggle {
+    display: none !important;
+}
+
+/* ==========================================================================
+/* ==========================================================================
+   2. CONTROL BAR
+   ========================================================================== */
+/* Hide the default Control Bar inside VideoConference so we can render our custom one */
+.lk-video-conference .lk-control-bar {
+    display: none !important;
+}
+
+.lk-control-bar {
+    background-color: rgba(255, 255, 255, 0.08) !important; /* Lighter glass */
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 9999px !important; /* Fully rounded */
+    padding: 6px 10px !important; /* Tighter padding */
+    display: flex;
+    gap: 8px !important; /* Helper gap reduced */
+    margin-bottom: 0 !important; /* Docked: No margin needed */
+}
+
+/* ==========================================================================
+   3. UNIFIED BUTTON GROUPS (The Pills)
+   ========================================================================== */
+/* The Group acts as the Pill Container */
+.lk-button-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    border-radius: 9999px !important;
+    overflow: hidden !important; /* Back to hidden now that menus are gone */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin: 0 !important;
+    border: 1px solid transparent !important; 
+    height: 36px !important; /* Enforce smaller height */
+}
+
+/* 
+   STATE: ENABLED vs DISABLED 
+*/
+
+/* --- ENABLED/ACTIVE STATE (White Pill) --- */
+/* Only if explicitly active */
+.lk-button-group:has(.lk-button-active) {
+    background-color: white !important;
+    border-color: white !important;
+    color: black !important;
+}
+
+.lk-button-group:has(.lk-button-active) .lk-button,
+.lk-button-group:has(.lk-button-active) svg,
+.lk-button-group:has(.lk-button-active) button {
+    color: black !important;
+    /* fill: black !important;  <-- REMOVED: Lucide icons are stroke-based. Filling them makes them look like blobs (birds). */
+    fill: none !important;      /* Explicitly prevent filling */
+}
+
+/* Active Hover */
+.lk-button-group:has(.lk-button-active):hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    transform: scale(1.03);
+}
+
+/* --- DISABLED/MUTED STATE (Transparent/Red) --- */
+.lk-button-group:has(.lk-button-danger) {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+.lk-button-group:has(.lk-button-danger) .lk-button,
+.lk-button-group:has(.lk-button-danger) button {
+    color: #ef4444 !important;
+}
+
+/* Disabled Hover */
+.lk-button-group:has(.lk-button-danger):hover {
+    background-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* ==========================================================================
+   4. INNER BUTTON CLEANUP
+   ========================================================================== */
+/* Strip styles */
+.lk-button-group .lk-button,
+.lk-button-group > button {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    height: 36px !important; /* Smaller height */
+    padding: 0 16px !important; /* Standard padding */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* HIDE THE DROPDOWN TRIGGERS/MENUS as per user request */
+.lk-button-menu,
+.lk-device-menu,
+.lk-button-group > button:not(:first-child) { 
+    /* Assume first child is the toggle, others are menu triggers or separators */
+    display: none !important;
+}
+
+/* If LiveKit puts the toggle and menu button as siblings, we only want the FIRST one (The Toggle) */
+.lk-button-group .lk-button:first-child {
+    border-radius: 9999px !important; /* Full pill since it's alone now */
+    padding: 0 16px !important;
+}
+
+/* ==========================================================================
+   6. STANDALONE BUTTONS (Leave, Share)
+   ========================================================================== */
+.lk-button:not(.lk-button-group .lk-button) {
+    height: 40px !important;
+    border-radius: 9999px !important;
+    padding: 0 24px !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.lk-dropdown-button {
+    height: 40px !important;
+    border-radius: 9999px !important;
+    padding: 0 24px !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+}
+
+/* Hover Standalone */
+.lk-button:not(.lk-button-group .lk-button):hover {
+    background-color: white !important;
+    color: black !important;
+    transform: scale(1.03);
+}
+
+/* Leave Button - SPECIFIC */
+.lk-disconnect-button {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #ef4444 !important;
+    /* Ensure it picks up pill shape from above rules, but reinforce */
+    border-radius: 9999px !important;
+}
+
+.lk-disconnect-button:hover {
+    background-color: #ef4444 !important;
+    color: white !important;
+    border-color: #ef4444 !important;
+}
+
+/* PiP Mode Hidden Controls */
+.pip-mode .lk-control-bar {
+    display: none !important;
+}
+.pip-mode .lk-focus-layout-wrapper {
+    flex-direction: column;
+}

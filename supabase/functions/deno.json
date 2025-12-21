@@ -5,5 +5,8 @@
             "deno.window"
         ],
         "strict": true
+    },
+    "imports": {
+        "livekit-server-sdk": "npm:livekit-server-sdk@^2.0.0"
     }
 }
