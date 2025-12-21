@@ -35,6 +35,7 @@ import WalletIndicator from './components/gamification/WalletIndicator';
 // GoogleGenerativeAI import removed per user request
 // import CaffeineTracker from './components/CaffeineTracker';
 // for the sake of the comment 
+// let's get it
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
