@@ -151,9 +151,9 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                     <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ duration: 0.2, ease: "easeOut" }} className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform" onClick={(e) => e.stopPropagation()}>
                         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" /> <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
                         <div className="flex items-center justify-between p-6 md:p-8 pb-4 z-20 shrink-0 mt-8 md:mt-0"> <div> <h2 className="text-2xl md:text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2> <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p> </div> <CloseButton onClick={onClose} /> </div>
-                        <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-between items-center">
+                        <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-center items-center">
                             <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl whitespace-nowrap">
-                                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi Radio', icon: Radio }, { id: 'spotify', label: 'Spotify', icon: SpotifyIcon }].map((tab) => {
+                                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi', icon: Radio }, { id: 'spotify', label: 'Spotify', icon: SpotifyIcon }].map((tab) => {
                                     const isActive = activeTab === tab.id; const Icon = tab.icon;
                                     const isSpotify = tab.id === 'spotify';
                                     const activeClass = isSpotify
@@ -165,7 +165,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                     const iconProps = isSpotify && isActive ? { innerFillClassName: "fill-white" } : {};
 
                                     return (
-                                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-4 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-2 z-0 ${isActive ? activeClass : inactiveClass}`}>
+                                        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-3 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-2 z-0 ${isActive ? activeClass : inactiveClass}`}>
                                             {isActive && <motion.div layoutId="activeTabBg" className={`absolute inset-0 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1] ${bgClass}`} transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
                                             <Icon size={14} className={isActive ? (isSpotify ? "text-black" : "text-black") : ""} strokeWidth={2} {...iconProps} />
                                             <span>{tab.label}</span>
@@ -227,7 +227,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                 </div>
                                                 <h3 className="text-2xl font-bold text-white mb-2">Connect Spotify</h3>
                                                 <p className="text-white/40 max-w-sm mb-8">Access your personal playlists and control playback directly from Altimer.</p>
-                                                <button onClick={login} className="px-8 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full transition-all shadow-[0_0_20px_rgba(29,185,84,0.3)] hover:shadow-[0_0_30px_rgba(29,185,84,0.5)] transform hover:scale-105 active:scale-95">
+                                                <button onClick={() => { console.log("[UI] Connect Spotify Clicked"); login(); }} className="px-8 py-3 bg-[#1DB954] hover:bg-[#1ed760] text-black font-bold rounded-full transition-all shadow-[0_0_20px_rgba(29,185,84,0.3)] hover:shadow-[0_0_30px_rgba(29,185,84,0.5)] transform hover:scale-105 active:scale-95">
                                                     Connect Account
                                                 </button>
                                             </div>

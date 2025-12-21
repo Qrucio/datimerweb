@@ -16,6 +16,7 @@ const SCOPES = [
 
 const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
 const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
+const REDIRECT_URI = "https://altimer.netlify.app/";
 
 // --- PKCE Helpers ---
 const generateRandomString = (length) => {
@@ -57,6 +58,13 @@ const loadSpotifySDK = () => {
 };
 
 export const useSpotify = () => {
+    // DEBUG: Check Client ID status
+    useEffect(() => {
+        const hasId = !!CLIENT_ID;
+        console.log(`[Spotify] Client ID loaded: ${hasId}`);
+        if (!hasId) console.warn("[Spotify] Missing VITE_SPOTIFY_CLIENT_ID environment variable");
+    }, []);
+
     const [token, setToken] = useState("");
     const [playlists, setPlaylists] = useState([]);
     const [userProfile, setUserProfile] = useState(null);
@@ -84,6 +92,7 @@ export const useSpotify = () => {
             // If we already have a token, use it
             let existingToken = window.localStorage.getItem("spotify_token");
             if (existingToken) {
+                console.log("[Spotify] Restoring token from localStorage");
                 setToken(existingToken);
                 return;
             }
@@ -107,13 +116,18 @@ export const useSpotify = () => {
                     const data = await response.json();
 
                     if (data.access_token) {
+                        console.log("[Spotify] Token Exchange Successful", data);
                         window.localStorage.setItem("spotify_token", data.access_token);
+                        if (data.refresh_token) {
+                            window.localStorage.setItem("spotify_refresh_token", data.refresh_token);
+                        }
                         window.localStorage.removeItem('spotify_code_verifier');
                         setToken(data.access_token);
                         // Clean up URL
                         window.history.replaceState({}, document.title, "/");
                     } else {
                         console.error("Spotify Token Error:", data);
+                        alert(`Spotify Login Failed: ${data.error_description || "Unknown Error"}`);
                     }
                 } catch (error) {
                     console.error("Spotify Token Exchange Failed:", error);
@@ -216,9 +230,48 @@ export const useSpotify = () => {
         };
     }, [isPlaying, duration]);
 
+    // --- Refresh Token Logic ---
+    const refreshAccessToken = async () => {
+        const refreshToken = window.localStorage.getItem("spotify_refresh_token");
+        if (!refreshToken || !CLIENT_ID) return false;
+
+        try {
+            console.log("[Spotify] Refreshing Token...");
+            const response = await fetch(TOKEN_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: CLIENT_ID,
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                }),
+            });
+
+            const data = await response.json();
+            if (data.access_token) {
+                console.log("[Spotify] Token Refreshed Successfully");
+                window.localStorage.setItem("spotify_token", data.access_token);
+                if (data.refresh_token) {
+                    window.localStorage.setItem("spotify_refresh_token", data.refresh_token);
+                }
+                setToken(data.access_token);
+                return true;
+            } else {
+                console.error("[Spotify] Refresh Failed:", data);
+                logout();
+                return false;
+            }
+        } catch (e) {
+            console.error("[Spotify] Refresh Error:", e);
+            return false;
+        }
+    };
+
     // --- Login with PKCE ---
     const login = async () => {
+        console.log("[Spotify] Login initiated");
         if (!CLIENT_ID) {
+            console.error("[Spotify] Client ID is missing");
             alert("ERROR: VITE_SPOTIFY_CLIENT_ID is not set in your .env file!");
             return;
         }
@@ -255,6 +308,7 @@ export const useSpotify = () => {
         setIsPlayerReady(false);
         window.localStorage.removeItem("spotify_token");
         window.localStorage.removeItem("spotify_code_verifier");
+        window.localStorage.removeItem("spotify_refresh_token");
     };
 
     const fetchPlaylists = async () => {
@@ -275,7 +329,10 @@ export const useSpotify = () => {
             setPlaylists(data.items || []);
         } catch (error) {
             console.error("Spotify Fetch Error:", error);
-            if (error.status === 401) logout();
+            if (error.status === 401) {
+                const refreshed = await refreshAccessToken();
+                if (refreshed) fetchPlaylists(); // Retry once
+            }
         } finally {
             setIsLoading(false);
         }

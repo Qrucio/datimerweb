@@ -354,121 +354,124 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
                         className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]"
                     />
 
-                    {/* MODAL WRAPPER */}
-                    <div className="fixed inset-0 z-[101] flex items-center justify-center pointer-events-none p-2 md:p-6">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            transition={{ type: "spring", bounce: 0, duration: 0.3 }}
-                            className="w-full max-w-6xl h-[90vh] md:h-[80vh] flex flex-col md:flex-row gap-6 md:gap-8 pointer-events-auto"
-                        >
-
-                            {/* --- LEFT COLUMN: PROFILE CARD --- */}
-                            <div className="w-full md:w-[380px] shrink-0 flex flex-col">
-                                <ProfileCard
-                                    user={profileData}
-                                    currentUser={currentUser}
-                                    onClose={null} // Don't show close button on card itself
-                                    isSelf={currentUser?.uid === profileData.id || currentUser?.id === profileData.id} // Robust ID check
-                                    onAddFriend={onAddFriend}
-                                    onMessage={onMessage}
-                                    onProfileUpdate={(updates) => {
-                                        setProfileData(prev => ({ ...prev, ...updates }));
-                                        if (onProfileUpdate) onProfileUpdate(updates);
-                                    }}
-                                />
-                            </div>
-
-                            {/* --- RIGHT COLUMN: STATS DASHBOARD --- */}
-                            <div className="flex-1 bg-[#111] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl relative">
-
-                                {/* Header Actions (Close) */}
-                                <div className="absolute top-6 right-6 z-20">
+                    {/* MODAL WRAPPER - Full Screen Scroll Container */}
+                    <div className="fixed inset-0 z-[101] overflow-y-auto custom-scrollbar pointer-events-auto">
+                        <div className="min-h-full flex items-center justify-center p-2 md:p-6" onClick={onClose}>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full max-w-6xl h-auto md:h-[80vh] flex flex-col md:flex-row gap-6 md:gap-8 overflow-visible md:overflow-hidden relative"
+                            >
+                                {/* --- GLOBAL CLOSE BUTTON (Mobile & Desktop) --- */}
+                                <div className="absolute top-4 right-4 z-50 md:top-6 md:right-6">
                                     <CloseButton onClick={onClose} />
                                 </div>
 
-                                {/* Header with Tabs */}
-                                <div className="px-8 pt-8 pb-6 border-b border-white/5 flex items-center justify-between">
-                                    <div>
-                                        <h3 className="text-2xl font-serif-display text-white mb-1">Performance</h3>
-                                        <p className="text-sm text-white/40">Focus statistics and history</p>
+                                {/* --- LEFT COLUMN: PROFILE CARD --- */}
+                                <div className="w-full md:w-[380px] shrink-0 flex flex-col">
+                                    <ProfileCard
+                                        user={profileData}
+                                        currentUser={currentUser}
+                                        onClose={null} // Don't show close button on card itself
+                                        isSelf={currentUser?.uid === profileData.id || currentUser?.id === profileData.id} // Robust ID check
+                                        onAddFriend={onAddFriend}
+                                        onMessage={onMessage}
+                                        onProfileUpdate={(updates) => {
+                                            setProfileData(prev => ({ ...prev, ...updates }));
+                                            if (onProfileUpdate) onProfileUpdate(updates);
+                                        }}
+                                    />
+                                </div>
+
+                                <div className="flex-1 bg-[#111] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl relative h-auto md:h-full shrink-0">
+
+                                    {/* Header Actions (Close) - MOVED UP */}
+
+                                    {/* Header with Tabs */}
+                                    <div className="px-8 pt-8 pb-6 border-b border-white/5 flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-2xl font-serif-display text-white mb-1">Performance</h3>
+                                            <p className="text-sm text-white/40">Focus statistics and history</p>
+                                        </div>
+                                        <div className="bg-white/5 rounded-full p-1 flex gap-1 border border-white/5 mr-12">
+                                            {['today', 'history'].map(view => (
+                                                <button
+                                                    key={view}
+                                                    onClick={() => setActiveTab(view)}
+                                                    className={`relative px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
+                                                >
+                                                    {activeTab === view && (
+                                                        <motion.div
+                                                            layoutId="tabPill"
+                                                            className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
+                                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                        />
+                                                    )}
+                                                    {view}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="bg-white/5 rounded-full p-1 flex gap-1 border border-white/5 mr-12">
-                                        {['today', 'history'].map(view => (
-                                            <button
-                                                key={view}
-                                                onClick={() => setActiveTab(view)}
-                                                className={`relative px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
-                                            >
-                                                {activeTab === view && (
-                                                    <motion.div
-                                                        layoutId="tabPill"
-                                                        className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
-                                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+
+                                    {/* Content Scroll Area */}
+                                    <div className="flex-1 overflow-visible md:overflow-y-auto custom-scrollbar p-6 md:p-8">
+                                        <AnimatePresence mode="wait">
+                                            {activeTab === 'today' ? (
+                                                <motion.div
+                                                    key="today"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                                                >
+                                                    <FriendStatCard label="Focus Today" value={formatDetailedDuration(currentStats.dailyFocusTime || 0)} icon={Zap} isHero={true} />
+                                                    <FriendStatCard label="Break Time" value={formatDetailedDuration(currentStats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} />
+                                                    <FriendStatCard label="Sessions" value={currentStats.dailySessions || 0} icon={TrendingUp} delay={0.15} />
+                                                    <FriendStreakCard streak={currentStats.currentStreak || 0} />
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div
+                                                    key="history"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="flex flex-col gap-6"
+                                                >
+                                                    <FriendHistoryCalendar
+                                                        historyData={historyData}
+                                                        currentMonth={currentMonth}
+                                                        setCurrentMonth={setCurrentMonth}
+                                                        selectedDate={selectedDate}
+                                                        onSelectDate={setSelectedDate}
+                                                        isExpanded={isCalendarExpanded}
+                                                        setIsExpanded={setIsCalendarExpanded}
                                                     />
-                                                )}
-                                                {view}
-                                            </button>
-                                        ))}
+
+                                                    <div className="space-y-4">
+                                                        <div className="flex items-center gap-3 border-t border-white/10 pt-6">
+                                                            <h4 className="font-serif-display text-lg text-white">
+                                                                {!isCalendarExpanded ? "Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                                                            </h4>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                            <FriendStatCard label="Focus Time" value={formatDetailedDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight />
+                                                            <FriendStatCard label="Break Time" value={formatDetailedDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} />
+                                                            <FriendStatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} />
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
+
                                 </div>
-
-                                {/* Content Scroll Area */}
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-                                    <AnimatePresence mode="wait">
-                                        {activeTab === 'today' ? (
-                                            <motion.div
-                                                key="today"
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -10 }}
-                                                transition={{ duration: 0.15 }}
-                                                className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                                            >
-                                                <FriendStatCard label="Focus Today" value={formatDetailedDuration(currentStats.dailyFocusTime || 0)} icon={Zap} isHero={true} />
-                                                <FriendStatCard label="Break Time" value={formatDetailedDuration(currentStats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} />
-                                                <FriendStatCard label="Sessions" value={currentStats.dailySessions || 0} icon={TrendingUp} delay={0.15} />
-                                                <FriendStreakCard streak={currentStats.currentStreak || 0} />
-                                            </motion.div>
-                                        ) : (
-                                            <motion.div
-                                                key="history"
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -10 }}
-                                                transition={{ duration: 0.15 }}
-                                                className="flex flex-col gap-6"
-                                            >
-                                                <FriendHistoryCalendar
-                                                    historyData={historyData}
-                                                    currentMonth={currentMonth}
-                                                    setCurrentMonth={setCurrentMonth}
-                                                    selectedDate={selectedDate}
-                                                    onSelectDate={setSelectedDate}
-                                                    isExpanded={isCalendarExpanded}
-                                                    setIsExpanded={setIsCalendarExpanded}
-                                                />
-
-                                                <div className="space-y-4">
-                                                    <div className="flex items-center gap-3 border-t border-white/10 pt-6">
-                                                        <h4 className="font-serif-display text-lg text-white">
-                                                            {!isCalendarExpanded ? "Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-                                                        </h4>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                        <FriendStatCard label="Focus Time" value={formatDetailedDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight />
-                                                        <FriendStatCard label="Break Time" value={formatDetailedDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} />
-                                                        <FriendStatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} />
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                            </div>
-                        </motion.div>
+                            </motion.div>
+                        </div>
                     </div>
                 </>
             )}

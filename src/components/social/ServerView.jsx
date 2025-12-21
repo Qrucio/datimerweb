@@ -382,7 +382,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`relative flex items-center justify-center gap-2 px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${isActive ? 'text-black' : 'text-white/40 hover:text-white'}`}
+                                className={`relative flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${isActive ? 'text-black' : 'text-white/40 hover:text-white'}`}
                             >
                                 {isActive && (
                                     <motion.div

@@ -2757,7 +2757,12 @@ const NoteSystemModals = ({
           className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
           onClick={closeLibrary}
         >
-          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden">
+          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative">
+            {/* GLOBAL CLOSE BUTTON */}
+            <div className="absolute top-6 right-6 z-[70]">
+              <CloseButton onClick={closeLibrary} />
+            </div>
+
             {/* LEFT: STANDARD NOTES (60%) */}
             <div className="w-full lg:w-[60%] flex flex-col h-full relative pt-12">
               <div className="w-full flex flex-col items-center pt-2 md:pt-6 pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>

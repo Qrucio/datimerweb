@@ -263,12 +263,23 @@ const FriendView = ({
                                 })} </div> <div className="w-full h-px bg-white/10 my-4"></div> </div>
                             )}
                             <div className="flex flex-col gap-2"> <h4 className="text-xs uppercase tracking-widest text-white/40 mb-2 font-medium">Your Circle ({friends.length})</h4> {friends.length === 0 ? <div className="text-center py-8 text-white/30 text-sm">No friends yet.</div> : (sortedFriends.map((friend) => (
-                                <div key={friend.uid} onClick={() => onViewStats(friend)} className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative">
-                                    <div className="flex items-center gap-3 pointer-events-none"> <Avatar userData={friend} size="md" /> <div className="flex flex-col justify-center"> <div className="flex items-baseline gap-2 mb-1"> <span className="text-sm font-medium text-white leading-none">{friend.displayName}</span> <span className="text-xs text-white/50">{friend.handle}</span> </div> <div className="text-[10px] text-white/50 flex items-center gap-1.5"> <span className={`w-1.5 h-1.5 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span> {friend.statusText} </div> </div> </div>
-                                    <div className="flex gap-2 items-center" onClick={(e) => e.stopPropagation()}>
-
+                                <div key={friend.uid} onClick={() => onViewStats(friend)} className="bg-white/5 border border-white/5 hover:border-white/20 hover:bg-white/10 rounded-xl p-3 flex items-center justify-between transition-all group cursor-pointer relative overflow-hidden">
+                                    <div className="flex items-center gap-3 pointer-events-none min-w-0 flex-1">
+                                        <Avatar userData={friend} size="md" />
+                                        <div className="flex flex-col justify-center min-w-0">
+                                            <div className="flex items-baseline gap-2 mb-1 min-w-0">
+                                                <span className="text-sm font-medium text-white leading-none truncate">{friend.displayName}</span>
+                                                <span className="text-xs text-white/50 truncate hidden sm:inline">{friend.handle}</span>
+                                            </div>
+                                            <div className="text-[10px] text-white/50 flex items-center gap-1.5 truncate">
+                                                <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
+                                                <span className="truncate">{friend.statusText}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 items-center shrink-0 ml-2 z-10" onClick={(e) => e.stopPropagation()}>
                                         <button onClick={() => onTogglePin(friend.uid, friend.isPinned)} className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}><Pin size={16} className={friend.isPinned ? "fill-white" : ""} /></button>
-                                        <LiquidButton icon={UserMinus} label="Remove?" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
+                                        <LiquidButton icon={UserMinus} label="Remove" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
                                     </div>
                                 </div>
                             )))} </div>

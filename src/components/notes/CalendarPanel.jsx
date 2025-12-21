@@ -347,6 +347,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
 
     return (
         <div className="h-full flex flex-col relative overflow-hidden select-none" onClick={(e) => e.stopPropagation()}>
+
             <RecurrenceUpdateModal
                 isOpen={recurrenceModal.isOpen}
                 onClose={() => setRecurrenceModal({ ...recurrenceModal, isOpen: false })}
@@ -354,10 +355,7 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
             />
 
             {/* HEADER (Enhanced Calendar) */}
-            <div className="flex flex-col border-b border-white/5 bg-transparent flex-shrink-0 z-30">
-                <div className="p-4 pb-0 flex justify-end">
-                    <CloseButton onClick={onClose} />
-                </div>
+            <div className="flex flex-col border-b border-white/5 bg-transparent flex-shrink-0 z-30 pt-4">
                 <div className="px-4 pb-4">
                     <ExpandableCalendar
                         selectedDate={selectedDate}
