@@ -6113,8 +6113,8 @@ function MainApp() {
                             <Video size={16} className="text-white" />
                           </div>
                           <div className="flex flex-col">
-                             <span className="text-xs font-bold tracking-tight leading-tight">Video chat is now available</span>
-                             <span className="text-[10px] text-white/80 font-medium leading-tight">Find it in Servers &gt; Video</span>
+                             <span className="text-xs font-bold tracking-tight leading-tight">Video rooms are now available</span>
+                             <span className="text-[10px] text-white/80 font-medium leading-tight">Hold each other accountable. Find it in Servers &gt; Video</span>
                           </div>
                           <button
                             onClick={() => handleDismissVideoPromo()}
