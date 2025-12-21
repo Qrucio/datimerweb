@@ -3552,8 +3552,58 @@ function MainApp() {
           skipStatsRef.current = parsed.skipStats;
         }
       }
-    } catch (e) { }
+    } catch (e) { console.error("Error restoring stats", e); }
   }, []);
+
+  // --- SHOPIFY SUBSCRIPTION SYNC ---
+  useEffect(() => {
+    if (!user) return;
+
+    // 1. Initial Check: Always trust the server on load
+    const fetchProStatus = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_pro')
+        .eq('id', user.uid)
+        .single();
+
+      if (data && !error) {
+        setIsPro(data.is_pro);
+        // Also update local storage to keep it somewhat fresh for next boot
+        if (data.is_pro !== isPro) {
+          Storage.saveProStatus(data.is_pro);
+        }
+      }
+    };
+    fetchProStatus();
+
+    // 2. Real-time Listener: Handle Upgrades AND Downgrades
+    const profileSync = supabase
+      .channel('public:profiles_pro_check')
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.uid}`
+        },
+        (payload) => {
+          const newStatus = payload.new.is_pro;
+          setIsPro(newStatus);
+          Storage.saveProStatus(newStatus); // Sync local storage
+
+          if (newStatus) {
+            setProModalSource(null); // Close modal if they just bought it
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(profileSync);
+    };
+  }, [user]);
+
 
   const [editingModeId, setEditingModeId] = useState(null);
   const [editInputValue, setEditInputValue] = useState("");
@@ -5689,24 +5739,33 @@ function MainApp() {
   };
 
   const handleUpgradeToPro = async () => {
-    if (!user) return;
+    if (!user?.uid) return;
+
     try {
-      // 1. Update Subscription
-      await supabase.from('user_settings').upsert({
-        user_id: user.uid,
-        subscription: { plan: 'pro', status: 'active', since: Date.now() },
-        updated_at: new Date()
+      const productId = import.meta.env.VITE_POLAR_PRODUCT_ID;
+      if (!productId) {
+        console.error("VITE_POLAR_PRODUCT_ID is missing in .env");
+        alert("Configuration Error: Product ID missing.");
+        return;
+      }
+
+      // 1. Create Checkout Session
+      const { data, error } = await supabase.functions.invoke('create-polar-checkout', {
+        body: {
+          productId: productId,
+          supabaseUid: user.uid
+        }
       });
 
-      // 2. Update Profile
-      await supabase.from('profiles').update({ is_pro: true }).eq('id', user.uid);
+      if (error) throw error;
+      if (!data?.url) throw new Error("No checkout URL returned");
 
-      // 3. Update Local State
-      setIsPro(true);
-      setProModalSource(null);
+      // 2. Redirect to Polar
+      window.location.href = data.url;
 
-    } catch (e) {
-      console.error("Upgrade simulation failed:", e);
+    } catch (err) {
+      console.error("Upgrade failed:", err);
+      alert("Failed to initiate checkout. Please try again.");
     }
   };
 
