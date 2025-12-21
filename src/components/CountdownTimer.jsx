@@ -15,7 +15,13 @@ const Digit = ({ value, animated = true }) => {
         "tabular-nums" ensures monospaced numbers if the font supports it, reducing width jumping.
         opacity-0 makes it invisible but it still takes up space.
       */}
-            <span className="opacity-0">{value}</span>
+            {/* 
+        Phantom Element: 
+        Maintains the width/height of the container based on the widest character ('0').
+        This enforces a fixed width (like tabular-nums) even for variable width fonts,
+        preventing separate digits from shifting the layout.
+      */}
+            <span className="opacity-0">0</span>
 
             {/* 
         Animation Container:

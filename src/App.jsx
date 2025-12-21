@@ -633,10 +633,16 @@ const BendingDivider = ({ activeSide, isDimmed }) => {
 
 
 
+// --- IMPORT TIMEPICKER ---
+import { TimePicker } from './components/ui/TimePicker';
+
 // --- SMART MESSAGE COMPONENT ---
-const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, overrideMessage, layoutId }) => {
+const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, overrideMessage, layoutId, timeLeft, onUpdateEndTime }) => {
   const [displayText, setDisplayText] = useState("");
   const [key, setKey] = useState("init");
+  const [isHovered, setIsHovered] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
 
   // Helper to format time strings (e.g., "10:30 AM")
   const formatTime = (dateObj) => {
@@ -663,19 +669,28 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
       const now = new Date();
       const currentTimeStr = formatTime(now);
 
+      let message = currentTimeStr;
+      let targetDate = null;
+
       if (isActive && targetEndTime) {
-        // Active State: "10:30 AM | Ends at 11:00 AM"
-        const endStr = formatTime(new Date(targetEndTime));
-        const message = `${currentTimeStr} | Ends at ${endStr}`;
+        targetDate = new Date(targetEndTime);
+      } else if (!isActive && timeLeft > 0) {
+        targetDate = new Date(Date.now() + timeLeft * 1000);
+      }
+
+      if (targetDate) {
+        const endStr = formatTime(targetDate);
+        // UNIFIED FORMAT: "10:30 AM | Ends at 11:20 AM"
+        message = `${currentTimeStr} | Ends at ${endStr}`;
 
         setDisplayText(message);
-        // Update key when the minute changes (either current or end time) to trigger shimmer
         setKey(prev => {
+          // Use "active" key prefix for both to ensure stability
           const newKey = `active-${message}`;
           return prev === newKey ? prev : newKey;
         });
       } else {
-        // Idle State: Just current time
+        // Fallback or 0 time
         setDisplayText(currentTimeStr);
         setKey(prev => {
           const newKey = `idle-${currentTimeStr}`;
@@ -687,59 +702,123 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
     updateMessage();
     const interval = setInterval(updateMessage, 1000);
     return () => clearInterval(interval);
-  }, [isActive, targetEndTime, mode, overrideMessage]);
+  }, [isActive, targetEndTime, mode, overrideMessage, timeLeft, isEditing]);
 
   // VISIBILITY LOGIC:
   // If we have an override message (Break Skipped), ALWAYS show it.
   // Otherwise, fallback to Focus Mode logic (hide if inactive).
   const isVisible = overrideMessage || (focusMode ? isUserActive : true);
 
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    // Initialize edit value based on current target/projected time
+    const targetDate = isActive && targetEndTime ? new Date(targetEndTime) : new Date(Date.now() + timeLeft * 1000);
+    const h = targetDate.getHours().toString().padStart(2, '0');
+    const m = targetDate.getMinutes().toString().padStart(2, '0');
+    setEditValue(`${h}:${m}`);
+    setIsEditing(true);
+  };
+
+  const handleTimeChange = (newTimeStr) => {
+    // newTimeStr is "HH:MM" (24h)
+    setEditValue(newTimeStr);
+    onUpdateEndTime(newTimeStr);
+  };
+
   return (
-    <div className={`flex justify-center transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+    <div
+      className={`flex justify-center transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'} relative ${isEditing ? 'z-[100]' : 'z-50'}`}
+    >
+      {/* Backdrop for Editing */}
+      {isEditing && (
+        <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
+      )}
+
       <motion.div
         layoutId={layoutId}
         layout
+        onMouseEnter={() => setIsHovered(true)}
+        // FIX: Don't clear hover if we are editing
+        onMouseLeave={() => setIsHovered(false)}
         transition={{
           layout: { duration: 0.4, type: "spring", bounce: 0, damping: 25, stiffness: 300 }
         }}
-        className="relative bg-black/60 backdrop-blur-xl px-6 py-2.5 rounded-full border border-white/10 shadow-2xl flex items-center justify-center overflow-hidden min-w-[100px]"
+        className="relative bg-black/60 backdrop-blur-xl px-6 py-2.5 rounded-full border border-white/10 shadow-2xl flex items-center justify-center min-w-[100px] cursor-default z-50 group"
         style={{ borderRadius: 32 }}
       >
-        {/* Shimmer Effect Overlay */}
-        <motion.div
-          key={key + '-shimmer'}
-          initial={{ x: '-100%', opacity: 0 }}
-          animate={{ x: '150%', opacity: 0.4 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-          className={`absolute inset-0 w-full h-full bg-gradient-to-r from-transparent ${overrideMessage ? 'via-purple-500' : 'via-white'} to-transparent -skew-x-12 pointer-events-none z-0`}
-        />
+        {/* Shimmer Effect Overlay - MOVED TO INNER CONTAINER to avoid clipping Popover */}
+        <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+          <motion.div
+            key={key + '-shimmer'}
+            initial={{ x: '-100%', opacity: 0 }}
+            animate={{ x: '150%', opacity: 0.4 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className={`absolute inset-0 w-full h-full bg-gradient-to-r from-transparent ${overrideMessage ? 'via-purple-500' : 'via-white'} to-transparent -skew-x-12 pointer-events-none z-0`}
+          />
+        </div>
 
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.span
-            key={key}
-            initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: -15, filter: "blur(8px)" }}
-            transition={{
-              type: "spring",
-              bounce: 0,
-              duration: 0.5
-            }}
-            className={`relative z-10 text-sm font-medium tracking-wide text-center block font-clock 
-              ${overrideMessage && overrideMessage.startsWith("I will work on") ? 'text-purple-200 whitespace-normal leading-tight max-w-[80vw] md:max-w-md' : 'text-white whitespace-nowrap'} 
-              ${overrideMessage && !overrideMessage.startsWith("I will work on") ? 'text-purple-200' : ''}
-            `}
-            style={{ textShadow: overrideMessage ? "0 0 20px rgba(168, 85, 247, 0.5)" : "0 0 20px rgba(255,255,255,0.2)" }}
-          >
-            {displayText}
-          </motion.span>
+        <div className="relative z-10 flex items-center gap-2">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.span
+              key={key}
+              initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -15, filter: "blur(8px)" }}
+              transition={{
+                type: "spring",
+                bounce: 0,
+                duration: 0.5
+              }}
+              className={`text-sm font-medium tracking-wide text-center block font-clock 
+                ${overrideMessage && overrideMessage.startsWith("I will work on") ? 'text-purple-200 whitespace-normal leading-tight max-w-[80vw] md:max-w-md' : 'text-white whitespace-nowrap'} 
+                ${overrideMessage && !overrideMessage.startsWith("I will work on") ? 'text-purple-200' : ''}
+                `}
+              style={{ textShadow: overrideMessage ? "0 0 20px rgba(168, 85, 247, 0.5)" : "0 0 20px rgba(255,255,255,0.2)" }}
+            >
+              {displayText}
+            </motion.span>
+          </AnimatePresence>
+
+          {/* Edit Pencil Icon (Only show if not overriding and time is valid AND TIMER IS PAUSED) */}
+          {!overrideMessage && !isActive && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.5, width: 0 }}
+              animate={{ opacity: 1, scale: 1, width: 'auto' }}
+              exit={{ opacity: 0, scale: 0.5, width: 0 }}
+              // Always show pencil, no hover check
+              className="flex items-center justify-center text-white/50 hover:text-white transition-colors"
+              onClick={handleEditClick}
+            >
+              <Pencil size={12} strokeWidth={2.5} />
+            </motion.button>
+          )}
+        </div>
+
+        {/* TIME PICKER POPOVER */}
+        <AnimatePresence>
+          {isEditing && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              className="absolute top-full mt-3 bg-[#1a1a1a] border border-white/20 rounded-2xl shadow-2xl p-4 z-[60]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-white/50 uppercase tracking-wider mb-1">Set End Time</span>
+                <TimePicker value={editValue} onChange={handleTimeChange} />
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
+
+
       </motion.div>
     </div>
   );
 };
 
-// --- CALENDAR VIEW COMPONENT ---
+/* --- SmartIntervention Component --- */
 const CalendarView = ({ historyData, currentMonth, setCurrentMonth, onSelectDate, selectedDate }) => {
   const [viewMode, setViewMode] = useState('days'); // 'days' or 'months'
   const [selectorYear, setSelectorYear] = useState(currentMonth.getFullYear());
@@ -3493,6 +3572,9 @@ function MainApp() {
   // NEW: Track AI Planning State for Visual Feedback
   const [isAIPlanning, setIsAIPlanning] = useState(false);
 
+  // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
+  const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
+
   const commitSessionEdit = () => {
     const val = parseInt(sessionEditValue, 10);
     // Limit between 1 and 12 sessions for UI sanity
@@ -5416,8 +5498,10 @@ function MainApp() {
     setPomoCount(0);
     setTimeLeft(settings['focus'] * 60);
     setPomoCount(0);
+    setPomoCount(0);
     endTimeRef.current = null;
     setHasStartedSession(false); // Reset session tracking
+    setCurrentSessionTotalDuration(null); // Reset dynamic duration
 
     // 3. Sync "Reset" state to DB (so friends see you are Idle)
     syncTimerState({
@@ -5439,6 +5523,7 @@ function MainApp() {
     setIsActive(false);
     setTimeLeft(settings[newMode] * 60);
     setHasStartedSession(false); // Reset session tracking
+    setCurrentSessionTotalDuration(null); // Reset dynamic duration
 
     // Sync Mode Change
     syncTimerState({
@@ -5543,6 +5628,58 @@ function MainApp() {
 
         await syncTimerState(timerState);
       }
+    }
+  };
+
+  const handleUpdateEndTime = (newTimeStr) => {
+    // 1. Parse Input
+    const [h, m] = newTimeStr.split(':').map(Number);
+    const now = new Date();
+    const targetDate = new Date(now);
+    targetDate.setHours(h);
+    targetDate.setMinutes(m);
+    targetDate.setSeconds(0);
+    targetDate.setMilliseconds(0);
+
+    // 2. Handle Day Rollover (If time is in past, assume tomorrow)
+    if (targetDate < now) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    // 3. Calculate New Duration
+    const diff = targetDate.getTime() - now.getTime(); // ms
+    if (diff <= 0) return; // Should not happen due to rollover check, but safety first
+
+    const newSeconds = Math.ceil(diff / 1000);
+
+    // 4. Update State
+    setTimeLeft(newSeconds);
+    setCurrentSessionTotalDuration(newSeconds); // Fix progress bar base
+
+    if (isActive) {
+      endTimeRef.current = targetDate.getTime();
+      // Force sync for others
+      syncTimerState({
+        isActive: true,
+        targetEndTime: targetDate.getTime(),
+        mode: mode,
+        timeLeft: newSeconds,
+        lastUpdated: Date.now()
+      });
+    } else {
+      // If paused, we just update the timeLeft so that when they resume, it calculates correctly
+      // We do NOT set endTimeRef here because it's paused.
+      // However, "Ends at" implies "If I start now...". 
+      // Wait, if I edit the "Ends at" time while paused, do I change the constant duration settings? 
+      // NO. We just override the current session's timeLeft.
+      // syncTimerState for paused status
+      syncTimerState({
+        isActive: false,
+        targetEndTime: null,
+        mode: mode,
+        timeLeft: newSeconds,
+        lastUpdated: Date.now()
+      });
     }
   };
 
@@ -5949,7 +6086,8 @@ function MainApp() {
                 <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
                   {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
-                  <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-10">
+                  {/* FIX: Increased z-index to 60 to ensure TimePicker popup stays above Mode Switcher and Tally (z-50) */}
+                  <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-[60]">
                     <AnimatePresence mode="wait">
 
                       {/* 1. STANDARD MESSAGE PILL (Only show if Intervention is CLOSED) */}
@@ -5982,6 +6120,7 @@ function MainApp() {
                                 )
                                 : smartMessageOverride
                             }
+                            onUpdateEndTime={handleUpdateEndTime}
                           />
                         </motion.div>
                       )}
@@ -6018,7 +6157,10 @@ function MainApp() {
                     {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
                       const isCurrent = mode === m.id;
                       const isEditing = editingModeId === m.id;
-                      const totalSeconds = settings[m.id] * 60;
+                      // FIX: Use dynamic session duration if available for current mode, else default
+                      const defaultSeconds = settings[m.id] * 60;
+                      const totalSeconds = (isCurrent && currentSessionTotalDuration) ? currentSessionTotalDuration : defaultSeconds;
+
                       const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
 
                       let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
