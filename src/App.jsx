@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
+import { useVideo } from './contexts/VideoContext';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { usePiP } from './hooks/usePiP';
@@ -29,6 +30,7 @@ import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
 import { VideoManager } from './components/video/VideoManager';
 import VideoPipWindow from './components/video/VideoPipWindow';
+import FriendsDock from './components/social/FriendsDock';
 import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
@@ -3896,6 +3898,9 @@ function MainApp() {
   }, []);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
+  const [socialInitialServerId, setSocialInitialServerId] = useState(null);
+  const [socialInitialTab, setSocialInitialTab] = useState(null);
+  const [socialView, setSocialView] = useState('list');
 
   // --- SMART MENTION NOTIFICATION LOGIC ---
   const prevMentionsRef = useRef(totalMentions);
@@ -4460,7 +4465,7 @@ function MainApp() {
 
   const [friendRequests, setFriendRequests] = useState([]);
   const [blockedUsers, setBlockedUsers] = useState([]);
-  const [socialView, setSocialView] = useState('list'); // <--- ADD THIS STATE
+
 
   // Helper: Calculate friend status (Online/Focus/Idle)
   // Moved outside useEffect for reuse
@@ -5933,7 +5938,7 @@ function MainApp() {
 
   return (
     <VideoManager user={user}>
-      <VideoPipWindow />
+
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
       <GlobalStyles />
 
@@ -6034,6 +6039,17 @@ function MainApp() {
 
 
       {/* --- ONBOARDING FLOW --- */}
+      <VideoPipWindow 
+        isSocialModalOpen={showFriends} 
+        onExpand={(serverId) => {
+          // If we have an active video server, we want the modal to open TO that server.
+          if (serverId) {
+             setSocialInitialServerId(serverId);
+             setSocialInitialTab('video');
+          }
+          setShowFriends(true); 
+        }} 
+      />
       {onboardingStep < 3 && (
         <OnboardingFlow
           user={user}
@@ -6085,15 +6101,10 @@ function MainApp() {
             {/* --- DESKTOP FOOTER LEFT --- */}
             <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
               {dashboardFriends.length > 0 && (
-                <div className="flex flex-col gap-2 mb-4 items-start pl-1">
-                  {dashboardFriends.map(f => (
-                    <button key={f.uid} onClick={() => handleViewFriendStats(f)} className="group flex items-center gap-2 bg-black/40 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full animate-fade-in-up hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 transition-colors ${f.isOnline ? (f.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-500'}`} />
-                      <span className="text-xs font-medium text-white flex items-center gap-1">{f.displayName}{f.isPinned && <Pin size={10} className="text-white/50 fill-white/50" />}</span>
-                      <span className="text-xs text-white/50 overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] max-w-0 opacity-0 -ml-1 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-0 group-hover:border-l group-hover:border-white/10 group-hover:pl-2">{f.statusText}</span>
-                    </button>
-                  ))}
-                </div>
+                <FriendsDock 
+                  friends={dashboardFriends} 
+                  onViewFriendStats={handleViewFriendStats} 
+                />
               )}
               <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
@@ -6605,7 +6616,11 @@ function MainApp() {
         onClose={() => {
           setShowFriends(false);
           setSocialView('list');
+          setSocialInitialServerId(null); // Reset target
+          setSocialInitialTab(null); // Reset tab
         }}
+        initialServerId={socialInitialServerId} // PASS TARGET SERVER
+        initialTab={socialInitialTab} // PASS TARGET TAB
         initialView={socialView}
         user={user}
         onMarkRead={markAsRead}

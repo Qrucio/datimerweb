@@ -9,11 +9,11 @@ import { getIconById } from '../../utils/iconOptions';
 import ChatArea from '../chat/ChatArea';
 import ServerVideo from './ServerVideo';
 
-const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile, onMentionClick }) => {
+const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile, onMentionClick, initialTab }) => {
     // SAFETY CHECK: If server is missing (e.g. just kicked), don't crash
     if (!server) return null;
 
-    const [activeTab, setActiveTab] = useState('chat'); // Default to Chat? Or Leaderboard? Chat seems primary now.
+    const [activeTab, setActiveTab] = useState(initialTab || 'chat'); // Default to Chat? Or Leaderboard? Chat seems primary now.
     const [adminHoverId, setAdminHoverId] = useState(null);
 
     // MARK READ ON CHAT TAB

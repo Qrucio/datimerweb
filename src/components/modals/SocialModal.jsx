@@ -13,7 +13,8 @@ const SocialModal = ({
     onDeclineRequest, onBlockUser, onUnblockUser, checkOutgoingRequest,
     onRemoveFriend, onTogglePin, onViewStats, onSearchUsers, blockedUsers,
     isFocusing, onMarkRead, getLastReadTime, unreadCounts,
-    onViewProfile, onMentionClick // NEW PROP
+    onViewProfile, onMentionClick, initialServerId, initialTab, // NEW PROPS
+    ...props // Capture rest if needed, though we destructured most
 }) => {
     // --- STATE ---
     const [activeServerId, setActiveServerId] = useState(null); // null = Home/Friends
@@ -37,8 +38,12 @@ const SocialModal = ({
     useEffect(() => {
         if (isOpen) {
             fetchServers();
+            // If provided with an initial server ID (e.g. from PiP expand), switch to it.
+            if (props.initialServerId) {
+                setActiveServerId(props.initialServerId);
+            }
         }
-    }, [isOpen, user]);
+    }, [isOpen, user, props.initialServerId]);
 
     // --- REALTIME: Listen for My Membership Changes (Kicks/Invites) ---
     useEffect(() => {
@@ -289,6 +294,7 @@ const SocialModal = ({
                                             getLastReadTime={getLastReadTime}
                                             onViewProfile={onViewStats} // Use Uniform Profile Modal
                                             onMentionClick={onMentionClick}
+                                            initialTab={initialTab}
                                         />
                                     </motion.div>
                                 ) : (
