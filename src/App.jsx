@@ -34,6 +34,7 @@ import FriendsDock from './components/social/FriendsDock';
 import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
+import ReleaseNotesPage from './pages/ReleaseNotesPage';
 // GoogleGenerativeAI import removed per user request
 // import CaffeineTracker from './components/CaffeineTracker';
 // for the sake of the comment 
@@ -6764,6 +6765,12 @@ function MainApp() {
 }
 
 export default function App() {
+  const pathname = window.location.pathname;
+
+  if (pathname === '/releasenotes') {
+    return <ReleaseNotesPage />;
+  }
+
   return (
     <ErrorBoundary>
       <MainApp />

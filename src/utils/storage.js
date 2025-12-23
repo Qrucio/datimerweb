@@ -19,6 +19,7 @@ const KEYS = {
     REMOVE_ADS: 'zen_remove_ads',   // Purchase flag to hide ads
     VOLUME: 'zen_volume',           // Global Volume
     SPOTIFY_PROMO_DISMISSED: 'zen_spotify_promo_dismissed',
+    VERSION_SEEN: 'zen_version_seen',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -636,6 +637,22 @@ export const Storage = {
     },
     setSpotifyPromoDismissed: (dismissed) => {
         localStorage.setItem(KEYS.SPOTIFY_PROMO_DISMISSED, dismissed.toString());
+    },
+
+    // --- 15. VERSION TRACKING ---
+    getLastSeenVersion: () => {
+        try {
+            return localStorage.getItem(KEYS.VERSION_SEEN) || null;
+        } catch { return null; }
+    },
+
+    setVersionSeen: (version) => {
+        localStorage.setItem(KEYS.VERSION_SEEN, version);
+    },
+
+    hasNewVersion: (currentVersion) => {
+        const lastSeen = Storage.getLastSeenVersion();
+        return !lastSeen || currentVersion !== lastSeen;
     },
 
     // --- 14. SESSION CLEANUP ---

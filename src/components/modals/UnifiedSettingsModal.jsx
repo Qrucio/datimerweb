@@ -12,6 +12,7 @@ import CloseButton from '../ui/CloseButton';
 import ToggleRow from '../ui/ToggleRow';
 import { FlowTag } from '../ui/FlowTag';
 import ProfileCard from '../profile/ProfileCard';
+import VersionInfo from './VersionInfo';
 import { ALARM_SOUNDS } from '../../utils/data';
 
 const toggleStyles = `
@@ -592,6 +593,9 @@ const UnifiedSettingsModal = ({
                     )}
                   </div>
                 )}
+                
+                {/* Version Info Footer */}
+                <VersionInfo />
               </div>
               <CloseButton onClick={onClose} className="hidden md:flex absolute top-6 right-6 z-50" />
 
