@@ -565,14 +565,14 @@ const Toggle = ({ label, checked, onChange }) => (
 
     {/* Track */}
     <div
-      className={`relative w-[51px] h-[31px] flex-shrink-0 rounded-full border transition-all duration-300 ease-ios ${checked
+      className={`relative w-[51px] h-[31px] flex-shrink-0 rounded-full border transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${checked
         ? 'bg-[#34C759] border-[#34C759] shadow-[0_0_15px_rgba(52,199,89,0.4)]' // iOS Green + Glow
         : 'bg-[#39393d] border-transparent' // iOS Dark Mode Off Grey
         }`}
     >
       {/* Knob - ALWAYS WHITE, PERFECT CIRCLE */}
       <div
-        className={`absolute top-[1px] left-[1px] w-[27px] h-[27px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-ios ${checked ? 'translate-x-[20px]' : 'translate-x-0'
+        className={`absolute top-[1px] left-[1px] w-[27px] h-[27px] bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${checked ? 'translate-x-[20px]' : 'translate-x-0'
           }`}
       />
     </div>
@@ -2043,7 +2043,7 @@ const LiquidStrictBtn = ({
 
         <motion.span
           layout
-          className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth 
+          className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] 
             ${shouldExpand
               ? 'max-w-[150px] opacity-100 ml-2'
               : 'max-w-0 opacity-0 group-hover:max-w-[150px] group-hover:opacity-100 group-hover:ml-2'
@@ -3542,21 +3542,8 @@ function MainApp() {
   const [isPro, setIsPro] = useState(() => Storage.peekProStatus());
   const [proModalSource, setProModalSource] = useState(null);
   const [showStats, setShowStats] = useState(false);
-  const [unlockedAmbiences, setUnlockedAmbiences] = useState(settings?.preferences?.unlockedAmbiences || []);
-  const [ambienceSetupDone, setAmbienceSetupDone] = useState(settings?.preferences?.ambienceSetupDone || false);
-
-  // Sync unlocked ambiences from settings updates (e.g. from Supabase)
-  useEffect(() => {
-     if (settings?.preferences) {
-       const prefs = settings.preferences;
-       if (prefs.unlockedAmbiences && JSON.stringify(prefs.unlockedAmbiences) !== JSON.stringify(unlockedAmbiences)) {
-         setUnlockedAmbiences(prefs.unlockedAmbiences);
-       }
-       if (prefs.ambienceSetupDone !== undefined && prefs.ambienceSetupDone !== ambienceSetupDone) {
-         setAmbienceSetupDone(prefs.ambienceSetupDone);
-       }
-     }
-  }, [settings, unlockedAmbiences, ambienceSetupDone]);
+  const [unlockedAmbiences, setUnlockedAmbiences] = useState([]);
+  const [ambienceSetupDone, setAmbienceSetupDone] = useState(false);
   const [isTallyHovered, setIsTallyHovered] = useState(false);
   const [extraFocusPopup, setExtraFocusPopup] = useState({ visible: false, minutes: 0 });
   const [smartMessageOverride, setSmartMessageOverride] = useState(null);
@@ -5799,27 +5786,16 @@ function MainApp() {
   };
 
   const handleSaveAmbienceSelection = async (selectedIds) => {
-    const newPreferences = { unlockedAmbiences: selectedIds, ambienceSetupDone: true };
-    
-    // 1. Update UI State
     setUnlockedAmbiences(selectedIds);
     setAmbienceSetupDone(true);
-    
-    // 2. Update Local Settings & Storage immediately
-    setSettings(prev => {
-        const updated = { ...prev, preferences: newPreferences };
-        Storage.saveSettingsLocally(updated);
-        return updated;
-    });
 
     if (!user || user.isAnonymous) return;
 
     try {
-      // 3. Sync to Supabase
-      // Re-construct using latest settings to be safe, though local update handles the state
+      // Merge preferences into settings blob
       const newSettings = {
         ...settings,
-        preferences: newPreferences
+        preferences: { unlockedAmbiences: selectedIds, ambienceSetupDone: true }
       };
 
       await supabase.from('user_settings').upsert({
@@ -6166,7 +6142,7 @@ function MainApp() {
                     <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
                     {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
                   </div>
-                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
+                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
                     {(totalMentions > 0 && mode !== 'focus') ? `${totalMentions} Mention${totalMentions > 1 ? 's' : ''}` : (unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
                   </motion.span>
                 </motion.button>
@@ -6203,7 +6179,7 @@ function MainApp() {
                     <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
                   </div>
 
-                  <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
+                  <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]">
                     {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
                   </motion.div>
                 </motion.div>
@@ -6213,7 +6189,7 @@ function MainApp() {
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
                   <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
-                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>Caffeine</motion.span>
+                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>Caffeine</motion.span>
                 </motion.button> */}
               </motion.div>
             </div>
@@ -6420,7 +6396,7 @@ function MainApp() {
                         const isCurrent = i === pomoCount;
                         const shouldExpand = isCurrent && isTallyHovered;
                         return (
-                          <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-smooth ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
+                          <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
                             {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
                           </div>
                         );
