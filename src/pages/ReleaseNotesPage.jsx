@@ -55,7 +55,7 @@ export default function ReleaseNotesPage() {
               What's New
             </h1>
             <p className="text-white/40 text-lg md:text-xl font-light leading-relaxed max-w-lg">
-              Tracking the evolution of your focus environment.
+              Tracking the evolution of altimer.
             </p>
           </div>
 

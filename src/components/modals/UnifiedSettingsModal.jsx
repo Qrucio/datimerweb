@@ -572,25 +572,6 @@ const UnifiedSettingsModal = ({
                       <div className="relative"><Avatar userData={user} isPro={isPro} size="xs" /></div>
                       <div className="overflow-hidden min-w-0 flex-1"><p className={`text-xs font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p></div>
                     </button>
-
-                    {/* Dev Tools (Localhost Only) */}
-                    {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
-                      <div className="p-2 mt-2 border-t border-white/10 select-none">
-                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mb-1.5">Dev: Trigger Pro Modal</p>
-                        <div className="grid grid-cols-3 gap-1">
-                          {['notes', 'arcade', 'ambience', 'music', 'settings', 'personalities'].map(src => (
-                            <button
-                              key={src}
-                              onClick={(e) => { e.stopPropagation(); onOpenPro(src); }}
-                              className="px-1.5 py-1 bg-white/5 hover:bg-white/10 hover:text-white rounded text-[8px] text-white/40 uppercase tracking-wider text-center border border-white/5 transition-colors"
-                              title={`Trigger ${src} feature modal`}
-                            >
-                              {src.slice(0, 3)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                 

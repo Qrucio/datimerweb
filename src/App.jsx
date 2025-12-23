@@ -1499,16 +1499,33 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
     }
   };
 
+  // Helper for glow effect on add note button
+  const handleGlowMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+  };
+
   if (isLibraryOpen) {
     return <div className="relative w-40 h-80 md:w-48 md:h-48" />;
   }
 
   if (!hasNotes) {
     return (
-      <button onClick={onOpenLibrary} className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-white/50 bg-white/5 rounded-xl flex items-center justify-center group hover:border-white hover:bg-white/10 transition-all duration-300 relative">
-        <div className="text-center">
-          <Plus size={24} className="text-white/60 group-hover:text-white mx-auto mb-2 transition-colors" />
-          <span className="text-xs uppercase tracking-widest text-white/60 group-hover:text-white transition-colors">Add Note</span>
+      <button 
+        onClick={onOpenLibrary} 
+        onMouseMove={handleGlowMove}
+        className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-white/50 bg-white/5 rounded-sm cursor-default flex items-center justify-center group hover:border-white/50 transition-all duration-300 relative overflow-hidden"
+      >
+        <div 
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" 
+          style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} 
+        />
+        <div className="relative z-10 text-center">
+          <Plus size={32} className="text-white/30 group-hover:text-white mx-auto mb-2 transition-colors" />
+          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">New Note</span>
         </div>
       </button>
     );
@@ -1940,7 +1957,7 @@ const LiquidStrictBtn = ({
 
   if (isMissing) {
     // Red Warning Style
-    btnBg = "bg-red-500/10 border border-red-500/20 animate-pulse cursor-pointer hover:bg-red-500/20";
+    btnBg = "bg-red-500/10 border border-red-500/20 animate-pulse hover:bg-red-500/20";
     btnText = "text-red-400 font-bold";
     iconColor = "text-red-400";
   } else if (showAllowed) {
@@ -2819,7 +2836,7 @@ const NoteSystemModals = ({
                         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} />
                         <div className="relative z-10 flex flex-col items-center gap-2">
                           <Plus size={32} className="text-white/30 group-hover:text-white transition-colors" />
-                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">Create New</span>
+                          <span className="text-xs uppercase tracking-widest text-white/30 group-hover:text-white transition-colors font-medium">New Note</span>
                           {/* COUNT FOR ACTIVE STATE (FREE USERS) */}
                           {!isPro && (
                             <span className="text-[10px] font-mono text-white/30 font-medium mt-1">
