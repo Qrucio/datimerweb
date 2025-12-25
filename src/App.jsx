@@ -723,7 +723,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
     const h = targetDate.getHours().toString().padStart(2, '0');
     const m = targetDate.getMinutes().toString().padStart(2, '0');
     setEditValue(`${h}:${m}`);
-    setIsEditing(true);
+    setIsEditing(prev => !prev);
   };
 
   const handleTimeChange = (newTimeStr) => {
@@ -5919,11 +5919,8 @@ function MainApp() {
     };
 
     if (isActive) {
-      // 2. Get the icon based on current mode
       const icon = modeIcons[mode] || '';
-
-      // 3. Update title: "⚡ 24:59 | altimer"
-      document.title = `${icon} ${formatTime(timeLeft)} | altimer`;
+      document.title = `${icon} ${formatTime(timeLeft)} • altimer`;
     } else {
       // Optional: You could show "⏸️ Paused" or just the app name
       document.title = "altimer";

@@ -1,5 +1,14 @@
 export const releaseNotes = [
     {
+        version: "0.1.3",
+        date: "2024-12-25",
+        changes: [
+            "Changed tab title format from '{time left} | altimer' to '{time left} • altimer'",
+            "Fixed smart pill time picker toggle - clicking the pencil icon now properly toggles the picker open/close",
+            "Improved time picker UX - clicking outside the picker closes it smoothly"
+        ]
+    },
+    {
         version: "0.1.2",
         date: "2024-12-25",
         changes: [
