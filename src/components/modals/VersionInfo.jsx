@@ -12,7 +12,7 @@ export default function VersionInfo() {
 
   const handleVersionClick = () => {
     Storage.setVersionSeen(currentVersion);
-    window.location.href = '/releasenotes';
+    window.open('/releasenotes', '_blank');
   };
 
   return (

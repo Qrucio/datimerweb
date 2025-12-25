@@ -1,5 +1,12 @@
 export const releaseNotes = [
     {
+        version: "0.1.2",
+        date: "2024-12-25",
+        changes: [
+            "Implemented notion-style rail animation"
+        ]
+    },
+    {
         version: "0.1.1",
         date: "2024-12-23",
         changes: [

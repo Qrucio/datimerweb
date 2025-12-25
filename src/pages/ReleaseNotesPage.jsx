@@ -1,43 +1,163 @@
-import React, { useEffect } from 'react';
-import { ChevronLeft, Calendar, Sparkles, ArrowLeft } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState, useRef } from 'react';
+import { Sparkles, ChevronUp, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { releaseNotes } from '../utils/versionData';
 import { Storage } from '../utils/storage';
 import pkg from '../../package.json';
 
 export default function ReleaseNotesPage() {
+  const [activeVersion, setActiveVersion] = useState(0);
+  const [hoveredVersion, setHoveredVersion] = useState(null);
+  const [visibleStartIndex, setVisibleStartIndex] = useState(0);
+  const versionRefs = useRef([]);
+  const MAX_VISIBLE_TICKS = 6;
   
   useEffect(() => {
     // Ensure version is marked seen when visiting this page
     Storage.setVersionSeen(pkg.version);
+    
+    // Initialize refs array
+    versionRefs.current = versionRefs.current.slice(0, releaseNotes.length);
   }, []);
 
-  const handleBack = () => {
-    window.location.href = '/';
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const index = Number(entry.target.dataset.index);
+            setActiveVersion(index);
+            
+            // Auto-scroll the rail if active version is out of view
+            if (index < visibleStartIndex) {
+              setVisibleStartIndex(Math.max(0, index));
+            } else if (index >= visibleStartIndex + MAX_VISIBLE_TICKS) {
+              setVisibleStartIndex(Math.min(releaseNotes.length - MAX_VISIBLE_TICKS, index - MAX_VISIBLE_TICKS + 1));
+            }
+          }
+        });
+      },
+      {
+        threshold: 0.3,
+        rootMargin: '-20% 0px -20% 0px'
+      }
+    );
+
+    versionRefs.current.forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, [visibleStartIndex]);
+
+  const handleTickClick = (index) => {
+    versionRefs.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  const handleScrollRail = (direction) => {
+    if (direction === 'up') {
+      setVisibleStartIndex(prev => Math.max(0, prev - 1));
+    } else {
+      setVisibleStartIndex(prev => Math.min(Math.max(0, releaseNotes.length - MAX_VISIBLE_TICKS), prev + 1));
+    }
+  };
+
+  const visibleVersions = releaseNotes.slice(visibleStartIndex, visibleStartIndex + MAX_VISIBLE_TICKS);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col font-sans selection:bg-white/20 selection:text-white">
       
+      {/* Navigation Rail */}
+      <div className="fixed right-8 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-1">
+        {/* Scroll Up Arrow */}
+        {releaseNotes.length > MAX_VISIBLE_TICKS && (
+          <button 
+            onClick={() => handleScrollRail('up')}
+            disabled={visibleStartIndex === 0}
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-opacity duration-200 ${visibleStartIndex === 0 ? 'opacity-0 cursor-default' : 'opacity-50 hover:opacity-100 hover:bg-white/10'}`}
+          >
+            <ChevronUp size={16} />
+          </button>
+        )}
+
+        {/* Rail Container */}
+        <div className="relative w-8 flex flex-col items-center gap-1">
+          
+          {visibleVersions.map((release, i) => {
+            const actualIndex = visibleStartIndex + i;
+            const isHovered = hoveredVersion === actualIndex;
+            const isActive = activeVersion === actualIndex;
+
+            return (
+              <div 
+                key={release.version}
+                className="relative w-8 h-6 flex items-center justify-center cursor-pointer group"
+                onMouseEnter={() => setHoveredVersion(actualIndex)}
+                onMouseLeave={() => setHoveredVersion(null)}
+                onClick={() => handleTickClick(actualIndex)}
+              >
+                {/* Tooltip */}
+                <AnimatePresence>
+                  {isHovered && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, x: -10, scale: 1 }}
+                      exit={{ opacity: 0, x: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: "easeOut" }}
+                      className="absolute right-full mr-1 px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg shadow-xl whitespace-nowrap z-50 pointer-events-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-xs text-white">v{release.version}</span>
+                        <span className="w-px h-3 bg-white/20" />
+                        <span className="text-[10px] text-white/50 uppercase tracking-wider">
+                          {new Date(release.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Tick Mark */}
+                <motion.div
+                  layout
+                  className={`
+                    rounded-full
+                    ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'bg-white/20 group-hover:bg-white/60'}
+                  `}
+                  animate={{
+                    width: isHovered ? 24 : isActive ? 16 : 12,
+                    height: isHovered ? 4 : 2,
+                    opacity: 1
+                  }}
+                  transition={{
+                    duration: 0.2,
+                    ease: "easeOut"
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Scroll Down Arrow */}
+        {releaseNotes.length > MAX_VISIBLE_TICKS && (
+          <button 
+            onClick={() => handleScrollRail('down')}
+            disabled={visibleStartIndex >= releaseNotes.length - MAX_VISIBLE_TICKS}
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-opacity duration-200 ${visibleStartIndex >= releaseNotes.length - MAX_VISIBLE_TICKS ? 'opacity-0 cursor-default' : 'opacity-50 hover:opacity-100 hover:bg-white/10'}`}
+          >
+            <ChevronDown size={16} />
+          </button>
+        )}
+      </div>
+
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/10 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/10 rounded-full blur-[120px]" />
       </div>
 
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 p-6 md:p-8 flex justify-between items-center pointer-events-none">
-        <motion.button
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          onClick={handleBack}
-          className="pointer-events-auto flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full font-bold text-xs tracking-wide hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-        >
-          <ArrowLeft size={14} strokeWidth={3} />
-          <span>BACK</span>
-        </motion.button>
-      </div>
+
 
       {/* Content */}
       <div className="relative z-10 flex-1 flex flex-col items-center px-6 pt-32 pb-24">
@@ -61,16 +181,18 @@ export default function ReleaseNotesPage() {
 
           {/* Release Timeline */}
           <div className="relative space-y-16 before:absolute before:left-[19px] before:top-2 before:bottom-0 before:w-px before:bg-gradient-to-b before:from-white/10 before:via-white/5 before:to-transparent">
-            {releaseNotes.map((release, index) => (
-              <motion.div
-                key={release.version}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 + (index * 0.1) }}
-                className="relative pl-12 group"
-              >
+              {releaseNotes.map((release, index) => (
+                <motion.div
+                  key={release.version}
+                  ref={el => versionRefs.current[index] = el}
+                  data-index={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 + (index * 0.1) }}
+                  className="relative pl-12 group"
+                >
                 {/* Timeline Node */}
-                <div className="absolute left-0 top-2 w-[38px] h-[38px] flex items-center justify-center">
+                <div className="absolute left-0 top-0 w-[38px] h-[38px] flex items-center justify-center">
                     <div className="w-2.5 h-2.5 bg-[#050505] border-2 border-white/20 rounded-full group-hover:border-white group-hover:scale-125 transition-all duration-300 shadow-[0_0_0_4px_#050505]" />
                 </div>
 
