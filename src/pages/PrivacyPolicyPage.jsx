@@ -43,7 +43,7 @@ export default function PrivacyPolicyPage() {
               This means it stays with you.
             </p>
             <p>
-              If you choose to sign in, I use <span className="text-white/90 font-medium">Supabase</span> to sync your settings and essential data like stats, notes, timer settings etc. across devices.
+              If you choose to sign in, I use <span className="text-white/90 font-medium">Supabase</span> to sync your settings and essential data like stats, notes, timer settings etc. across devices (mobile app coming soon).
               Your email is stored securely and is never sold, shared, or used for anything other than authentication and critical service updates.
             </p>
           </section>
