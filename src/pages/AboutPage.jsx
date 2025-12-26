@@ -4,13 +4,13 @@ import { motion } from 'framer-motion';
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-white/80 font-sans selection:bg-white/20 selection:text-white flex flex-col items-center py-20 px-6 md:px-0">
-      
+
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[20%] left-[10%] w-[30%] h-[30%] bg-white/5 rounded-full blur-[100px]" />
       </div>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
@@ -29,8 +29,8 @@ export default function AboutPage() {
               We live in an economy of distraction. Every app, notification, and algorithm is fighting for a slice of your attention.
             </p>
             <p>
-              altimer is a rebellion against that noise. It is designed to be a sanctuary for deep work—a place where you can enter 
-              a flow state and stay there. No gamification gimmicks that become chores, no social feeds to scroll, just 
+              altimer is a rebellion against that noise. It is designed to be a sanctuary for deep work, a place where you can enter
+              a flow state and stay there. No social feeds to scroll, just
               pure, unadulterated focus tools wrapped in a beautiful interface.
             </p>
           </section>
@@ -38,11 +38,11 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Indie Built</h2>
             <p className="mb-4">
-              altimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer 
+              altimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer
               who needed a better way to work.
             </p>
             <p>
-              Every line of code, every pixel, and every sound effect was chosen with care. Being indie means I answer only to you, the user. 
+              Every line of code, every pixel, and every sound effect was chosen with care. Being indie means I answer only to you, the user.
               Your feedback shapes the roadmap, not profit margins.
             </p>
           </section>
@@ -50,17 +50,17 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Stack</h2>
             <p>
-              For the curious: altimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed. 
-              It uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations. 
+              For the curious: altimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed.
+              It uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations.
               The backend is powered by <span className="text-white/90 font-medium">Supabase</span>.
             </p>
           </section>
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
-           <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-             Return to altimer
-           </a>
+          <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+            Return to altimer
+          </a>
         </footer>
       </motion.div>
     </div>

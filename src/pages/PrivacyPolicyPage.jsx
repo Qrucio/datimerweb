@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Advertising & Cookies</h2>
             <p className="mb-4">
-              To support the development costs of altimer, I use <span className="text-white/90 font-medium">Google AdSense</span> to display advertisements.
+              To support the development costs of altimer, I use <span className="text-white/90 font-medium">Google AdSense</span> to display advertisements (not yet).
             </p>
             <p className="mb-4">
               Google and its partners may use cookies to serve ads based on your prior visits to this website or other websites.
