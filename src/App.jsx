@@ -35,6 +35,7 @@ import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
 import ReleaseNotesPage from './pages/ReleaseNotesPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 // GoogleGenerativeAI import removed per user request
 // import CaffeineTracker from './components/CaffeineTracker';
 // for the sake of the comment 
@@ -6773,6 +6774,7 @@ function MainApp() {
           />
         )
       }
+      
       </div>
     </VideoManager>
   );
@@ -6784,6 +6786,11 @@ export default function App() {
   if (pathname === '/releasenotes') {
     return <ReleaseNotesPage />;
   }
+
+  if (pathname === '/privacy') {
+    return <PrivacyPolicyPage />;
+  }
+
 
   return (
     <ErrorBoundary>
