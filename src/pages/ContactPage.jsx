@@ -12,12 +12,12 @@ export default function ContactPage() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative z-10 w-full max-w-2xl"
       >
-        <header className="mb-16">
-          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-6 tracking-tight lowercase">
-            get in touch
+        <header className="mb-16 border-b border-white/5 pb-8">
+          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-4 tracking-tight">
+            Get in Touch
           </h1>
           <p className="text-lg font-light text-white/50">
-            bugs, feature requests, or just want to chat? i'm listening.
+            Bugs, feature requests, or just want to chat? I'm listening.
           </p>
         </header>
 
@@ -30,10 +30,10 @@ export default function ContactPage() {
                 <div className="p-3 rounded-full bg-white/5 text-white/60 group-hover:text-white transition-colors">
                   <Mail size={24} />
                 </div>
-                <h2 className="text-xl font-bold text-white lowercase font-serif-display">email support</h2>
+                <h2 className="text-xl font-bold text-white font-serif-display">Email Support</h2>
               </div>
               <p className="text-white/60 font-light mb-6">
-                for detailed feedback or account issues. i try to reply to every human email.
+                For detailed feedback or account issues. I try to reply to every human email.
               </p>
               <span className="text-white font-mono text-sm border-b border-white/20 pb-0.5 group-hover:border-white transition-colors">
                 altimerapp@proton.me
@@ -53,10 +53,10 @@ export default function ContactPage() {
                   {/* Simple X icon or Message icon */}
                   <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg>
                 </div>
-                <h2 className="text-xl font-bold text-white lowercase font-serif-display">follow updates</h2>
+                <h2 className="text-xl font-bold text-white font-serif-display">Follow Updates</h2>
               </div>
               <p className="text-white/60 font-light mb-6">
-                follow for changelogs, sneak peeks of new features, and occasional thoughts on productivity.
+                Follow for changelogs, sneak peeks of new features, and occasional thoughts on productivity.
               </p>
               <span className="text-white font-mono text-sm border-b border-white/20 pb-0.5 group-hover:border-white transition-colors">
                 @altimerapp
@@ -68,7 +68,7 @@ export default function ContactPage() {
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
            <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-             return to altimer
+             Return to altimer
            </a>
         </footer>
       </motion.div>

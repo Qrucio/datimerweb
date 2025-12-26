@@ -575,7 +575,7 @@ const UnifiedSettingsModal = ({
                     </button>
                   </div>
                 )}
-                
+
                 {/* Version Info Footer - Moved to About Tab */}
                 {/* <VersionInfo /> */}
               </div>
@@ -886,46 +886,43 @@ const UnifiedSettingsModal = ({
                     </motion.div>
                   )}
 
-                  {activeTab === 'about' && (
+                   {activeTab === 'about' && (
                     <motion.div key="about" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="max-w-2xl h-full flex flex-col">
-                       <h3 className="text-xl md:text-2xl font-serif-display text-white mb-6 leading-normal">About Altimer</h3>
-                       
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                          {/* Info Links */}
-                          <a href="/about" target="_blank" className="p-6 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group">
-                             <div className="flex items-center gap-3 mb-3 text-white/60 group-hover:text-white transition-colors">
-                               <Info size={20} />
-                               <span className="font-bold tracking-wide text-sm">Our Story</span>
-                             </div>
-                             <p className="text-xs text-white/40 leading-relaxed">Read the manifesto behind the app and meet the indie dev.</p>
-                          </a>
-                          <a href="/contact" target="_blank" className="p-6 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group">
-                             <div className="flex items-center gap-3 mb-3 text-white/60 group-hover:text-white transition-colors">
-                               <Mail size={20} />
-                               <span className="font-bold tracking-wide text-sm">Contact</span>
-                             </div>
-                             <p className="text-xs text-white/40 leading-relaxed">Feature requests, bug reports, or just say hello.</p>
-                          </a>
-                       </div>
+                       <h3 className="text-xl md:text-2xl font-serif-display text-white mb-6 leading-normal">About altimer</h3>
 
-                       <div className="space-y-2 mb-8">
-                         <h4 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2 pl-1">Legal</h4>
-                         <a href="/privacy" target="_blank" className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group">
-                           <span className="text-sm text-white/60 group-hover:text-white">Privacy Policy</span>
-                           <ExternalLink size={14} className="text-white/20 group-hover:text-white/50" />
-                         </a>
-                         <div className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group cursor-not-allowed opacity-50">
-                           <span className="text-sm text-white/60">Terms of Service</span>
-                           <span className="text-[10px] uppercase tracking-widest text-white/20">Coming Soon</span>
-                         </div>
-                       </div>
 
-                       <div className="mt-auto border-t border-white/5 pt-6 flex flex-col items-center gap-2">
-                          <p className="text-white/20 text-xs font-mono">
-                             Designed & Built by Divyansh
-                          </p>
-                          <VersionInfo />
-                       </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                        {/* Info Links */}
+                        <a href="/about" target="_blank" className="p-6 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group">
+                          <div className="flex items-center gap-3 mb-3 text-white/60 group-hover:text-white transition-colors">
+                            <Info size={20} />
+                            <span className="font-bold tracking-wide text-sm">My Story</span>
+                          </div>
+                          <p className="text-xs text-white/40 leading-relaxed">Read the manifesto behind the app and meet the indie dev.</p>
+                        </a>
+                        <a href="/contact" target="_blank" className="p-6 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-white/10 transition-all group">
+                          <div className="flex items-center gap-3 mb-3 text-white/60 group-hover:text-white transition-colors">
+                            <Mail size={20} />
+                            <span className="font-bold tracking-wide text-sm">Contact</span>
+                          </div>
+                          <p className="text-xs text-white/40 leading-relaxed">Feature requests, bug reports, or just say hello.</p>
+                        </a>
+                      </div>
+
+                      <div className="space-y-2 mb-8">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2 pl-1">Legal</h4>
+                        <a href="/privacy" target="_blank" className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group">
+                          <span className="text-sm text-white/60 group-hover:text-white">Privacy Policy</span>
+                          <ExternalLink size={14} className="text-white/20 group-hover:text-white/50" />
+                        </a>
+                      </div>
+
+                      <div className="mt-auto border-t border-white/5 pt-6 flex flex-col items-center gap-2">
+                        <p className="text-white/20 text-xs font-mono">
+                          Made with ❤️ by Divyansh
+                        </p>
+                        <VersionInfo />
+                      </div>
                     </motion.div>
                   )}
 

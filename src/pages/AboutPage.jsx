@@ -16,50 +16,50 @@ export default function AboutPage() {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative z-10 w-full max-w-2xl"
       >
-        <header className="mb-16">
-          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-6 tracking-tight lowercase">
-            about altimer
+        <header className="mb-16 border-b border-white/5 pb-8">
+          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-4 tracking-tight">
+            About altimer
           </h1>
         </header>
 
         <div className="space-y-12 leading-relaxed text-lg font-light text-white/70">
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 lowercase font-serif-display">the mission</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Mission</h2>
             <p className="mb-4">
-              we live in an economy of distraction. every app, notification, and algorithm is fighting for a slice of your attention.
+              We live in an economy of distraction. Every app, notification, and algorithm is fighting for a slice of your attention.
             </p>
             <p>
-              altimer is a rebellion against that noise. it is designed to be a sanctuary for deep work—a place where you can enter 
-              a flow state and stay there. no gamification gimmicks that become chores, no social feeds to scroll, just 
+              altimer is a rebellion against that noise. It is designed to be a sanctuary for deep work—a place where you can enter 
+              a flow state and stay there. No gamification gimmicks that become chores, no social feeds to scroll, just 
               pure, unadulterated focus tools wrapped in a beautiful interface.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 lowercase font-serif-display">indie built</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Indie Built</h2>
             <p className="mb-4">
-              altimer is not a venture-backed startup with a board of directors. it is a passion project built by a single developer 
+              altimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer 
               who needed a better way to work.
             </p>
             <p>
-              every line of code, every pixel, and every sound effect was chosen with care. being indie means i answer only to you, the user. 
-              your feedback shapes the roadmap, not profit margins.
+              Every line of code, every pixel, and every sound effect was chosen with care. Being indie means I answer only to you, the user. 
+              Your feedback shapes the roadmap, not profit margins.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 lowercase font-serif-display">the stack</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Stack</h2>
             <p>
-              for the curious: altimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed. 
-              it uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations. 
-              the backend is powered by <span className="text-white/90 font-medium">Supabase</span>.
+              For the curious: altimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed. 
+              It uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations. 
+              The backend is powered by <span className="text-white/90 font-medium">Supabase</span>.
             </p>
           </section>
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
            <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-             return to altimer
+             Return to altimer
            </a>
         </footer>
       </motion.div>
