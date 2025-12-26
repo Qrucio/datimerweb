@@ -38,7 +38,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Data Storage</h2>
             <p className="mb-4">
-              Most of your data—timer settings, tasks, and history—lives locally on your device using
+              Most of your data: timer settings, tasks, and history live locally on your device using
               <span className="text-white/90 font-medium"> LocalStorage</span>.
               This means it stays with you.
             </p>
