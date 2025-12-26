@@ -36,6 +36,8 @@ import { FlowTag } from './components/ui/FlowTag';
 import WalletIndicator from './components/gamification/WalletIndicator';
 import ReleaseNotesPage from './pages/ReleaseNotesPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
 // GoogleGenerativeAI import removed per user request
 // import CaffeineTracker from './components/CaffeineTracker';
 // for the sake of the comment 
@@ -6789,6 +6791,14 @@ export default function App() {
 
   if (pathname === '/privacy') {
     return <PrivacyPolicyPage />;
+  }
+
+  if (pathname === '/about') {
+    return <AboutPage />;
+  }
+
+  if (pathname === '/contact') {
+    return <ContactPage />;
   }
 
 
