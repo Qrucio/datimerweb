@@ -4360,6 +4360,41 @@ function MainApp() {
     }
   };
 
+  const handleDevStatsUpdate = async (newStats) => {
+    if (!user) return;
+
+    Storage.setTodayStats(newStats);
+
+    setStats(prev => ({
+      ...prev,
+      dailyFocusTime: newStats.dailyFocusTime,
+      dailyBreakTime: newStats.dailyBreakTime,
+      dailySessions: newStats.dailySessions
+    }));
+
+    try {
+      const todayId = formatDateId(new Date());
+
+      await supabase.from('profiles').update({
+        stats: newStats,
+        last_active: new Date()
+      }).eq('id', user.id);
+
+      await supabase.from('history').upsert({
+        user_id: user.id,
+        date_id: todayId,
+        focus_time: newStats.dailyFocusTime,
+        break_time: newStats.dailyBreakTime,
+        sessions: newStats.dailySessions,
+        data: newStats
+      }, { onConflict: 'user_id, date_id' });
+
+      console.log('[Dev Stats] Updated successfully');
+    } catch (e) {
+      console.error('[Dev Stats] Update failed:', e);
+    }
+  };
+
   // --- UPDATED AUTH EFFECT (Supabase) ---
   useEffect(() => {
     // Check active session
@@ -6584,6 +6619,7 @@ function MainApp() {
         onOpenPro={(source) => setProModalSource(source || 'settings')}
         onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
         initialTab={settingsTab}
+        onDevStatsUpdate={handleDevStatsUpdate}
       />
 
       <SocialProfileModal

@@ -128,6 +128,16 @@ export const Storage = {
         return data;
     },
 
+    setTodayStats: (stats) => {
+        const today = getDateId();
+        const data = {
+            date: today,
+            ...stats
+        };
+        localStorage.setItem(KEYS.STATS, JSON.stringify(data));
+        return data;
+    },
+
     // Move a finished day into the "Upload Queue"
     queueDayForSync: async (dayData) => {
         if (!dayData || !dayData.date) return;

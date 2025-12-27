@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail, Wrench
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
@@ -215,6 +215,94 @@ const StreakCard = ({ streak, active = false }) => (
   </motion.div>
 );
 
+const DevStatsEditor = ({ stats, onStatsUpdate }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [focusMinutes, setFocusMinutes] = useState(Math.floor((stats.dailyFocusTime || 0) / 60));
+  const [breakMinutes, setBreakMinutes] = useState(Math.floor((stats.dailyBreakTime || 0) / 60));
+  const [sessions, setSessions] = useState(stats.dailySessions || 0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!onStatsUpdate) return;
+    setIsSaving(true);
+    try {
+      const newStats = {
+        dailyFocusTime: focusMinutes * 60,
+        dailyBreakTime: breakMinutes * 60,
+        dailySessions: parseInt(sessions) || 0
+      };
+      await onStatsUpdate(newStats);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Wrench size={16} className="text-yellow-400" />
+          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider">Dev Stats Editor</span>
+        </div>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-yellow-400/50 hover:text-yellow-400 transition-colors"
+        >
+          <ChevronDown size={16} className={isExpanded ? 'rotate-180' : ''} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="space-y-4 overflow-hidden"
+          >
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Focus Time (min)</label>
+                <input
+                  type="number"
+                  value={focusMinutes}
+                  onChange={(e) => setFocusMinutes(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400/50 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Break Time (min)</label>
+                <input
+                  type="number"
+                  value={breakMinutes}
+                  onChange={(e) => setBreakMinutes(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400/50 outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider block mb-1">Sessions</label>
+                <input
+                  type="number"
+                  value={sessions}
+                  onChange={(e) => setSessions(e.target.value)}
+                  className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:border-yellow-400/50 outline-none"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 text-yellow-400 text-xs font-bold uppercase tracking-wider py-2.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? 'Saving...' : 'Update Stats'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedDate, onSelectDate, isExpanded, setIsExpanded }) => {
   const [viewMode, setViewMode] = useState('days');
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -312,7 +400,7 @@ const MasterCustomizeView = ({ onNavigate }) => (
 const UnifiedSettingsModal = ({
   isOpen, onClose, user, signOut, settings, setSettings,
   handleSettingsSave, handleBackgroundChange, backgrounds = [],
-  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding
+  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding, onDevStatsUpdate
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [expandedSections, setExpandedSections] = useState({ customize: true });
@@ -878,7 +966,10 @@ const UnifiedSettingsModal = ({
                       </div>
                       <AnimatePresence mode="wait">
                         {statsView === 'today' ? (
-                          <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} active={(stats.dailyFocusTime > 0 || stats.dailySessions > 0)} /></motion.div>
+                          <>
+                            <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} active={(stats.dailyFocusTime > 0 || stats.dailySessions > 0)} /></motion.div>
+                            {user && (user.uid === 'c31d3bf7-9fdb-46ea-9142-14372a088bd2' || user.uid === 'e98940e8-6ce4-4fa9-830b-32dc14ab1cc2') && <DevStatsEditor stats={stats} onStatsUpdate={onDevStatsUpdate} />}
+                          </>
                         ) : (
                           <motion.div key="view-history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="flex flex-col gap-6"><HistoryCalendar historyData={historyData} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} isExpanded={isCalendarExpanded} setIsExpanded={setIsCalendarExpanded} /><motion.div layout className="space-y-4"><div className="flex items-center gap-3 border-t border-white/10 pt-6"><h4 className="font-serif-display text-lg text-white">{!isCalendarExpanded ? "Stats Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><StatCard label="Focus Time" value={formatDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight /><StatCard label="Break Time" value={formatDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} /></div></motion.div></motion.div>
                         )}
