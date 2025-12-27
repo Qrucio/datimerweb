@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Digit Component: Handles the animation of a single character
-const Digit = ({ value, animated = true }) => {
+const Digit = ({ value, animated = true, clockType }) => {
     if (!animated) {
         return <span className="inline-block">{value}</span>;
     }
@@ -28,7 +28,7 @@ const Digit = ({ value, animated = true }) => {
         Positioned absolute to overlay the phantom element.
         overflow-hidden ensures digits slide in/out within the bounds.
       */}
-            <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+            <div className={`absolute inset-0 overflow-hidden flex items-center justify-center ${clockType === 'serif' ? 'pb-[0.15em]' : ''}`}>
                 <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                         key={value}
@@ -55,7 +55,7 @@ const Separator = ({ value }) => {
     )
 }
 
-const CountdownTimer = ({ timeLeft, disableAnimation = false }) => {
+const CountdownTimer = ({ timeLeft, disableAnimation = false, clockType }) => {
     // Format MM:SS
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
@@ -74,7 +74,7 @@ const CountdownTimer = ({ timeLeft, disableAnimation = false }) => {
                 }
                 // KEY FIX: Use 'index' as key so the component doesn't unmount, allowing AnimatePresence to work
                 return (
-                    <Digit key={index} value={char} animated={!disableAnimation} />
+                    <Digit key={index} value={char} animated={!disableAnimation} clockType={clockType} />
                 );
             })}
         </div>
