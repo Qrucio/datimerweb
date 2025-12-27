@@ -60,11 +60,6 @@ export const BACKGROUND_OPTIONS = [
     src: 'https://cdn.pixabay.com/video/2022/03/06/109908-685705862_small.mp4',
     credit: { name: 'edisonpalacios98', url: 'https://pixabay.com/videos/background-blue-abstract-gradient-109908/' }
   },
-  {
-    id: 'hogwarts',
-    src: 'src/assets/wallpapers/hogwarts.png',
-    credit: { name: 'altimer', url: '#'}
-  },
 ];
 
 export const MUSIC_TRACKS = [
