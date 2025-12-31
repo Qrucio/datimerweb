@@ -255,69 +255,122 @@ export const Storage = {
     },
 
     calculateStreak: (fullHistory) => {
-        // [Logic preserved from original file as it is pure math]
         const base = JSON.parse(localStorage.getItem(KEYS.BASE_STREAK) || '{}');
         const baseStreak = base.streak || 0;
-        const baseLastActive = base.lastActive ? new Date(base.lastActive) : null;
+        const baseLastActiveStr = base.lastActive;
 
-        if (!fullHistory || fullHistory.length === 0) {
-            if (baseLastActive && baseStreak > 0) {
-                const today = getDateId();
-                const yesterdayDate = new Date();
-                yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        // Helper: Parse YYYY-MM-DD to Local Date (Avoids UTC shift bugs)
+        const parseLocal = (s) => {
+            if (!s) return null;
+            const [y, m, d] = s.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        };
 
-                const baseId = getDateId(baseLastActive);
-                if (baseId === today || baseId === getDateId(yesterdayDate)) {
+        // Helper: Format Date to YYYY-MM-DD (matches getDateId)
+        const formatLocal = (d) => {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const todayStr = getDateId();
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        const yesterdayStr = getDateId(yesterdayDate);
+
+        // 1. Calculate Continuous Local Streak
+        let localStreak = 0;
+        let localStartDateStr = null;
+        let localEndDateStr = null;
+
+        if (fullHistory && fullHistory.length > 0) {
+            // Sort Descending
+            const sorted = [...fullHistory].sort((a, b) => {
+                return parseLocal(b.date) - parseLocal(a.date);
+            });
+            
+            const lastEntry = sorted[0];
+
+            // Must be active Today or Yesterday to keep streak alive locally
+            if (lastEntry.date === todayStr || lastEntry.date === yesterdayStr) {
+                localStreak = 1;
+                localEndDateStr = lastEntry.date;
+                localStartDateStr = lastEntry.date;
+                let currentStr = lastEntry.date;
+
+                for (let i = 1; i < sorted.length; i++) {
+                    const entryStr = sorted[i].date;
+                    
+                    // Check if entry is exactly 1 day before current
+                    const currDate = parseLocal(currentStr);
+                    const expectedDate = new Date(currDate);
+                    expectedDate.setDate(expectedDate.getDate() - 1);
+                    const expectedStr = formatLocal(expectedDate);
+
+                    if (entryStr === expectedStr) {
+                        localStreak++;
+                        currentStr = entryStr;
+                        localStartDateStr = entryStr;
+                    } else if (entryStr === currentStr) {
+                        // Duplicate, ignore
+                    } else {
+                        // Gap -> Stop counting local chain
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 2. If no local streak, fall back to Base Streak (if active today/yesterday)
+        if (localStreak === 0) {
+            if (baseStreak > 0 && baseLastActiveStr) {
+                if (baseLastActiveStr === todayStr || baseLastActiveStr === yesterdayStr) {
                     return baseStreak;
                 }
             }
             return 0;
         }
 
-        const sorted = [...fullHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const today = getDateId();
-        const yesterdayDate = new Date();
-        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        const yesterday = getDateId(yesterdayDate);
+        // 3. Merge Local Streak with Base Streak (Overlap Logic)
+        if (baseStreak > 0 && baseLastActiveStr) {
+            // Check connectivity
+            // We need Base Last Active >= (Local Start - 1 Day)
+            const localStartObj = parseLocal(localStartDateStr);
+            const connectObj = new Date(localStartObj);
+            connectObj.setDate(connectObj.getDate() - 1);
+            const connectStr = formatLocal(connectObj);
 
-        if (sorted.length === 0) return 0;
-        const lastEntry = sorted[0];
+            // If Base overlaps or touches the Local Start
+            // (baseLastActiveStr >= connectStr)
+            // String comparison works for YYYY-MM-DD
+            if (baseLastActiveStr >= connectStr) {
+                // They are connected!
+                // Calculate Earliest Start Date
+                
+                // Base Start = Base End - (Streak - 1)
+                const baseEndObj = parseLocal(baseLastActiveStr);
+                const baseStartObj = new Date(baseEndObj);
+                baseStartObj.setDate(baseStartObj.getDate() - (baseStreak - 1));
 
-        if (lastEntry.date !== today && lastEntry.date !== yesterday) {
-            return 0;
-        }
+                // Effective Start = Min(LocalStart, BaseStart)
+                let effectiveStartObj = localStartObj;
+                if (baseStartObj < localStartObj) {
+                    effectiveStartObj = baseStartObj;
+                }
 
-        let streak = 1;
-        let currentDate = new Date(lastEntry.date);
+                // Effective End = Local End (since it's active now)
+                const effectiveEndObj = parseLocal(localEndDateStr);
 
-        for (let i = 1; i < sorted.length; i++) {
-            const entry = sorted[i];
-            const entryDate = new Date(entry.date);
-            const expectedDate = new Date(currentDate);
-            expectedDate.setDate(expectedDate.getDate() - 1);
-
-            if (getDateId(entryDate) === getDateId(expectedDate)) {
-                streak++;
-                currentDate = expectedDate;
-            } else {
-                break;
+                // Calculate Diff in Days
+                const diffTime = effectiveEndObj - effectiveStartObj;
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                
+                return diffDays + 1;
             }
         }
 
-        if (baseLastActive && baseStreak > 0) {
-            const lastLocalDate = currentDate;
-            const oneDayBeforeLocal = new Date(lastLocalDate);
-            oneDayBeforeLocal.setDate(oneDayBeforeLocal.getDate() - 1);
-
-            const baseId = getDateId(baseLastActive);
-            const connectId = getDateId(oneDayBeforeLocal);
-
-            if (baseId === connectId) {
-                streak += baseStreak;
-            }
-        }
-
-        return streak;
+        return localStreak;
     },
 
     // --- 3. NOTES ---

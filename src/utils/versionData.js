@@ -1,5 +1,14 @@
 export const releaseNotes = [
   {
+    version: "0.2.1",
+    date: "2025-12-31",
+    changes: [
+      "Fixed streak calculation bug where overlapping local and server history caused streaks to reset erroneously",
+      "Implemented robust timeline merging to correctly account for continuous activity across devices",
+      "Restored accuracy of streak statistics for all users"
+    ]
+  },
+  {
     version: "0.2.0",
     date: "2025-12-26",
     changes: [
