@@ -3,6 +3,8 @@ import { useUnreadMessages } from './hooks/useUnreadMessages';
 import { useVideo } from './contexts/VideoContext';
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { SocialService } from './services/socialService';
+import { UserService } from './services/userService';
 import { usePiP } from './hooks/usePiP';
 import { PictureInPicture2 } from 'lucide-react';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
@@ -3494,8 +3496,8 @@ function MainApp() {
       if (user) {
         try {
           // Fetch all history
-          const { data } = await supabase.from('history').select('*').eq('user_id', user.id);
-          if (data) Storage.hydrateHistory(data);
+          const { success, data } = await UserService.getHistory(user.id);
+          if (success && data) Storage.hydrateHistory(data);
         } catch (e) {
           console.error("History Sync Failed", e);
         }
@@ -3510,18 +3512,14 @@ function MainApp() {
 
     const syncNotes = async () => {
       try {
-        const { data } = await supabase
-          .from('user_settings')
-          .select('notes')
-          .eq('user_id', user.uid)
-          .maybeSingle();
+        const { success, data } = await UserService.getSettings(user.uid, 'notes');
 
-        if (data) {
+        if (success && data) {
           // Sync Notes - Force update even if empty (handles deletions)
           const serverNotes = data.notes || [];
           setNotes(serverNotes);
           Storage.saveNotesLocally(serverNotes);
-        } else {
+        } else if (success && !data) {
           // If no row exists in user_settings, it means no notes on server.
           // If we trust server as source of truth for DELETIONS, we should clear local.
           // BUT, this risks wiping data for new offline users. 
@@ -3804,7 +3802,7 @@ function MainApp() {
     // 2. Save to DB
     if (user && !user.isAnonymous) {
       try {
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           notes: currentNotes,
           updated_at: new Date()
@@ -3828,7 +3826,7 @@ function MainApp() {
     // 3. SYNC TO DB
     if (user && !user.isAnonymous) {
       try {
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           notes: updatedNotes,
           updated_at: new Date()
@@ -3856,7 +3854,7 @@ function MainApp() {
     // 4. Sync Both to DB
     if (user && !user.isAnonymous) {
       try {
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           notes: updatedNotes,
           trash: updatedTrash,
@@ -4329,26 +4327,26 @@ function MainApp() {
       const todayId = formatDateId(new Date());
 
       // 1. Update Profile (Public presence + stats)
-      const { error } = await supabase.from('profiles').update({
+      const { error } = await UserService.updateProfile(user.uid, {
         timer_state: payload.timerState,
         stats: payload.stats,
         // streak: payload.streak, // If you add streak column to profiles
         last_active: new Date()
-      }).eq('id', user.uid); // user.uid is mapped from user.id
+      });
 
       // 2. Personal History Log
       // We use upsert to ensure date row exists
-      await supabase.from('history').upsert({
+      await UserService.upsertHistory({
         user_id: user.uid,
         date_id: todayId,
         focus_time: payload.stats.dailyFocusTime,
         break_time: payload.stats.dailyBreakTime,
         sessions: payload.stats.dailySessions,
         data: payload.stats
-      }, { onConflict: 'user_id, date_id' });
+      });
 
       // 3. User Settings (Wallet/Inventory)
-      await supabase.from('user_settings').upsert({
+      await UserService.upsertSettings({
         user_id: user.uid,
         wallet: payload.wallet,
         inventory: payload.inventory,
@@ -4375,19 +4373,19 @@ function MainApp() {
     try {
       const todayId = formatDateId(new Date());
 
-      await supabase.from('profiles').update({
+      await UserService.updateProfile(user.id, {
         stats: newStats,
         last_active: new Date()
-      }).eq('id', user.id);
+      });
 
-      await supabase.from('history').upsert({
+      await UserService.upsertHistory({
         user_id: user.id,
         date_id: todayId,
         focus_time: newStats.dailyFocusTime,
         break_time: newStats.dailyBreakTime,
         sessions: newStats.dailySessions,
         data: newStats
-      }, { onConflict: 'user_id, date_id' });
+      });
 
       console.log('[Dev Stats] Updated successfully');
     } catch (e) {
@@ -4446,13 +4444,13 @@ function MainApp() {
       // 1. FETCH PROFILE DATA (Handle, About, Pro Status)
       let profileData = {};
       try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('handle, about, is_pro')
-          .eq('id', supaUser.id)
-          .maybeSingle();
-        if (data) profileData = data;
-      } catch (e) { console.error("Profile fetch error", e); }
+        const { success, data } = await UserService.getProfile(supaUser.id, 'handle, about, is_pro, photo_url, display_name');
+        if (success && data) {
+           profileData = data;
+        }
+      } catch (e) {
+        console.warn("Profile fetch failed, using auth defaults", e);
+      }
 
       // 2. MAP & MERGE USER
       const appUser = {
@@ -4766,13 +4764,9 @@ function MainApp() {
     if (targetUser.uid === user.uid) return { success: false, error: "You can't add yourself." };
 
     try {
-      const { error } = await supabase
-        .from('friend_requests')
-        .insert({ sender_id: user.uid, receiver_id: targetUser.uid });
-
-      if (error) {
-        if (error.code === '23505') return { success: false, error: "Request already sent/exists." };
-        throw error;
+      const { success, error } = await SocialService.sendFriendRequest(user.uid, targetUser.uid);
+      if (!success) {
+         return { success: false, error: error?.message || error || "Failed to send." };
       }
       return { success: true };
     } catch (e) {
@@ -4783,58 +4777,51 @@ function MainApp() {
 
   const handleCheckOutgoingRequest = useCallback(async (targetUserId) => {
     if (!user) return false;
-    const { data } = await supabase
-      .from('friend_requests')
-      .select('id')
-      .eq('sender_id', user.uid)
-      .eq('receiver_id', targetUserId)
-      .maybeSingle();
-    return !!data;
+    const { success, data } = await SocialService.checkOutgoingRequest(user.uid, targetUserId);
+    return success ? data : false;
   }, [user]);
 
   const handleBlockUser = useCallback(async (targetUser) => {
     if (!user) return;
     try {
       const targetUid = targetUser.uid || targetUser;
-      await supabase.from('blocked_users').insert({ user_id: user.uid, blocked_user_id: targetUid });
-      await supabase.from('friend_requests').delete().or(`sender_id.eq.${targetUid},receiver_id.eq.${targetUid}`);
-      await supabase.from('friendships').delete().eq('user_id', user.uid).eq('friend_id', targetUid);
-      setFriends(prev => prev.filter(f => f.uid !== targetUid));
+      const { success, error } = await SocialService.blockUser(user.uid, targetUid);
+      
+      if (success) {
+        setFriends(prev => prev.filter(f => f.uid !== targetUid));
+      } else {
+        console.error("Block failed", error);
+      }
     } catch (e) { console.error("Block failed", e); }
   }, [user]);
 
   const handleUnblockUser = useCallback(async (blockedUid) => {
     if (!user) return;
     try {
-      await supabase.from('blocked_users').delete().eq('user_id', user.uid).eq('blocked_user_id', blockedUid);
-      setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUid));
+      const { success, error } = await SocialService.unblockUser(user.uid, blockedUid);
+      
+      if (success) {
+        setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUid));
+      } else {
+        console.error("Unblock failed", error);
+      }
     } catch (e) { console.error("Unblock failed", e); }
   }, [user]);
 
   const handleAcceptRequest = useCallback(async (requestObj) => {
     if (!user || !requestObj.requestId) return { success: false, error: "Invalid request" };
     try {
-      console.log("Accepting request via V2:", requestObj.requestId);
-      const { error } = await supabase.rpc('confirm_friendship', { req_id: requestObj.requestId });
+      const { success, error } = await SocialService.acceptFriendRequest(requestObj.requestId);
 
-      if (error) {
-        console.error("V2 RPC Error:", error);
+      if (!success) {
+        console.error("Accept failed", error);
         throw error;
       }
 
-      // SUCCESS: Force Fetch Friendship Data to get the Profile Stats immediately
-      const { data, error: fetchError } = await supabase
-        .from('friendships')
-        .select(`
-          friend_id,
-          is_pinned,
-          profile:profiles!friend_id (
-             id, display_name, handle, photo_url, is_pro, timer_state, last_active, stats
-          )
-        `)
-        .eq('user_id', user.uid);
+      // SUCCESS: Force Fetch Friendship Data
+      const { success: fetchSuccess, data, error: fetchError } = await SocialService.fetchFriends(user.uid);
 
-      if (data) {
+      if (fetchSuccess && data) {
         const now = Date.now();
         const mapped = data.map(row => {
           const p = row.profile;
@@ -4868,11 +4855,7 @@ function MainApp() {
   const handleDeclineRequest = useCallback(async (requesterId) => {
     if (!user) return;
     try {
-      await supabase
-        .from('friend_requests')
-        .delete()
-        .eq('receiver_id', user.uid)
-        .eq('sender_id', requesterId);
+      await SocialService.declineFriendRequest(user.uid, requesterId);
     } catch (e) { console.error("Decline failed", e); }
   }, [user]);
 
@@ -4881,19 +4864,14 @@ function MainApp() {
     setFriends(prev => prev.filter(f => f.uid !== friendId)); // Optimistic UI update
 
     try {
-      // Use RPC for atomic reciprocal removal
-      const { error } = await supabase.rpc('remove_friend', { friend_uid: friendId });
-
-      if (error) {
-        console.error("RPC Remove failed, falling back to manual deletion", error);
-        // Fallback: Manual Double Delete
-        await supabase.from('friendships').delete().match({ user_id: user.uid, friend_id: friendId });
-        await supabase.from('friendships').delete().match({ user_id: friendId, friend_id: user.uid });
+      const { success, error } = await SocialService.removeFriend(user.uid, friendId);
+      if (!success) {
+        console.error("Remove failed", error);
+        // Could revert optimistic update here if needed
       }
-    } catch (e) {
-      console.error("Remove failed completely", e);
-    }
+    } catch (e) { console.error("Remove failed", e); }
   }, [user]);
+
 
   const handleTogglePin = useCallback(async (friendId, currentStatus) => {
     if (!user) return;
@@ -4918,18 +4896,21 @@ function MainApp() {
     if (!term) return [];
 
     try {
-      const { data, error } = await supabase.rpc('search_users', { search_query: term });
-      if (data) {
-        return data.map(u => ({
-          uid: u.id,
-          displayName: u.display_name,
-          handle: u.handle,
-          photoURL: u.photo_url
-        }));
+      const { success, data, error } = await UserService.searchUsers(term);
+      
+      if (success && data) {
+        // Filter out self and existing friends
+        const filtered = data.filter(u => u.id !== user.uid && !friendUids.includes(u.id));
+        return filtered;
+      } else {
+        console.error("Search error", error);
+        return [];
       }
-    } catch (e) { console.error("Search failed", e); }
-    return [];
-  }, []);
+    } catch (e) {
+      console.error("Search failed", e);
+      return [];
+    }
+  }, [user, friendUids]);
 
   // --- End Social Logic ---
 
@@ -4953,10 +4934,10 @@ function MainApp() {
       const localStreak = Storage.calculateStreak(localHistory);
 
       // 2. Fetch Server Streak (Authoritative for past history on new devices)
-      const { data: serverStreak } = await supabase.rpc('get_current_streak', { user_id_input: user.uid });
+      const { success, data: serverStreak } = await UserService.getCurrentStreak(user.uid);
 
       // 3. Reconcile: Trust the higher number (Union of knowledge)
-      const finalStreak = Math.max(localStreak, serverStreak || 0);
+      const finalStreak = Math.max(localStreak, (success ? serverStreak : 0) || 0);
 
       if (finalStreak > 0) {
         setStats(prev => ({ ...prev, currentStreak: finalStreak }));
@@ -4964,13 +4945,13 @@ function MainApp() {
         // 4. Force Sync Authoritative Streak to Profile (for friends)
         // Only update if needed or to ensure consistency
         if (finalStreak !== serverStreak) {
-          await supabase.from('profiles').update({
+          await UserService.updateProfile(user.uid, {
             streak: finalStreak,
             stats: {
               ...stats,
               currentStreak: finalStreak
             }
-          }).eq('id', user.uid);
+          });
         }
       } else {
         setStats(prev => ({ ...prev, currentStreak: 0 }));
@@ -5073,7 +5054,7 @@ function MainApp() {
           console.log("No user_settings found. creating...");
           const initialSettings = Storage.getSettings(DEFAULT_SETTINGS);
           try {
-            const { error } = await supabase.from('user_settings').insert({
+            const { error } = await UserService.insertSettings({
               user_id: user.uid,
               settings: initialSettings,
               updated_at: new Date()
@@ -5087,14 +5068,9 @@ function MainApp() {
         // 4. HYDRATE TODAY'S STATS (Fix for 0s bug)
         try {
           const todayId = formatDateId(new Date());
-          const { data: todayHistory } = await supabase
-            .from('history')
-            .select('*')
-            .eq('user_id', user.uid)
-            .eq('date_id', todayId)
-            .maybeSingle();
+          const { success, data: todayHistory } = await UserService.getHistoryByDate(user.uid, todayId);
 
-          if (todayHistory) {
+          if (success && todayHistory) {
             const hydrated = Storage.hydrateTodayStats(todayHistory);
             // Note: We don't need to force setStats here because:
             // 1) The Timer/Stats UI reads directly from localStorage on mount/tick
@@ -5140,7 +5116,7 @@ function MainApp() {
           updated_at: new Date()
         };
 
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           ...payload
         });
@@ -5734,7 +5710,7 @@ function MainApp() {
         lastRemoteUpdate.current = timerState.lastUpdated;
 
         // 1. Save Settings
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           settings: settingsWithTimestamp,
           updated_at: new Date()
@@ -5760,7 +5736,7 @@ function MainApp() {
         };
         lastRemoteUpdate.current = timerState.lastUpdated;
 
-        await supabase.from('user_settings').upsert({
+        await UserService.upsertSettings({
           user_id: user.uid,
           settings: settingsWithTimestamp,
           updated_at: new Date()
@@ -5878,7 +5854,7 @@ function MainApp() {
         preferences: newPreferences
       };
 
-      await supabase.from('user_settings').upsert({
+      await UserService.upsertSettings({
         user_id: user.uid,
         settings: newSettings,
         updated_at: new Date()
@@ -5906,12 +5882,12 @@ function MainApp() {
 
     // 3. Fetch from DB
     try {
-      const { data } = await supabase.from('profiles').select('*').eq('handle', '@' + cleanHandle).single();
-      if (data) setViewingProfile(data);
+      const { success, data } = await UserService.getProfileByHandle('@' + cleanHandle);
+      if (success && data) setViewingProfile(data);
       else {
         // Try without @
-        const { data: data2 } = await supabase.from('profiles').select('*').eq('handle', cleanHandle).single();
-        if (data2) setViewingProfile(data2);
+        const { success: success2, data: data2 } = await UserService.getProfileByHandle(cleanHandle);
+        if (success2 && data2) setViewingProfile(data2);
         else alert("User not found");
       }
     } catch (e) { console.error(e); }

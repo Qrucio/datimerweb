@@ -4,9 +4,9 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
     const [imageError, setImageError] = useState(false);
 
     // Data Resolution
-    const finalPhoto = photoURL || userData?.photoURL;
-    const finalName = name || userData?.displayName || userData?.name;
-    const uid = userData?.uid;
+    const finalPhoto = photoURL || userData?.photoURL || userData?.photo_url;
+    const finalName = name || userData?.displayName || userData?.display_name || userData?.name;
+    const uid = userData?.uid || userData?.id;
 
     // Check Status
     const userIsDev = isDev;

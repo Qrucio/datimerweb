@@ -1,5 +1,16 @@
 export const releaseNotes = [
   {
+    version: "0.2.2",
+    date: "2025-12-31",
+    changes: [
+      "Extracted core database logic into dedicated UserService and SocialService layers for improved stability",
+      "Centralized database constants to prevent naming inconsistencies across the application",
+      "Fixed profile image loading bug by ensuring all necessary user metadata is fetched on login",
+      "Resolved 409 Conflict errors in history syncing by implementing proper upsert conflict resolution",
+      "Enhanced data reliability by ensuring all Supabase calls are safely handled through the service layer"
+    ]
+  },
+  {
     version: "0.2.1",
     date: "2025-12-31",
     changes: [

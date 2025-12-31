@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Hash, Lock, Plus, Loader2, MessageCircle, ShieldAlert } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { UserService } from '../../services/userService';
 import MessageBubble from './MessageBubble';
 import { format } from 'date-fns';
 import { deleteOldMessages } from '../../utils/cleanup';
@@ -133,16 +134,13 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                             isPro: user.isPro
                         };
                     } else {
-                        // Fetch their profile
-                        const { data } = await supabase.from('profiles').select('id, display_name, handle, photo_url, is_pro').eq('id', newMsg.sender_id).single();
-                        if (data) {
-                            senderProfile = {
-                                ...data,
-                                displayName: data.display_name,
-                                photoURL: data.photo_url,
-                                isPro: data.is_pro
-                            };
-                        }
+                // Fetch sender details from DB as fallback (rare case if not in member list)
+                const { success, data } = await UserService.getProfile(newMsg.sender_id, 'id, display_name, handle, photo_url, is_pro');
+                if (success && data) {
+                    senderProfile = data;
+                    // Cache it for this session to avoid refetch
+                    // (In a real app, you'd update a global cache or context)
+                }
                     }
 
                     const enrichedMsg = {
