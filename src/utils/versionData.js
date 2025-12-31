@@ -1,5 +1,12 @@
 export const releaseNotes = [
   {
+    version: "0.2.3",
+    date: "2025-12-31",
+    changes: [
+      "Removed automatic pro access for new users during onboarding"
+    ]
+  },
+  {
     version: "0.2.2",
     date: "2025-12-31",
     changes: [

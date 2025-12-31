@@ -237,10 +237,6 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
                 handle_lowercase: fullHandle.toLowerCase(),
                 // Initialize default stats if needed, or rely on defaults
 
-                // [TEMPORARY] GRANT PRO TO ALL NEW USERS
-                // TODO: Remove this block when beta testing is complete
-                is_pro: true,
-                pro_expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 Year Trial
             });
 
             // 2. Update Settings (Private) - store last handle change
