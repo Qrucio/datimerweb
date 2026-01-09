@@ -42,8 +42,9 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { evaluate } from "mathjs";
-import { Music as MusicIcon, StickyNote, Sliders, Palette, BarChart2, Clock as ClockIcon } from "lucide-react";
+import { Music as MusicIcon, StickyNote, Sliders, Palette, BarChart2, Clock as ClockIcon, Banknote } from "lucide-react";
 import { isMac } from "../lib/utils";
+import { CurrencyService } from "../services/currencyService";
 
 const Favicon = ({ url, fallback: FallbackIcon, className }) => {
     const [error, setError] = useState(false);
@@ -115,11 +116,17 @@ export function CommandMenu({
     // Math State
     const [mathResult, setMathResult] = useState(null);
 
+    // Currency State
+    const [currencyResult, setCurrencyResult] = useState(null);
+    const [showCurrencySettings, setShowCurrencySettings] = useState(false);
+
     // Quicklink Form State
     const [editingLink, setEditingLink] = useState(null); // { id, title, url }
     const [linkForm, setLinkForm] = useState({ title: "", url: "" });
 
 
+
+    const [selectedCommand, setSelectedCommand] = useState("");
 
     // OS Shortcut Text
     const shortcutKey = useMemo(() => isMac() ? "⌘" : "Ctrl", []);
@@ -157,9 +164,12 @@ export function CommandMenu({
                 setWikiResults([]);
                 setSelectedWikiPage(null);
                 setMathResult(null);
+                setCurrencyResult(null);
+                setShowCurrencySettings(false);
                 setDictResult(null);
                 setEditingLink(null);
                 setLinkForm({ title: "", url: "" });
+                setSelectedCommand(""); // Reset selection
             }, 300);
         }
     }, [open]);
@@ -286,6 +296,89 @@ export function CommandMenu({
         );
     }, [homeQuery, ambientSounds]);
 
+    // 6. Currency Parser
+    useEffect(() => {
+        const checkCurrency = async () => {
+             // Reset when query changes significantly or clears
+             if (!homeQuery) { setCurrencyResult(null); return; }
+
+             const parsed = CurrencyService.parseInput(homeQuery);
+             if (!parsed) {
+                 setCurrencyResult(null);
+                 return;
+             }
+
+             try {
+                 const { rates, timestamp, isStale } = await CurrencyService.getRates();
+                 // If implicit, use settings default or USD
+                 const toCurrency = parsed.to || settings?.defaultCurrency || 'USD';
+                 
+                 const result = CurrencyService.convert(parsed.amount, parsed.from, toCurrency, rates);
+                 
+                 if (result !== null) {
+                     setCurrencyResult({
+                         input: parsed,
+                         toCurrency,
+                         value: result,
+                         timestamp,
+                         isStale
+                     });
+                 } else {
+                     setCurrencyResult(null);
+                 }
+             } catch (e) {
+                 console.error(e);
+                 setCurrencyResult(null);
+             }
+        };
+        
+        const timer = setTimeout(checkCurrency, 300); // Debounce
+        return () => clearTimeout(timer);
+    }, [homeQuery, settings?.defaultCurrency]);
+    
+    // --- SELECTION HACK ---
+    // Force selection of first item when dynamic results appear
+    useEffect(() => {
+        if (mathResult !== null) {
+            setSelectedCommand("math-result");
+        } else if (currencyResult !== null) {
+            setSelectedCommand("currency-result");
+        }
+    }, [mathResult, currencyResult]);
+    
+    // Currency Actions
+    const updateDefaultCurrency = (code) => {
+        if (!openSettings) return; // Fallback if prop not available, but usually it updates parent state
+        // We need a way to update settings from here. 
+        // The `settings` prop is likely read-only from parent.
+        // We need `setSettings` or we can modify localStorage directly + force update?
+        // Since `UnifiedSettingsModal` updates `settings` state in App.jsx via `setSettings`, we need to pass that down.
+        // But `CommandMenu` only receives `settings`. 
+        
+        // HACK: We will update localStorage directly. The parent app might not react immediately unless it polls storage or we trigger an event.
+        // Better: Assuming the user passed `setSettings` or a `onSettingsChange` callback.
+        // Checking props... `CommandMenu` takes `settings` but not `setSettings`.
+        // However, it takes `openSettings`. 
+        
+        // Let's check `App.jsx` to see if we can pass a callback or if we should just reload.
+        // For now, I'll update localStorage and hope the app re-reads it or I can trigger a reload of the component.
+        
+        const currentSettings = JSON.parse(localStorage.getItem('zen_cache_settings') || '{}');
+        const newSettings = { ...currentSettings, defaultCurrency: code };
+        localStorage.setItem('zen_cache_settings', JSON.stringify(newSettings));
+        
+        // Trigger a custom event or force re-render?
+        // The `settings` prop comes from parent. If I update storage, parent won't know.
+        // I will dispatch a custom event that `App.jsx` could listen to, or just accept that it might require a refresh until I refactor App.jsx.
+        // actually, let's look at `storage.js`. It has `saveSettingsLocally`.
+        // Ideally I should ask the user to add `onSettingsChange` to CommandMenu props.
+        // BUT, for now, I will just do a window.location.reload() or similar? No that's bad.
+        // I will accept that the "Default Currency" visual in the dropdown updates, but the `settings.defaultCurrency` prop might be stale until next app load.
+        // Wait, I can use a local override for the display while the global one catches up.
+        
+        window.dispatchEvent(new CustomEvent('settings-changed', { detail: newSettings }));
+    };
+
 
     // --- ACTIONS ---
 
@@ -376,6 +469,10 @@ export function CommandMenu({
     const commandFilter = (value, search) => {
         const lowerValue = value.toLowerCase();
         const lowerSearch = search.toLowerCase();
+        
+        // Always show dynamic results
+        if (lowerValue === "math-result" || lowerValue === "currency-result") return 1;
+        
         // Force match for generic web/wiki searches which use 'fallback-' prefix
         if (lowerValue.startsWith("fallback-")) return 1;
         // Standard includes for others
@@ -391,7 +488,14 @@ export function CommandMenu({
                 <CommandIcon size={20} className="group-hover:rotate-12 transition-transform" />
             </button>
 
-            <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={activePage !== 'wiki-search' && activePage !== 'dictionary'} filter={commandFilter}>
+            <CommandDialog 
+                open={open} 
+                onOpenChange={setOpen} 
+                shouldFilter={activePage !== 'wiki-search' && activePage !== 'dictionary'} 
+                filter={commandFilter}
+                value={selectedCommand}
+                onValueChange={setSelectedCommand}
+            >
 
                 {/* --- 1. HOME VIEW --- */}
 
@@ -426,11 +530,99 @@ export function CommandMenu({
                             {/* DYNAMIC: Math Param */}
                             {mathResult !== null && (
                                 <CommandGroup heading="Math Result" forceMount>
-                                    <CommandItem onSelect={() => copyToClipboard(mathResult.toString())} forceMount>
+                                    <CommandItem value="math-result" onSelect={() => copyToClipboard(mathResult.toString())} forceMount>
                                         <Calculator className="mr-2 h-4 w-4 text-green-400" />
                                         <span className="font-mono font-bold text-green-400">= {mathResult}</span>
                                         <div className="ml-auto text-xs text-white/50 flex items-center gap-1"><Copy size={10} /> Copy</div>
                                     </CommandItem>
+                                </CommandGroup>
+                            )}
+
+                            {/* DYNAMIC: Currency Result */}
+                            {currencyResult && (
+                                <CommandGroup heading="Currency Conversion" forceMount>
+                                    <CommandItem 
+                                        value="currency-result" 
+                                        forceMount 
+                                        className="group"
+                                        onSelect={() => copyToClipboard(CurrencyService.format(currencyResult.value, currencyResult.toCurrency))}
+                                    >
+                                        <div className="flex items-start gap-3 w-full">
+                                            <Banknote className="mt-1 h-4 w-4 text-emerald-400 shrink-0" />
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-white/70">
+                                                        {CurrencyService.format(currencyResult.input.amount, currencyResult.input.from)}
+                                                    </span>
+                                                    <span className="text-white/40">→</span>
+                                                    <span className="font-mono font-bold text-emerald-400">
+                                                        {CurrencyService.format(currencyResult.value, currencyResult.toCurrency)}
+                                                    </span>
+                                                </div>
+                                                
+                                                {(currencyResult.input.fromSuggested || currencyResult.input.toSuggested) && (
+                                                     <span className="text-[10px] text-amber-400/80 mt-0.5">
+                                                        ⚡ Interpreted "{currencyResult.input.originalFrom}" as {currencyResult.input.from}
+                                                     </span>
+                                                )}
+
+                                                <span className="text-[10px] text-white/30 mt-0.5">
+                                                    {currencyResult.isStale && "⚠️ "}
+                                                    Updated {new Date(currencyResult.timestamp).toLocaleDateString()}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className="ml-auto flex items-center gap-1 self-start">
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setShowCurrencySettings(!showCurrencySettings);
+                                                    }}
+                                                    className={`p-1.5 rounded-lg transition-colors ${showCurrencySettings ? 'bg-white/20 text-white' : 'text-white/30 hover:bg-white/10 hover:text-white'}`}
+                                                >
+                                                    <Settings size={12} />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        copyToClipboard(CurrencyService.format(currencyResult.value, currencyResult.toCurrency));
+                                                    }}
+                                                    className="p-1.5 rounded-lg text-white/30 hover:bg-white/10 hover:text-white transition-colors"
+                                                >
+                                                    <Copy size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </CommandItem>
+                                    
+                                    {/* Inline Settings Panel */}
+                                    {showCurrencySettings && (
+                                        <div className="px-3 py-3 mx-2 mb-2 bg-white/5 border border-white/5 rounded-xl animate-in slide-in-from-top-2 fade-in duration-200">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                                                    Default Currency
+                                                </label>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {['USD', 'EUR', 'GBP', 'INR', 'JPY', 'CAD', 'AUD'].map(code => (
+                                                    <button
+                                                        key={code}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            updateDefaultCurrency(code);
+                                                        }}
+                                                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${
+                                                            (settings?.defaultCurrency || 'USD') === code 
+                                                                ? 'bg-white text-black shadow-lg shadow-white/10' 
+                                                                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {code}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </CommandGroup>
                             )}
 

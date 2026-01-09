@@ -1,5 +1,15 @@
 export const releaseNotes = [
   {
+    version: "0.3.1",
+    date: "2026-01-09",
+    changes: [
+      "Added Currency Converter to Command Menu (supports 150+ currencies)",
+      "Implemented smart fuzzy parsing for currency inputs (e.g. '100 uds' auto-corrects to 'USD')",
+      "Added inline settings to quickly change default currency directly from search results",
+      "Improved Command Menu selection logic for faster copy-pasting of results"
+    ]
+  },
+  {
     version: "0.3.0",
     date: "2026-01-09",
     changes: [
