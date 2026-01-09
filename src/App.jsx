@@ -40,25 +40,9 @@ import ReleaseNotesPage from './pages/ReleaseNotesPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
-// GoogleGenerativeAI import removed per user request
-// import CaffeineTracker from './components/CaffeineTracker';
-// for the sake of the comment 
-// let's get it
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
-
-const ELON_MSG = [
-  "Break skipped. Mars awaits.",
-  "No break. Go hardcore.",
-  "Skipped. Production hell.",
-  "Break denied. Build the future.",
-  "Skipped. 100 hour work weeks.",
-  "No rest. Be extremely hardcore.",
-  "Break skipped. Accelerate.",
-  "Denied. Physics doesn't compromise.",
-  "Skipped. History is written now."
-];
 
 const syncWithExtension = (isActive, isStrict, mode) => {
   // We send a message to the window. 
@@ -1949,14 +1933,14 @@ const LiquidStrictBtn = ({
         setStatus('idle');
       }
     };
-    if (isMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+    if (isMenuOpen) document.addEventListener('mousedown',
+      handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
   // --- STYLE LOGIC UPDATED ---
   // Default: Apply the white hover effect
   let btnBg = "hover:bg-white/10";
-  // FIX: Changed to direct 'hover:text-white' for consistent brightness
   let btnText = "text-white/70 hover:text-white";
   let iconColor = "text-white/70 group-hover:text-white transition-colors"; // Explicit icon transition
 
@@ -2117,12 +2101,10 @@ const SegmentedToggle = ({ label, checked, onChange, id }) => (
 const PersonalityCard = ({ p, activeId, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isActive = activeId === p.id;
-  const isElon = p.id === 'elon';
 
   // Dynamic Styles
   const borderColor = isActive
-    ? (isElon ? 'border-purple-500' : 'border-white')
-    : (isHovered ? 'border-white/40' : 'border-white/10');
+    
 
   const containerBg = p.isEmpty
     ? 'bg-white/5 border-dashed border-white/10' // Empty/Locked Look
@@ -2426,7 +2408,6 @@ const ExtraTimePopup = ({ minutes, visible }) => (
         </div>
         <div>
           <h4 className="text-white font-bold text-sm">Break Skipped</h4>
-          <p className="text-white/60 text-xs">Elon mode engaged. +{minutes}m potential focus.</p>
         </div>
       </motion.div>
     )}
@@ -3266,7 +3247,6 @@ function MainApp() {
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
-  // FIX: Force timer restart when mode stays same (Focus -> Focus)
   const [timerResetKey, setTimerResetKey] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
@@ -4899,9 +4879,18 @@ function MainApp() {
       const { success, data, error } = await UserService.searchUsers(term);
       
       if (success && data) {
-        // Filter out self and existing friends
-        const filtered = data.filter(u => u.id !== user.uid && !friendUids.includes(u.id));
-        return filtered;
+        // Filter out self and existing friends AND MAP to camelCase for FriendView
+        const mapped = data
+            .filter(u => u.id !== user.uid && !friendUids.includes(u.id))
+            .map(u => ({
+                uid: u.id,
+                displayName: u.display_name,
+                handle: u.handle,
+                photoURL: u.photo_url,
+                isPro: u.is_pro
+            }));
+            
+        return mapped;
       } else {
         console.error("Search error", error);
         return [];

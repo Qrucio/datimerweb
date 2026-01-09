@@ -1,5 +1,12 @@
 export const releaseNotes = [
   {
+    version: "0.2.4",
+    date: "2026-01-09",
+    changes: [
+      "Fixed friend request error where adding a friend would fail due to missing user ID mapping"
+    ]
+  },
+  {
     version: "0.2.3",
     date: "2025-12-31",
     changes: [
