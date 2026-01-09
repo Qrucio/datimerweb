@@ -53,7 +53,7 @@ C:\Users\divya\Documents\Divyansh\codingfiles\apps\altimer\
 
 ### Key Commands
 *   **Start Dev Server:** `npm run dev`
-    *   Runs Vite on `127.0.0.1`.
+    *   Runs Vite on `localhost`.
 *   **Build for Production:** `npm run build`
     *   Outputs static files to `dist/`.
 *   **Lint Code:** `npm run lint`

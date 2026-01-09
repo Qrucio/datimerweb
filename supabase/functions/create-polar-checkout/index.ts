@@ -1,12 +1,22 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGINS = [
+    'https://altimer.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+];
 
 serve(async (req) => {
+    // Dynamic CORS
+    const origin = req.headers.get('origin') || '';
+    const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': allowedOrigin,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    };
+
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
@@ -55,7 +65,7 @@ serve(async (req) => {
             status: 200
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Create checkout error:', error);
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,5 +1,17 @@
 export const releaseNotes = [
   {
+    version: "0.3.0",
+    date: "2026-01-09",
+    changes: [
+      "Enhanced security with encrypted local storage for sensitive tokens",
+      "Implemented server-side validation for video calls and checkout sessions",
+      "Improved privacy by filtering real-time presence updates to friends only",
+      "Secured wallet and inventory system with server-authoritative sync",
+      "Fixed code injection vulnerability in Command Menu calculator",
+      "Removed legacy demo mode and unused AI integrations"
+    ]
+  },
+  {
     version: "0.2.4",
     date: "2026-01-09",
     changes: [

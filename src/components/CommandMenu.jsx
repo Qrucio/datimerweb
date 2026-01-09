@@ -41,6 +41,7 @@ import {
 
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { evaluate } from "mathjs";
 import { Music as MusicIcon, StickyNote, Sliders, Palette, BarChart2, Clock as ClockIcon } from "lucide-react";
 import { isMac } from "../lib/utils";
 
@@ -207,8 +208,7 @@ export function CommandMenu({
         const hasOperator = /[+\-*/]/.test(homeQuery);
         if (homeQuery && mathRegex.test(homeQuery) && hasOperator) {
             try {
-                // eslint-disable-next-line no-new-func
-                const result = new Function(`return ${homeQuery}`)();
+                const result = evaluate(homeQuery);
                 if (Number.isFinite(result)) setMathResult(result);
                 else setMathResult(null);
             } catch (e) { setMathResult(null); }

@@ -161,112 +161,22 @@ class ErrorBoundary extends React.Component {
 // --- FIREBASE CONFIG REMOVED ---
 // App now uses Supabase (initialized in ./lib/supabase.js)
 
-const apiKey = import.meta.env.VITE_APP_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-
+// Gemini API Variable cleared - Feature disabled.
+const apiKey = ""; 
 
 // Helper for raw fetch calls to Gemini
 const callGeminiAPI = async (prompt) => {
-  if (!apiKey) {
-    console.error("Gemini API Key missing. Checked: VITE_APP_GEMINI_API_KEY, VITE_GEMINI_API_KEY");
-    return "Error: Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.";
-  }
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error(`Gemini API Failed: ${response.status}`, errText);
-      return `Error: AI Service Failed (${response.status}). Check console for details.`;
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      console.error("Gemini Response Empty:", data);
-      return "Error: AI returned no content.";
-    }
-
-    // Check if the response was filtered (Safety settings)
-    if (data.promptFeedback?.blockReason) {
-      return "Error: Request blocked by safety filters.";
-    }
-
-    return text;
-
-  } catch (error) {
-    console.error("Gemini Network Error:", error);
-    return `Error: Network Connection Failed. (${error.message})`;
-  }
+    return "Error: AI Service Disabled.";
 };
 
 const getGeminiAdvice = async (context) => {
-  const prompt = `
-        You are a supportive, wise productivity coach named "The Ether". 
-        
-        Context:
-        - Intention: "${context.intention}"
-        - Reason(s) context: ${context.reasons.join(', ')} (or user query: ${context.userQuery || 'N/A'})
-        - Current Emotion: ${context.emotion}
-        - Session Progress: Focused for ${context.timeFocused}m (out of ${context.duration}m planned).
-        
-        Task:
-        1. Write a short, empathetic message (1-2 sentences) directly addressing their specific feelings and situation. make it feel personal and warm.
-        2. Suggest ONE concrete, easy next step.
-        3. Wrap the actionable command in [Action: ...] format at the end.
-        
-        Valid Actions:
-        - [Action: Resume] (If they just need encouragement or want to restart work)
-        - [Action: Set Focus 15m] (If they are tired/overwhelmed, suggest a shorter burst)
-        - [Action: Set Break 5m] (If they need a rest)
-        - [Action: Switch to 50/10] (If they need rhythm)
-        
-        Example Output:
-        "It's completely normal to feel drained when tackling such a complex task. Rest is productive too. [Action: Set Break 5m]"
-        `;
-
-  const result = await callGeminiAPI(prompt);
-
-  // If result starts with "Error:", pass it through so user sees it.
-  if (result && result.startsWith("Error:")) {
-    return result;
-  }
-
-  // Fallback ONLY if result is somehow null but not an error string (shouldn't happen with above logic)
-  return result || `I hear that you're feeling ${context.reasons[0] || "stuck"}. It happens. Take a moment. [Action: Resume]`;
+  return "AI advice is currently disabled.";
 };
-
-
 
 const generateSessionPlan = async (task, timeString) => {
-  const prompt = `
-        Act as a productivity expert. User wants to work on: "${task}" for "${timeString}".
-        Suggest the optimal settings in JSON format:
-        {
-            "focus": number (minutes, 25 or 50 mostly),
-            "shortBreak": number (5 or 10),
-            "sessions": number (count)
-        }
-        Do not output anything else.
-        `;
-  const text = await callGeminiAPI(prompt);
-  if (!text) return null;
-
-  try {
-    const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error("Failed to parse AI plan", e);
     return null;
-  }
 };
+
 
 
 const cleanText = (text) => {
@@ -4478,35 +4388,9 @@ function MainApp() {
     setIsAuthChecking(false);
   };
 
-  // --- DEMO MODE HANDLER ---
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const demoMode = params.get('demo');
-
-    if (demoMode) {
-      console.log("🚀 ACTIVATING DEMO MODE:", demoMode);
-
-      // 1. SKIP ONBOARDING
-      setOnboardingStep(3);
-
-      // 2. SET DUMMY USER
-      const dummyUser = {
-        uid: 'demo-user-123',
-        displayName: 'Caffeine demo',
-        photoURL: null,
-        email: 'demo@example.com',
-        isAnonymous: true // Treated as guest infrastructure but locally Pro
-      };
-
-      setUser(dummyUser);
-      setIsPro(true); // Force Pro
-
-      // 3. FEATURE SPECIFIC TRIGGERS
-      if (demoMode === 'caffeine') {
-        setTimeout(() => setHighlightCaffeine(true), 800);
-      }
-    }
-  }, []);
+  // --- DEMO MODE REMOVED ---
+  // Demo functionality has been disabled as per security requirements.
+  // The useEffect hook that handled ?demo=caffeine has been deleted.
 
   // --- SOCIAL: Friends Logic (SUPABASE MIGRATION) ---
 
@@ -4640,10 +4524,15 @@ function MainApp() {
   }, [user]);
 
   // 3. LISTEN TO FRIENDS (List + Status)
-  useEffect(() => {
-    if (!user) { setFriends([]); return; }
+    useEffect(() => {
+      if (!user) return;
 
-    const fetchFriends = async () => {
+      // 1. Sync Wallet (Server Authority)
+      if (!user.isAnonymous) {
+          Storage.syncWalletFromServer();
+      }
+
+      const fetchFriends = async () => {
       // Manual Hydration for Reliability
       const { data: friendships } = await supabase
         .from('friendships')
@@ -4695,29 +4584,33 @@ function MainApp() {
       )
       .subscribe();
 
-    const presenceChannel = supabase.channel('social_presence')
+    const presenceChannel = friendUids.length > 0 ? supabase.channel('social_presence')
       .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: `id=in.(${friendUids.join(',')})` // Security: Only listen to friends
+        },
         (payload) => {
-          if (friendUids.includes(payload.new.id)) {
-            setFriends(prev => prev.map(f => {
-              if (f.uid === payload.new.id) {
-                const newP = payload.new;
-                const status = calculateFriendStatus(newP, Date.now());
-                return {
-                  ...f,
-                  timerState: newP.timer_state,
-                  last_active: newP.last_active,
-                  stats: newP.stats,
-                  ...status
-                };
-              }
-              return f;
-            }));
-          }
+          // Payload is now guaranteed to be a friend due to server-side filter
+          setFriends(prev => prev.map(f => {
+            if (f.uid === payload.new.id) {
+              const newP = payload.new;
+              const status = calculateFriendStatus(newP, Date.now());
+              return {
+                ...f,
+                timerState: newP.timer_state,
+                last_active: newP.last_active,
+                stats: newP.stats,
+                ...status
+              };
+            }
+            return f;
+          }));
         }
       )
-      .subscribe();
+      .subscribe() : null;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -4732,7 +4625,7 @@ function MainApp() {
 
     return () => {
       supabase.removeChannel(friendshipChannel);
-      supabase.removeChannel(presenceChannel);
+      if (presenceChannel) supabase.removeChannel(presenceChannel);
       clearInterval(interval);
     };
   }, [user, friendUids.join(','), calculateFriendStatus]);
@@ -5811,7 +5704,19 @@ function MainApp() {
       if (!data?.url) throw new Error("No checkout URL returned");
 
       // 2. Redirect to Polar
-      window.location.href = data.url;
+      const ALLOWED_CHECKOUT_HOSTS = ['polar.sh', 'checkout.polar.sh'];
+      try {
+          const urlObj = new URL(data.url);
+          if (ALLOWED_CHECKOUT_HOSTS.some(host => urlObj.host.endsWith(host))) {
+              window.location.href = data.url;
+          } else {
+              console.error('Blocked redirect to untrusted URL:', data.url);
+              alert('Checkout failed. Security check blocked the redirect.');
+          }
+      } catch (e) {
+          console.error("Invalid redirect URL", e);
+          alert('Checkout failed. Invalid redirect.');
+      }
 
     } catch (err) {
       console.error("Upgrade failed:", err);

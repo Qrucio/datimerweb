@@ -1,10 +1,10 @@
 {
   "name": "zen-timer-app",
   "private": true,
-  "version": "0.2.4",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -26,6 +26,7 @@
     "framer-motion": "^12.23.24",
     "livekit-client": "^2.16.1",
     "lucide-react": "^0.554.0",
+    "mathjs": "^15.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.4.0",

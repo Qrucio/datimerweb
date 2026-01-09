@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabase";
+import { logger } from "./logger";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
@@ -490,7 +491,7 @@ export const Storage = {
         console.log("[Storage] Checking Pro Status...");
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            console.log("[Storage] User:", user?.id);
+            logger.debug("[Storage] User:", user?.id);
 
             if (user) {
                 const { data, error } = await supabase
@@ -499,7 +500,7 @@ export const Storage = {
                     .eq('id', user.id)
                     .single();
 
-                console.log("[Storage] DB Response:", data, error);
+                logger.debug("[Storage] DB Response:", data, error);
 
                 if (data) {
                     // MASTER SWITCH: If is_pro is false in DB, revoke immediately.
@@ -575,19 +576,49 @@ export const Storage = {
     },
 
     // --- 9. WALLET & INVENTORY ---
+    // Server-First Approach: Always try to sync from server on load to prevent local tampering
+    syncWalletFromServer: async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return null;
+
+            const { data, error } = await supabase
+                .from('user_settings')
+                .select('wallet, inventory')
+                .eq('user_id', user.id)
+                .single();
+
+            if (data) {
+                // Server is the source of truth
+                if (data.wallet) localStorage.setItem(KEYS.WALLET, JSON.stringify(data.wallet));
+                if (data.inventory) localStorage.setItem(KEYS.INVENTORY, JSON.stringify(data.inventory));
+                return { wallet: data.wallet, inventory: data.inventory };
+            }
+        } catch (e) {
+            console.warn("[Storage] Wallet Sync Failed (Offline?)", e);
+        }
+        return null;
+    },
+
     getWallet: () => {
         try {
             return JSON.parse(localStorage.getItem(KEYS.WALLET) || '{"balance": 0}');
         } catch { return { balance: 0 }; }
     },
     updateWallet: async (amountToAdd) => {
+        // 1. Optimistic Local Update
         const wallet = Storage.getWallet();
         wallet.balance = (wallet.balance || 0) + amountToAdd;
         wallet.lastUpdated = Date.now();
         localStorage.setItem(KEYS.WALLET, JSON.stringify(wallet));
 
+        // 2. Server Sync
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+            // Fetch latest first to avoid overwriting other device changes (concurrency)
+            // But for simple "add", we might just want to trust the server state + delta.
+            // For now, we'll upsert our local state as the new truth, 
+            // but a robust system would use an RPC 'increment_balance'.
             await supabase.from('user_settings').upsert({
                 user_id: user.id,
                 wallet: wallet

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import { SecureStorage } from '../utils/security';
+import { logger } from '../utils/logger';
 
 // !IMPORTANT: Add VITE_SPOTIFY_CLIENT_ID to your .env file
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
@@ -87,14 +89,18 @@ export const useSpotify = () => {
         const exchangeToken = async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            const storedVerifier = window.localStorage.getItem('spotify_code_verifier');
+            const storedVerifierEnc = window.localStorage.getItem('spotify_code_verifier');
+            const storedVerifier = await SecureStorage.decrypt(storedVerifierEnc);
 
-            // If we already have a token, use it
-            let existingToken = window.localStorage.getItem("spotify_token");
-            if (existingToken) {
-                console.log("[Spotify] Restoring token from localStorage");
-                setToken(existingToken);
-                return;
+            // If we already have a token, restore it
+            let existingTokenEnc = window.localStorage.getItem("spotify_token");
+            if (existingTokenEnc) {
+                const existingToken = await SecureStorage.decrypt(existingTokenEnc);
+                if (existingToken) {
+                    logger.debug("[Spotify] Restoring token from secure storage");
+                    setToken(existingToken);
+                    return;
+                }
             }
 
             if (code && storedVerifier) {
@@ -116,11 +122,15 @@ export const useSpotify = () => {
                     const data = await response.json();
 
                     if (data.access_token) {
-                        console.log("[Spotify] Token Exchange Successful", data);
-                        window.localStorage.setItem("spotify_token", data.access_token);
+                        logger.debug("[Spotify] Token Exchange Successful");
+                        const encToken = await SecureStorage.encrypt(data.access_token);
+                        if (encToken) window.localStorage.setItem("spotify_token", encToken);
+                        
                         if (data.refresh_token) {
-                            window.localStorage.setItem("spotify_refresh_token", data.refresh_token);
+                            const encRefresh = await SecureStorage.encrypt(data.refresh_token);
+                            if (encRefresh) window.localStorage.setItem("spotify_refresh_token", encRefresh);
                         }
+                        
                         window.localStorage.removeItem('spotify_code_verifier');
                         setToken(data.access_token);
                         // Clean up URL
@@ -232,7 +242,9 @@ export const useSpotify = () => {
 
     // --- Refresh Token Logic ---
     const refreshAccessToken = async () => {
-        const refreshToken = window.localStorage.getItem("spotify_refresh_token");
+        const refreshTokenEnc = window.localStorage.getItem("spotify_refresh_token");
+        const refreshToken = await SecureStorage.decrypt(refreshTokenEnc);
+        
         if (!refreshToken || !CLIENT_ID) return false;
 
         try {
@@ -250,9 +262,12 @@ export const useSpotify = () => {
             const data = await response.json();
             if (data.access_token) {
                 console.log("[Spotify] Token Refreshed Successfully");
-                window.localStorage.setItem("spotify_token", data.access_token);
+                const encToken = await SecureStorage.encrypt(data.access_token);
+                if (encToken) window.localStorage.setItem("spotify_token", encToken);
+                
                 if (data.refresh_token) {
-                    window.localStorage.setItem("spotify_refresh_token", data.refresh_token);
+                    const encRefresh = await SecureStorage.encrypt(data.refresh_token);
+                    if (encRefresh) window.localStorage.setItem("spotify_refresh_token", encRefresh);
                 }
                 setToken(data.access_token);
                 return true;
@@ -280,7 +295,8 @@ export const useSpotify = () => {
         const hashed = await sha256(codeVerifier);
         const codeChallenge = base64encode(hashed);
 
-        window.localStorage.setItem('spotify_code_verifier', codeVerifier);
+        const encVerifier = await SecureStorage.encrypt(codeVerifier);
+        if (encVerifier) window.localStorage.setItem('spotify_code_verifier', encVerifier);
 
         const params = new URLSearchParams({
             client_id: CLIENT_ID,
