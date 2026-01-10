@@ -162,11 +162,11 @@ class ErrorBoundary extends React.Component {
 // App now uses Supabase (initialized in ./lib/supabase.js)
 
 // Gemini API Variable cleared - Feature disabled.
-const apiKey = ""; 
+const apiKey = "";
 
 // Helper for raw fetch calls to Gemini
 const callGeminiAPI = async (prompt) => {
-    return "Error: AI Service Disabled.";
+  return "Error: AI Service Disabled.";
 };
 
 const getGeminiAdvice = async (context) => {
@@ -174,7 +174,7 @@ const getGeminiAdvice = async (context) => {
 };
 
 const generateSessionPlan = async (task, timeString) => {
-    return null;
+  return null;
 };
 
 
@@ -1413,14 +1413,14 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
 
   if (!hasNotes) {
     return (
-      <button 
-        onClick={onOpenLibrary} 
+      <button
+        onClick={onOpenLibrary}
         onMouseMove={handleGlowMove}
         className="w-32 h-32 md:w-48 md:h-48 border-2 border-dashed border-white/50 bg-white/5 rounded-sm cursor-default flex items-center justify-center group hover:border-white/50 transition-all duration-300 relative overflow-hidden"
       >
-        <div 
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" 
-          style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }} 
+        <div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{ background: 'radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.1), transparent 40%)' }}
         />
         <div className="relative z-10 text-center">
           <Plus size={32} className="text-white/30 group-hover:text-white mx-auto mb-2 transition-colors" />
@@ -2014,7 +2014,7 @@ const PersonalityCard = ({ p, activeId, onClick }) => {
 
   // Dynamic Styles
   const borderColor = isActive
-    
+
 
   const containerBg = p.isEmpty
     ? 'bg-white/5 border-dashed border-white/10' // Empty/Locked Look
@@ -3456,15 +3456,15 @@ function MainApp() {
 
   // Sync unlocked ambiences from settings updates (e.g. from Supabase)
   useEffect(() => {
-     if (settings?.preferences) {
-       const prefs = settings.preferences;
-       if (prefs.unlockedAmbiences && JSON.stringify(prefs.unlockedAmbiences) !== JSON.stringify(unlockedAmbiences)) {
-         setUnlockedAmbiences(prefs.unlockedAmbiences);
-       }
-       if (prefs.ambienceSetupDone !== undefined && prefs.ambienceSetupDone !== ambienceSetupDone) {
-         setAmbienceSetupDone(prefs.ambienceSetupDone);
-       }
-     }
+    if (settings?.preferences) {
+      const prefs = settings.preferences;
+      if (prefs.unlockedAmbiences && JSON.stringify(prefs.unlockedAmbiences) !== JSON.stringify(unlockedAmbiences)) {
+        setUnlockedAmbiences(prefs.unlockedAmbiences);
+      }
+      if (prefs.ambienceSetupDone !== undefined && prefs.ambienceSetupDone !== ambienceSetupDone) {
+        setAmbienceSetupDone(prefs.ambienceSetupDone);
+      }
+    }
   }, [settings, unlockedAmbiences, ambienceSetupDone]);
   const [isTallyHovered, setIsTallyHovered] = useState(false);
   const [extraFocusPopup, setExtraFocusPopup] = useState({ visible: false, minutes: 0 });
@@ -3910,12 +3910,12 @@ function MainApp() {
   // NEW: Spotify Promo Popup State
   const [showSpotifyPromo, setShowSpotifyPromo] = useState(() => !localStorage.getItem('zen_spotify_promo_dismissed'));
   const [showVideoPromo, setShowVideoPromo] = useState(() => !localStorage.getItem('zen_video_promo_dismissed'));
-  
+
   const handleDismissSpotifyPromo = () => {
     setShowSpotifyPromo(false);
     localStorage.setItem('zen_spotify_promo_dismissed', 'true');
   };
-  
+
   const handleDismissVideoPromo = () => {
     setShowVideoPromo(false);
     localStorage.setItem('zen_video_promo_dismissed', 'true');
@@ -4336,7 +4336,7 @@ function MainApp() {
       try {
         const { success, data } = await UserService.getProfile(supaUser.id, 'handle, about, is_pro, photo_url, display_name');
         if (success && data) {
-           profileData = data;
+          profileData = data;
         }
       } catch (e) {
         console.warn("Profile fetch failed, using auth defaults", e);
@@ -4524,15 +4524,15 @@ function MainApp() {
   }, [user]);
 
   // 3. LISTEN TO FRIENDS (List + Status)
-    useEffect(() => {
-      if (!user) return;
+  useEffect(() => {
+    if (!user) return;
 
-      // 1. Sync Wallet (Server Authority)
-      if (!user.isAnonymous) {
-          Storage.syncWalletFromServer();
-      }
+    // 1. Sync Wallet (Server Authority)
+    if (!user.isAnonymous) {
+      Storage.syncWalletFromServer();
+    }
 
-      const fetchFriends = async () => {
+    const fetchFriends = async () => {
       // Manual Hydration for Reliability
       const { data: friendships } = await supabase
         .from('friendships')
@@ -4586,9 +4586,9 @@ function MainApp() {
 
     const presenceChannel = friendUids.length > 0 ? supabase.channel('social_presence')
       .on('postgres_changes',
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
+        {
+          event: 'UPDATE',
+          schema: 'public',
           table: 'profiles',
           filter: `id=in.(${friendUids.join(',')})` // Security: Only listen to friends
         },
@@ -4639,7 +4639,7 @@ function MainApp() {
     try {
       const { success, error } = await SocialService.sendFriendRequest(user.uid, targetUser.uid);
       if (!success) {
-         return { success: false, error: error?.message || error || "Failed to send." };
+        return { success: false, error: error?.message || error || "Failed to send." };
       }
       return { success: true };
     } catch (e) {
@@ -4659,7 +4659,7 @@ function MainApp() {
     try {
       const targetUid = targetUser.uid || targetUser;
       const { success, error } = await SocialService.blockUser(user.uid, targetUid);
-      
+
       if (success) {
         setFriends(prev => prev.filter(f => f.uid !== targetUid));
       } else {
@@ -4672,7 +4672,7 @@ function MainApp() {
     if (!user) return;
     try {
       const { success, error } = await SocialService.unblockUser(user.uid, blockedUid);
-      
+
       if (success) {
         setBlockedUsers(prev => prev.filter(b => b.uid !== blockedUid));
       } else {
@@ -4770,19 +4770,19 @@ function MainApp() {
 
     try {
       const { success, data, error } = await UserService.searchUsers(term);
-      
+
       if (success && data) {
         // Filter out self and existing friends AND MAP to camelCase for FriendView
         const mapped = data
-            .filter(u => u.id !== user.uid && !friendUids.includes(u.id))
-            .map(u => ({
-                uid: u.id,
-                displayName: u.display_name,
-                handle: u.handle,
-                photoURL: u.photo_url,
-                isPro: u.is_pro
-            }));
-            
+          .filter(u => u.id !== user.uid && !friendUids.includes(u.id))
+          .map(u => ({
+            uid: u.id,
+            displayName: u.display_name,
+            handle: u.handle,
+            photoURL: u.photo_url,
+            isPro: u.is_pro
+          }));
+
         return mapped;
       } else {
         console.error("Search error", error);
@@ -5706,16 +5706,16 @@ function MainApp() {
       // 2. Redirect to Polar
       const ALLOWED_CHECKOUT_HOSTS = ['polar.sh', 'checkout.polar.sh'];
       try {
-          const urlObj = new URL(data.url);
-          if (ALLOWED_CHECKOUT_HOSTS.some(host => urlObj.host.endsWith(host))) {
-              window.location.href = data.url;
-          } else {
-              console.error('Blocked redirect to untrusted URL:', data.url);
-              alert('Checkout failed. Security check blocked the redirect.');
-          }
+        const urlObj = new URL(data.url);
+        if (ALLOWED_CHECKOUT_HOSTS.some(host => urlObj.host.endsWith(host))) {
+          window.location.href = data.url;
+        } else {
+          console.error('Blocked redirect to untrusted URL:', data.url);
+          alert('Checkout failed. Security check blocked the redirect.');
+        }
       } catch (e) {
-          console.error("Invalid redirect URL", e);
-          alert('Checkout failed. Invalid redirect.');
+        console.error("Invalid redirect URL", e);
+        alert('Checkout failed. Invalid redirect.');
       }
 
     } catch (err) {
@@ -5726,16 +5726,16 @@ function MainApp() {
 
   const handleSaveAmbienceSelection = async (selectedIds) => {
     const newPreferences = { unlockedAmbiences: selectedIds, ambienceSetupDone: true };
-    
+
     // 1. Update UI State
     setUnlockedAmbiences(selectedIds);
     setAmbienceSetupDone(true);
-    
+
     // 2. Update Local Settings & Storage immediately
     setSettings(prev => {
-        const updated = { ...prev, preferences: newPreferences };
-        Storage.saveSettingsLocally(updated);
-        return updated;
+      const updated = { ...prev, preferences: newPreferences };
+      Storage.saveSettingsLocally(updated);
+      return updated;
     });
 
     if (!user || user.isAnonymous) return;
@@ -5887,61 +5887,14 @@ function MainApp() {
     <VideoManager user={user}>
 
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
-      <GlobalStyles />
+        <GlobalStyles />
 
-      {/* 1. BACKGROUND LAYERS (Main Window) */}
-      {useIntentionTheme ? (
-        // HOLO GRAIN THEME (Replaces Gradient)
-        <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
-      ) : (
-        // STANDARD / VIDEO BACKGROUND
-        activeBackground && (
-          isVideo(activeBackground) ? (
-            <div className="fixed inset-0 z-0 overflow-hidden">
-              <video
-                ref={mainVideoRef}
-                src={activeBackground}
-                autoPlay loop muted playsInline disablePictureInPicture
-                style={{
-                  filter: 'brightness(1.2) contrast(1.1)', // Brightened as requested
-                  transform: 'translateZ(0)',
-                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
-                }}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          ) : (
-            <div
-              className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
-              style={{
-                backgroundImage: `url(${activeBackground})`,
-                opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
-              }}
-            />
-          )
-        )
-      )}
-
-      {/* 2. OVERLAY LAYER (Standard dimming, disabled for Gradient to keep it vivid?) */}
-      <div
-        className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
-        style={{
-          backgroundColor: (activeBackground && !useIntentionTheme)
-            ? 'transparent' // We handle dimming via image opacity
-            : useIntentionTheme
-              ? 'rgba(0,0,0,0)'
-              : focusMode
-                ? 'rgba(0, 0, 0, 0.5)'
-                : 'rgba(0, 0, 0, 0.55)'
-        }}
-      />
-      {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
-
-      {/* 1.5 BACKGROUND LAYERS (PiP Window - Duplicated) */}
-      <PiPPortal>
+        {/* 1. BACKGROUND LAYERS (Main Window) */}
         {useIntentionTheme ? (
+          // HOLO GRAIN THEME (Replaces Gradient)
           <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
         ) : (
+          // STANDARD / VIDEO BACKGROUND
           activeBackground && (
             isVideo(activeBackground) ? (
               <div className="fixed inset-0 z-0 overflow-hidden">
@@ -5950,7 +5903,7 @@ function MainApp() {
                   src={activeBackground}
                   autoPlay loop muted playsInline disablePictureInPicture
                   style={{
-                    filter: 'brightness(1.2) contrast(1.1)',
+                    filter: 'brightness(1.2) contrast(1.1)', // Brightened as requested
                     transform: 'translateZ(0)',
                     opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
                   }}
@@ -5968,11 +5921,13 @@ function MainApp() {
             )
           )
         )}
+
+        {/* 2. OVERLAY LAYER (Standard dimming, disabled for Gradient to keep it vivid?) */}
         <div
           className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
           style={{
             backgroundColor: (activeBackground && !useIntentionTheme)
-              ? 'transparent'
+              ? 'transparent' // We handle dimming via image opacity
               : useIntentionTheme
                 ? 'rgba(0,0,0,0)'
                 : focusMode
@@ -5981,126 +5936,129 @@ function MainApp() {
           }}
         />
         {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
-      </PiPPortal>
 
-
-
-      {/* --- ONBOARDING FLOW --- */}
-      <VideoPipWindow 
-        isSocialModalOpen={showFriends} 
-        onExpand={(serverId) => {
-          // If we have an active video server, we want the modal to open TO that server.
-          if (serverId) {
-             setSocialInitialServerId(serverId);
-             setSocialInitialTab('video');
-          }
-          setShowFriends(true); 
-        }} 
-      />
-      {onboardingStep < 3 && (
-        <OnboardingFlow
-          user={user}
-          onComplete={() => setOnboardingStep(3)}
-          currentStep={onboardingInnerStep}
-          onStepChange={setOnboardingInnerStep}
-        />
-      )}
-
-      {/* --- INTENTION WIZARD OR DASHBOARD --- */}
-      <AnimatePresence mode="wait">
-        {showIntentionFlow ? (
-          <IntentionWizard
-            key="intention-wizard"
-            onComplete={handleIntentionComplete}
-            onCancel={handleIntentionCancel}
-          />
-        ) : (
-          <div key="dashboard" className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
-
-            {/* --- MOBILE HEADER --- */}
-            <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-              <div className="flex items-center gap-2">
-                <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
-              </div>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
-                  <Music size={22} />
-                </button>
-                <button onClick={() => { if (checkGuestAccess()) setShowFriends(true); }} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
-                  <Users size={22} />
-                </button>
-                <button onClick={() => setIsUnifiedModalOpen(true)} className="relative ml-2 w-8 h-8">
-                  <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
-                </button>
-              </div>
-            </div>
-
-            {/* --- DESKTOP HEADER --- */}
-            <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-              <div className="flex items-center gap-4">
-                <WalletIndicator balance={coins} onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }} />
-                <button onClick={() => setIsUnifiedModalOpen(true)} className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95">
-                  <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
-                </button>
-              </div>
-            </div>
-
-            {/* --- DESKTOP FOOTER LEFT --- */}
-            <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-              {dashboardFriends.length > 0 && (
-                <FriendsDock 
-                  friends={dashboardFriends} 
-                  onViewFriendStats={handleViewFriendStats} 
+        {/* 1.5 BACKGROUND LAYERS (PiP Window - Duplicated) */}
+        <PiPPortal>
+          {useIntentionTheme ? (
+            <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
+          ) : (
+            activeBackground && (
+              isVideo(activeBackground) ? (
+                <div className="fixed inset-0 z-0 overflow-hidden">
+                  <video
+                    ref={mainVideoRef}
+                    src={activeBackground}
+                    autoPlay loop muted playsInline disablePictureInPicture
+                    style={{
+                      filter: 'brightness(1.2) contrast(1.1)',
+                      transform: 'translateZ(0)',
+                      opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div
+                  className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+                  style={{
+                    backgroundImage: `url(${activeBackground})`,
+                    opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                  }}
                 />
-              )}
-              <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
-                  
-                  {/* Video Promo Popup */}
-                  <AnimatePresence>
-                    {showVideoPromo && !isMusicPlaying && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
-                        exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
-                        className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                       <div className="relative bg-[#0018b8] text-white px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(45,140,255,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#0018b8]">
-                          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                            <Video size={16} className="text-white" />
-                          </div>
-                          <div className="flex flex-col">
-                             <span className="text-xs font-bold tracking-tight leading-tight">Video rooms are now available</span>
-                             <span className="text-[10px] text-white/80 font-medium leading-tight">Hold each other accountable. Find it in Servers &gt; Video</span>
-                          </div>
-                          <button
-                            onClick={() => handleDismissVideoPromo()}
-                            className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
-                          >
-                            <X size={10} strokeWidth={3} />
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  
-                  <div className="relative">
-                    <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
-                    {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
-                  </div>
-                  <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
-                    {(totalMentions > 0 && mode !== 'focus') ? `${totalMentions} Mention${totalMentions > 1 ? 's' : ''}` : (unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
-                  </motion.span>
-                </motion.button>
-                <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+              )
+            )
+          )}
+          <div
+            className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
+            style={{
+              backgroundColor: (activeBackground && !useIntentionTheme)
+                ? 'transparent'
+                : useIntentionTheme
+                  ? 'rgba(0,0,0,0)'
+                  : focusMode
+                    ? 'rgba(0, 0, 0, 0.5)'
+                    : 'rgba(0, 0, 0, 0.55)'
+            }}
+          />
+          {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
+        </PiPPortal>
 
-                  {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
-                  <div className="relative flex items-center justify-center">
-                    {/* Spotify Promo Popup */}
+
+
+        {/* --- ONBOARDING FLOW --- */}
+        <VideoPipWindow
+          isSocialModalOpen={showFriends}
+          onExpand={(serverId) => {
+            // If we have an active video server, we want the modal to open TO that server.
+            if (serverId) {
+              setSocialInitialServerId(serverId);
+              setSocialInitialTab('video');
+            }
+            setShowFriends(true);
+          }}
+        />
+        {onboardingStep < 3 && (
+          <OnboardingFlow
+            user={user}
+            onComplete={() => setOnboardingStep(3)}
+            currentStep={onboardingInnerStep}
+            onStepChange={setOnboardingInnerStep}
+          />
+        )}
+
+        {/* --- INTENTION WIZARD OR DASHBOARD --- */}
+        <AnimatePresence mode="wait">
+          {showIntentionFlow ? (
+            <IntentionWizard
+              key="intention-wizard"
+              onComplete={handleIntentionComplete}
+              onCancel={handleIntentionCancel}
+            />
+          ) : (
+            <div key="dashboard" className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
+
+              {/* --- MOBILE HEADER --- */}
+              <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
+                <div className="flex items-center gap-2">
+                  <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
+                    <Music size={22} />
+                  </button>
+                  <button onClick={() => { if (checkGuestAccess()) setShowFriends(true); }} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
+                    <Users size={22} />
+                  </button>
+                  <button onClick={() => setIsUnifiedModalOpen(true)} className="relative ml-2 w-8 h-8">
+                    <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
+                  </button>
+                </div>
+              </div>
+
+              {/* --- DESKTOP HEADER --- */}
+              <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
+                <div className="flex items-center gap-4">
+                  <WalletIndicator balance={coins} onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }} />
+                  <button onClick={() => setIsUnifiedModalOpen(true)} className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95">
+                    <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
+                  </button>
+                </div>
+              </div>
+
+              {/* --- DESKTOP FOOTER LEFT --- */}
+              <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
+                {dashboardFriends.length > 0 && (
+                  <FriendsDock
+                    friends={dashboardFriends}
+                    onViewFriendStats={handleViewFriendStats}
+                  />
+                )}
+                <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
+                  <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
+
+                    {/* Video Promo Popup */}
                     <AnimatePresence>
-                      {showSpotifyPromo && !isMusicPlaying && !showMusic && (
+                      {showVideoPromo && !isMusicPlaying && (
                         <motion.div
                           initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
                           animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
@@ -6108,12 +6066,16 @@ function MainApp() {
                           className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="relative bg-[#1DB954] text-black px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#1DB954]">
-                            {/* Fix: Set inner fill to #1DB954 (Green) to match background, simulating transparency */}
-                            <SpotifyIcon size={20} innerFillClassName="fill-[#1DB954]" className="shrink-0 text-black appearance-none" />
-                            <span className="text-xs font-bold tracking-tight">Play Spotify directly from altimer!</span>
+                          <div className="relative bg-[#0018b8] text-white px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(45,140,255,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#0018b8]">
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                              <Video size={16} className="text-white" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold tracking-tight leading-tight">Video rooms are now available</span>
+                              <span className="text-[10px] text-white/80 font-medium leading-tight">Hold each other accountable. Find it in Servers &gt; Video</span>
+                            </div>
                             <button
-                              onClick={() => handleDismissSpotifyPromo()}
+                              onClick={() => handleDismissVideoPromo()}
                               className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
                             >
                               <X size={10} strokeWidth={3} />
@@ -6123,90 +6085,128 @@ function MainApp() {
                       )}
                     </AnimatePresence>
 
-                    <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
-                  </div>
+                    <div className="relative">
+                      <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
+                      {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
+                    </div>
+                    <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
+                      {(totalMentions > 0 && mode !== 'focus') ? `${totalMentions} Mention${totalMentions > 1 ? 's' : ''}` : (unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
+                    </motion.span>
+                  </motion.button>
+                  <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
+                  <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
 
-                  <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
-                    {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
+                    {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
+                    <div className="relative flex items-center justify-center">
+                      {/* Spotify Promo Popup */}
+                      <AnimatePresence>
+                        {showSpotifyPromo && !isMusicPlaying && !showMusic && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
+                            animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
+                            exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
+                            className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="relative bg-[#1DB954] text-black px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#1DB954]">
+                              {/* Fix: Set inner fill to #1DB954 (Green) to match background, simulating transparency */}
+                              <SpotifyIcon size={20} innerFillClassName="fill-[#1DB954]" className="shrink-0 text-black appearance-none" />
+                              <span className="text-xs font-bold tracking-tight">Play Spotify directly from altimer!</span>
+                              <button
+                                onClick={() => handleDismissSpotifyPromo()}
+                                className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
+                              >
+                                <X size={10} strokeWidth={3} />
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
+                    </div>
+
+                    <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
+                      {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
+                    </motion.div>
                   </motion.div>
-                </motion.div>
-                <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
-                <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} isExtensionConnected={isExtensionConnected} mode={mode} onMenuChange={setIsStrictMenuOpen} />
-                {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
+                  <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
+                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} isExtensionConnected={isExtensionConnected} mode={mode} onMenuChange={setIsStrictMenuOpen} />
+                  {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
                   <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
                   <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>Caffeine</motion.span>
                 </motion.button> */}
-              </motion.div>
-            </div>
+                </motion.div>
+              </div>
 
-            {/* --- DESKTOP LOGO --- */}
-            <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? uiOpacityClass : 'opacity-0 pointer-events-none'}`}>
-              <RevealLogo src="/logo/altimerwhite.png" className="w-14 h-14" />
-            </div>
+              {/* --- DESKTOP LOGO --- */}
+              <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? uiOpacityClass : 'opacity-0 pointer-events-none'}`}>
+                <RevealLogo src="/logo/altimerwhite.png" className="w-14 h-14" />
+              </div>
 
-            {/* --- TIMER SECTION (Main) --- */}
-            <PiPPortal>
-              <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
-                <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
+              {/* --- TIMER SECTION (Main) --- */}
+              <PiPPortal>
+                <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
+                  <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
-                  {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
-                  {/* FIX: Increased z-index to 60 to ensure TimePicker popup stays above Mode Switcher and Tally (z-50) */}
-                  <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-[60]">
-                    <AnimatePresence mode="wait">
+                    {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
+                    {/* FIX: Increased z-index to 60 to ensure TimePicker popup stays above Mode Switcher and Tally (z-50) */}
+                    <div className="absolute -top-16 left-0 right-0 flex justify-center pointer-events-none z-[60]">
+                      <AnimatePresence mode="wait">
 
-                      {/* 1. STANDARD MESSAGE PILL (Only show if Intervention is CLOSED) */}
-                      {!showIntervention && (
-                        <motion.div
-                          key="smart-message"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="pointer-events-auto"
-                        >
-                          <SmartMessage
-                            isActive={isActive}
-                            timeLeft={timeLeft}
-                            targetEndTime={endTimeRef.current}
-                            mode={mode}
-                            isUserActive={isUserActive}
-                            focusMode={focusMode}
-                            // Removed layoutId prop
-                            overrideMessage={
-                              settings.intentionMode && intentionTask
-                                ? (
-                                  isActive
-                                    ? `I will work on ${intentionTask}`
-                                    : (
-                                      timeLeft === settings.focus * 60
-                                        ? "Ready when you are"
-                                        : (remindMessage || `Remember: ${intentionTask}`)
-                                    )
-                                )
-                                : smartMessageOverride
-                            }
-                            onUpdateEndTime={handleUpdateEndTime}
-                          />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                        {/* 1. STANDARD MESSAGE PILL (Only show if Intervention is CLOSED) */}
+                        {!showIntervention && (
+                          <motion.div
+                            key="smart-message"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="pointer-events-auto"
+                          >
+                            <SmartMessage
+                              isActive={isActive}
+                              timeLeft={timeLeft}
+                              targetEndTime={endTimeRef.current}
+                              mode={mode}
+                              isUserActive={isUserActive}
+                              focusMode={focusMode}
+                              // Removed layoutId prop
+                              overrideMessage={
+                                settings.intentionMode && intentionTask
+                                  ? (
+                                    isActive
+                                      ? `I will work on ${intentionTask}`
+                                      : (
+                                        timeLeft === settings.focus * 60
+                                          ? "Ready when you are"
+                                          : (remindMessage || `Remember: ${intentionTask}`)
+                                      )
+                                  )
+                                  : smartMessageOverride
+                              }
+                              onUpdateEndTime={handleUpdateEndTime}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
 
-                  {/* 2. SMART INTERVENTION (Standard Modal Trigger) */}
-                  <SmartIntervention
-                    isVisible={showIntervention}
-                    isActive={isActive}
-                    intention={intentionTask}
-                    duration={settings.focus}
-                    timeLeft={timeLeft}
-                    userName={user?.displayName?.split(' ')[0]}
-                    onClose={() => toggleTimer()}
-                    onApplyAction={handleApplyAction}
-                    getGeminiAdvice={getGeminiAdvice}
-                  />
+                    {/* 2. SMART INTERVENTION (Standard Modal Trigger) */}
+                    <SmartIntervention
+                      isVisible={showIntervention}
+                      isActive={isActive}
+                      intention={intentionTask}
+                      duration={settings.focus}
+                      timeLeft={timeLeft}
+                      userName={user?.displayName?.split(' ')[0]}
+                      onClose={() => toggleTimer()}
+                      onApplyAction={handleApplyAction}
+                      getGeminiAdvice={getGeminiAdvice}
+                    />
 
-                  {/* SMART INTERVENTION OVERLAY
+                    {/* SMART INTERVENTION OVERLAY
                 <SmartIntervention
                   isVisible={useIntentionTheme && !isActive && timeLeft !== settings.focus * 60 && timeLeft > 0}
                   isActive={isActive}
@@ -6218,143 +6218,143 @@ function MainApp() {
                   onApplyAction={handleApplyAction}
                   getGeminiAdvice={getGeminiAdvice}
                 /> */}
-                  {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
-                  <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
-                    {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
-                      const isCurrent = mode === m.id;
-                      const isEditing = editingModeId === m.id;
-                      // FIX: Use dynamic session duration if available for current mode, else default
-                      const defaultSeconds = settings[m.id] * 60;
-                      const totalSeconds = (isCurrent && currentSessionTotalDuration) ? currentSessionTotalDuration : defaultSeconds;
+                    {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
+                    <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
+                      {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
+                        const isCurrent = mode === m.id;
+                        const isEditing = editingModeId === m.id;
+                        // FIX: Use dynamic session duration if available for current mode, else default
+                        const defaultSeconds = settings[m.id] * 60;
+                        const totalSeconds = (isCurrent && currentSessionTotalDuration) ? currentSessionTotalDuration : defaultSeconds;
 
-                      const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
+                        const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
 
-                      let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
+                        let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
 
-                      if (isActive) {
-                        if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
-                        else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
-                      } else {
-                        containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
-                        if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
-                        else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-default "; }
-                      }
+                        if (isActive) {
+                          if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
+                          else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
+                        } else {
+                          containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
+                          if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
+                          else { containerClass += "bg-transparent text-white/50 border border-transparent hover:border-white/20 hover:text-white cursor-default "; }
+                        }
 
-                      return (
-                        <motion.button
-                          key={m.id}
-                          layout
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!isActive) {
-                              if (isCurrent) {
-                                setEditInputValue(settings[m.id].toString());
-                                setEditingModeId(m.id);
-                              } else {
-                                handleModeChange(m.id);
-                              }
-                            }
-                          }}
-                          className={containerClass}
-                          disabled={isActive}
-                          animate={{ x: 0 }}
-                          transition={{ duration: 0.5 }}
-                        >
-                          {/* Progress Bar Background */}
-                          <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
-
-                          {/* CONTENT: Either Input or Label */}
-                          {isEditing ? (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="relative z-20 flex items-center justify-center w-full h-full"
-                            >
-                              <input
-                                autoFocus
-                                type="number"
-                                min="1"
-                                max="120"
-                                className="bg-transparent border-none outline-none text-center font-bold text-black w-12 p-0 m-0 focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                value={editInputValue}
-                                onChange={(e) => setEditInputValue(e.target.value)}
-                                onBlur={commitInlineEdit}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') { e.preventDefault(); commitInlineEdit(); }
-                                  if (e.key === 'Escape') { e.preventDefault(); setEditingModeId(null); }
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <span className="text-xs font-medium text-black/50 ml-0.5">m</span>
-                            </motion.div>
-                          ) : (
-                            <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
-                              <span className="whitespace-nowrap">{m.label}</span>
-                              {!isActive && isCurrent && (
-                                <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
-                                  <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
-                                </div>
-                              )}
-                            </span>
-                          )}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-
-                  {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
-                  <div
-                    className="relative z-50 flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
-                    onMouseEnter={() => setIsTallyHovered(true)}
-                    onMouseLeave={() => setIsTallyHovered(false)}
-                    onDoubleClick={() => {
-                      if (!isActive) {
-                        setSessionEditValue(settings.pomosBeforeLongBreak.toString());
-                        setIsEditingSessions(true);
-                      }
-                    }}
-                    title={!isActive ? "Double-click to edit sessions" : ""}
-                  >
-                    {isEditingSessions ? (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
-                      >
-                        <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Intervals:</span>
-                        <input
-                          autoFocus
-                          type="number"
-                          min="1"
-                          max="16"
-                          className="bg-transparent border-none outline-none text-center font-bold text-white w-8 p-0 m-0 focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          value={sessionEditValue}
-                          onChange={(e) => setSessionEditValue(e.target.value)}
-                          onBlur={commitSessionEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { e.preventDefault(); commitSessionEdit(); }
-                            if (e.key === 'Escape') { e.preventDefault(); setIsEditingSessions(false); }
-                          }}
-                        />
-                      </motion.div>
-                    ) : (
-                      Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
-                        const isCompleted = i < pomoCount;
-                        const isCurrent = i === pomoCount;
-                        const shouldExpand = isCurrent && isTallyHovered;
                         return (
-                          <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-smooth ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
-                            {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
+                          <motion.button
+                            key={m.id}
+                            layout
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isActive) {
+                                if (isCurrent) {
+                                  setEditInputValue(settings[m.id].toString());
+                                  setEditingModeId(m.id);
+                                } else {
+                                  handleModeChange(m.id);
+                                }
+                              }
+                            }}
+                            className={containerClass}
+                            disabled={isActive}
+                            animate={{ x: 0 }}
+                            transition={{ duration: 0.5 }}
+                          >
+                            {/* Progress Bar Background */}
+                            <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
 
-                  {/* --- TIMER --- */}
-                  <div
-                    onClick={toggleTimer}
-                    className={`
+                            {/* CONTENT: Either Input or Label */}
+                            {isEditing ? (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="relative z-20 flex items-center justify-center w-full h-full"
+                              >
+                                <input
+                                  autoFocus
+                                  type="number"
+                                  min="1"
+                                  max="120"
+                                  className="bg-transparent border-none outline-none text-center font-bold text-black w-12 p-0 m-0 focus:ring-0 text-base [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  value={editInputValue}
+                                  onChange={(e) => setEditInputValue(e.target.value)}
+                                  onBlur={commitInlineEdit}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') { e.preventDefault(); commitInlineEdit(); }
+                                    if (e.key === 'Escape') { e.preventDefault(); setEditingModeId(null); }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <span className="text-xs font-medium text-black/50 ml-0.5">m</span>
+                              </motion.div>
+                            ) : (
+                              <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
+                                <span className="whitespace-nowrap">{m.label}</span>
+                                {!isActive && isCurrent && (
+                                  <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
+                                    <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
+                                  </div>
+                                )}
+                              </span>
+                            )}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
+                    <div
+                      className="relative z-50 flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
+                      onMouseEnter={() => setIsTallyHovered(true)}
+                      onMouseLeave={() => setIsTallyHovered(false)}
+                      onDoubleClick={() => {
+                        if (!isActive) {
+                          setSessionEditValue(settings.pomosBeforeLongBreak.toString());
+                          setIsEditingSessions(true);
+                        }
+                      }}
+                      title={!isActive ? "Double-click to edit sessions" : ""}
+                    >
+                      {isEditingSessions ? (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
+                        >
+                          <span className="text-xs text-white/50 font-bold uppercase tracking-wider">Intervals:</span>
+                          <input
+                            autoFocus
+                            type="number"
+                            min="1"
+                            max="16"
+                            className="bg-transparent border-none outline-none text-center font-bold text-white w-8 p-0 m-0 focus:ring-0 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            value={sessionEditValue}
+                            onChange={(e) => setSessionEditValue(e.target.value)}
+                            onBlur={commitSessionEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); commitSessionEdit(); }
+                              if (e.key === 'Escape') { e.preventDefault(); setIsEditingSessions(false); }
+                            }}
+                          />
+                        </motion.div>
+                      ) : (
+                        Array.from({ length: settings.pomosBeforeLongBreak }).map((_, i) => {
+                          const isCompleted = i < pomoCount;
+                          const isCurrent = i === pomoCount;
+                          const shouldExpand = isCurrent && isTallyHovered;
+                          return (
+                            <div key={i} className={`relative rounded-full flex items-center justify-center transition-all duration-500 ease-smooth ${shouldExpand ? 'w-16 h-7 bg-white shadow-[0_0_15px_rgba(255,255,255,0.3)]' : (isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`}>
+                              {isCurrent && (<span className={`absolute inset-0 flex items-center justify-center text-xs font-bold font-mono text-black whitespace-nowrap leading-none transition-all duration-300 ${shouldExpand ? 'opacity-100 scale-100 delay-75' : 'opacity-0 scale-50'}`}>{i + 1} / {settings.pomosBeforeLongBreak}</span>)}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* --- TIMER --- */}
+                    <div
+                      onClick={toggleTimer}
+                      className={`
                     leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                     
                     ${/* FONT TYPE LOGIC */ ''}
@@ -6373,69 +6373,69 @@ function MainApp() {
                     ${settings.clockType === 'round' ? 'font-clock-round' : ''}
                     
                     ${({
-                        'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                        'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                        'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                        'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
-                      })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
+                          'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                          'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                          'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
+                          'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
+                        })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
 
                     ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
                     ${isAIPlanning ? 'animate-pulse drop-shadow-[0_0_100px_rgba(192,132,252,1)] text-purple-100' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                   `}
-                    style={{
-                      WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
-                    }}
-                  >
-                    <CountdownTimer timeLeft={timeLeft} disableAnimation={isPiPActive} clockType={settings.clockType} />
-                  </div>
-
-                  {/* --- CONTROLS --- */}
-                  <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
-
-                    {/* PiP Button - Hide when active (it's in the PiP window) */}
-                    {!isPiPActive && (
-                      <button
-                        onClick={togglePiP}
-                        className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-default"
-                        title="Picture-in-Picture"
-                      >
-                        <PictureInPicture2 size={20} />
-                      </button>
-                    )}
-
-                    <button
-                      ref={playBtnRef}
-                      onClick={toggleTimer}
-                      disabled={isAIPlanning}
-                      className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-default ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                      style={{
+                        WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
+                      }}
                     >
-                      <div className="relative w-8 h-8 flex items-center justify-center">
-                        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
-                          <Pause size={32} fill="black" />
-                        </div>
-                        <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${!isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 -rotate-90 opacity-0'}`}>
-                          <Play size={32} fill="black" className="ml-1" />
-                        </div>
-                      </div>
-                    </button>
+                      <CountdownTimer timeLeft={timeLeft} disableAnimation={isPiPActive} clockType={settings.clockType} />
+                    </div>
 
-                    <LiquidResetBtn
-                      onReset={handleConfirmReset}
-                      disabled={strictMode && mode === 'focus'}
+                    {/* --- CONTROLS --- */}
+                    <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center z-50">
+
+                      {/* PiP Button - Hide when active (it's in the PiP window) */}
+                      {!isPiPActive && (
+                        <button
+                          onClick={togglePiP}
+                          className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-all hover:scale-105 active:scale-95 cursor-default"
+                          title="Picture-in-Picture"
+                        >
+                          <PictureInPicture2 size={20} />
+                        </button>
+                      )}
+
+                      <button
+                        ref={playBtnRef}
+                        onClick={toggleTimer}
+                        disabled={isAIPlanning}
+                        className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-default ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                      >
+                        <div className="relative w-8 h-8 flex items-center justify-center">
+                          <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
+                            <Pause size={32} fill="black" />
+                          </div>
+                          <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${!isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 -rotate-90 opacity-0'}`}>
+                            <Play size={32} fill="black" className="ml-1" />
+                          </div>
+                        </div>
+                      </button>
+
+                      <LiquidResetBtn
+                        onReset={handleConfirmReset}
+                        disabled={strictMode && mode === 'focus'}
+                      />
+                    </div>
+
+                    <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
+
+                    <GameCenter
+                      mode={mode}
+                      timeLeft={timeLeft}
+                      background={settings.background}
+                      isPro={isPro}
+                      onOpenPro={() => setProModalSource('arcade')}
                     />
-                  </div>
 
-                  <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
-
-                  <GameCenter
-                    mode={mode}
-                    timeLeft={timeLeft}
-                    background={settings.background}
-                    isPro={isPro}
-                    onOpenPro={() => setProModalSource('arcade')}
-                  />
-
-                  {/* <TimerModeSelector
+                    {/* <TimerModeSelector
                   mode={mode}
                   opacityClass={uiOpacityClass}
                   isIntentionMode={settings.intentionMode}
@@ -6448,241 +6448,242 @@ function MainApp() {
                   onOpenPro={() => setProModalSource('personalities')}
                 /> */}
 
-                </div>
-              </main>
-            </PiPPortal>
+                  </div>
+                </main>
+              </PiPPortal>
 
-            {/* STICKY NOTE WIDGET CONTAINER */}
-            <div className={`
+              {/* STICKY NOTE WIDGET CONTAINER */}
+              <div className={`
                 w-full flex items-start justify-center gap-4 z-20 transition-all duration-700 ease-in-out 
                 md:absolute md:top-8 md:left-12 md:w-auto md:flex-col md:justify-start
                 md:transition-opacity md:duration-700 md:ease-in-out 
                 ${onboardingStep === 3 ? uiOpacityClass : 'opacity-0 pointer-events-none'}
               `}>
-              <StickyNoteWidget
-                notes={notes}
-                onOpenLibrary={() => setIsNoteLibraryOpen(true)}
-                isLibraryOpen={isNoteLibraryOpen}
-                onSave={handleSaveNote}
-              />
+                <StickyNoteWidget
+                  notes={notes}
+                  onOpenLibrary={() => setIsNoteLibraryOpen(true)}
+                  isLibraryOpen={isNoteLibraryOpen}
+                  onSave={handleSaveNote}
+                />
+              </div>
+
             </div>
-
-          </div>
-        )
-        }
-      </AnimatePresence >
+          )
+          }
+        </AnimatePresence >
 
 
 
-      <UnifiedSettingsModal
-        isOpen={isUnifiedModalOpen}
-        onClose={() => setIsUnifiedModalOpen(false)}
-        user={user}
-        signOut={handleSignOut}
-        settings={settings}
-        setSettings={setSettings}
-        handleSettingsSave={handleSettingsSave}
-        handleBackgroundChange={handleBackgroundChange}
-        backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
-        stats={stats}
-        isPro={isPro}
-        onOpenPro={(source) => setProModalSource(source || 'settings')}
-        onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
-        initialTab={settingsTab}
-        onDevStatsUpdate={handleDevStatsUpdate}
-      />
+        <UnifiedSettingsModal
+          isOpen={isUnifiedModalOpen}
+          onClose={() => setIsUnifiedModalOpen(false)}
+          user={user}
+          signOut={handleSignOut}
+          settings={settings}
+          setSettings={setSettings}
+          handleSettingsSave={handleSettingsSave}
+          handleBackgroundChange={handleBackgroundChange}
+          backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
+          stats={stats}
+          isPro={isPro}
+          onOpenPro={(source) => setProModalSource(source || 'settings')}
+          onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
+          initialTab={settingsTab}
+          onDevStatsUpdate={handleDevStatsUpdate}
+        />
 
-      <SocialProfileModal
-        isOpen={showStats}
-        onClose={() => {
-          setShowStats(false);
-          setViewingFriendStats(null);
-        }}
-        user={viewingFriendStats}
-        currentUser={user}
-        onAddFriend={null} // Already friends or viewing stats
-        onMessage={() => {
-          setShowStats(false); // Close modal
-          setShowFriends(true); // Open friends list
-          // Ideally switch to DMs
-        }}
-        onProfileUpdate={null} // Friends can't update friend profiles
-      />
+        <SocialProfileModal
+          isOpen={showStats}
+          onClose={() => {
+            setShowStats(false);
+            setViewingFriendStats(null);
+          }}
+          user={viewingFriendStats}
+          currentUser={user}
+          onAddFriend={null} // Already friends or viewing stats
+          onMessage={() => {
+            setShowStats(false); // Close modal
+            setShowFriends(true); // Open friends list
+            // Ideally switch to DMs
+          }}
+          onProfileUpdate={null} // Friends can't update friend profiles
+        />
 
 
-      <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
-      <MusicModal
-        // ... (keep existing props like volume, currentTrack, etc.) ...
-        volume={volume}
-        onVolumeChange={setVolume}
-        isOpen={showMusic}
-        onClose={() => setShowMusic(false)}
-        currentTrack={currentTrack}
-        isPlaying={isMusicPlaying}
-        onPlay={handlePlayMusic}
-        onPause={handlePauseMusic}
-        isLoading={musicLoading}
-        progress={musicProgress}
-        duration={musicDuration}
-        onSeek={handleSeekMusic}
-        ambienceState={ambienceState}
-        onToggleAmbience={toggleAmbience}
-        onAmbienceVolume={changeAmbienceVolume}
-        onStopAllAmbience={stopAllAmbience}
-        isLofiPlaying={isLofiPlaying}
-        onToggleLofi={toggleLofi}
+        <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
+        <MusicModal
+          // ... (keep existing props like volume, currentTrack, etc.) ...
+          volume={volume}
+          onVolumeChange={setVolume}
+          isOpen={showMusic}
+          onClose={() => setShowMusic(false)}
+          currentTrack={currentTrack}
+          isPlaying={isMusicPlaying}
+          onPlay={handlePlayMusic}
+          onPause={handlePauseMusic}
+          isLoading={musicLoading}
+          progress={musicProgress}
+          duration={musicDuration}
+          onSeek={handleSeekMusic}
+          ambienceState={ambienceState}
+          onToggleAmbience={toggleAmbience}
+          onAmbienceVolume={changeAmbienceVolume}
+          onStopAllAmbience={stopAllAmbience}
+          isLofiPlaying={isLofiPlaying}
+          onToggleLofi={toggleLofi}
 
-        // --- NEW PROPS ---
-        isPro={isPro}
-        unlockedAmbiences={unlockedAmbiences}
-        ambienceSetupDone={ambienceSetupDone}
-        onSaveAmbienceSelection={handleSaveAmbienceSelection}
-        onOpenPro={() => setProModalSource('ambience')}
-      // -----------------
-      />
-      {/* --------------------- */}
+          // --- NEW PROPS ---
+          isPro={isPro}
+          unlockedAmbiences={unlockedAmbiences}
+          ambienceSetupDone={ambienceSetupDone}
+          onSaveAmbienceSelection={handleSaveAmbienceSelection}
+          onOpenPro={() => setProModalSource('ambience')}
+        // -----------------
+        />
+        {/* --------------------- */}
 
-      {/* --- ADD STRICT MODE MODALS HERE --- */}
-      <StrictConfirmationModal
-        isOpen={showStrictConfirm}
-        onClose={() => setShowStrictConfirm(false)}
-        onConfirm={enableStrictMode}
-      />
-      <StrictDisableModal
-        isOpen={showStrictDisableConfirm}
-        onClose={() => setShowStrictDisableConfirm(false)}
-        onConfirm={handleStrictDisable}
-      />
+        {/* --- ADD STRICT MODE MODALS HERE --- */}
+        <StrictConfirmationModal
+          isOpen={showStrictConfirm}
+          onClose={() => setShowStrictConfirm(false)}
+          onConfirm={enableStrictMode}
+        />
+        <StrictDisableModal
+          isOpen={showStrictDisableConfirm}
+          onClose={() => setShowStrictDisableConfirm(false)}
+          onConfirm={handleStrictDisable}
+        />
 
-      {/* <CaffeineTracker
+        {/* <CaffeineTracker
         isOpen={showCaffeine}
         onClose={() => setShowCaffeine(false)}
       /> */}
 
-      <SocialModal
-        isOpen={showFriends}
-        onClose={() => {
-          setShowFriends(false);
-          setSocialView('list');
-          setSocialInitialServerId(null); // Reset target
-          setSocialInitialTab(null); // Reset tab
-        }}
-        initialServerId={socialInitialServerId} // PASS TARGET SERVER
-        initialTab={socialInitialTab} // PASS TARGET TAB
-        initialView={socialView}
-        user={user}
-        onMarkRead={markAsRead}
-        getLastReadTime={getLastReadTime}
-        unreadCounts={unreadCounts}
-        onViewProfile={setViewingProfile}
-        friends={friends}
-        friendRequests={friendRequests}
-        blockedUsers={blockedUsers}
-        onSendRequest={handleSendRequest}
-        onAcceptRequest={handleAcceptRequest}
-        onDeclineRequest={handleDeclineRequest}
-        onBlockUser={handleBlockUser}
-        onUnblockUser={handleUnblockUser}
-        checkOutgoingRequest={handleCheckOutgoingRequest}
-        onViewStats={handleViewFriendStats}
-        onTogglePin={handleTogglePin}
-        onSearchUsers={handleSearchUsers}
-        onRemoveFriend={handleRemoveFriend}
-        isFocusing={mode === 'focus'}
-        onMentionClick={handleMentionClick}
-      />
+        <SocialModal
+          isOpen={showFriends}
+          onClose={() => {
+            setShowFriends(false);
+            setSocialView('list');
+            setSocialInitialServerId(null); // Reset target
+            setSocialInitialTab(null); // Reset tab
+          }}
+          initialServerId={socialInitialServerId} // PASS TARGET SERVER
+          initialTab={socialInitialTab} // PASS TARGET TAB
+          initialView={socialView}
+          user={user}
+          onMarkRead={markAsRead}
+          getLastReadTime={getLastReadTime}
+          unreadCounts={unreadCounts}
+          onViewProfile={setViewingProfile}
+          friends={friends}
+          friendRequests={friendRequests}
+          blockedUsers={blockedUsers}
+          onSendRequest={handleSendRequest}
+          onAcceptRequest={handleAcceptRequest}
+          onDeclineRequest={handleDeclineRequest}
+          onBlockUser={handleBlockUser}
+          onUnblockUser={handleUnblockUser}
+          checkOutgoingRequest={handleCheckOutgoingRequest}
+          onViewStats={handleViewFriendStats}
+          onTogglePin={handleTogglePin}
+          onSearchUsers={handleSearchUsers}
+          onRemoveFriend={handleRemoveFriend}
+          isFocusing={mode === 'focus'}
+          onMentionClick={handleMentionClick}
+        />
 
-      <SocialProfileModal
-        isOpen={!!viewingProfile}
-        onClose={() => setViewingProfile(null)}
-        user={viewingProfile}
-        currentUser={user}
-        onProfileUpdate={handleProfileUpdate}
-        onAddFriend={
-          // Only show Add Friend if NOT already friends and NOT self
-          (!viewingProfile || (viewingProfile.id !== user.uid && !friendUids.includes(viewingProfile.id)))
-            ? () => handleSendRequest(viewingProfile.id)
-            : null
+        <SocialProfileModal
+          isOpen={!!viewingProfile}
+          onClose={() => setViewingProfile(null)}
+          user={viewingProfile}
+          currentUser={user}
+          onProfileUpdate={handleProfileUpdate}
+          onAddFriend={
+            // Only show Add Friend if NOT already friends and NOT self
+            (!viewingProfile || (viewingProfile.id !== user.uid && !friendUids.includes(viewingProfile.id)))
+              ? () => handleSendRequest(viewingProfile.id)
+              : null
+          }
+          onMessage={() => {
+            setViewingProfile(null);
+            setShowFriends(true);
+          }}
+        />
+
+        <NoteSystemModals
+          notes={notes}
+          tasks={tasks}
+          habits={habits}
+          onUpdateTasks={handleUpdateTasks}
+          onUpdateHabits={handleUpdateHabits}
+          isLibraryOpen={isNoteLibraryOpen}
+          closeLibrary={() => setIsNoteLibraryOpen(false)}
+          editingNote={editingNote}
+          setEditingNote={setEditingNote}
+          onSave={handleSaveNote}
+          onDelete={handleDeleteNote}
+          onReorder={handleReorderNotes}
+          onSaveOrder={() => saveNotesOrder(notes)}
+          isPro={isPro}
+          onOpenPro={() => setProModalSource('notes')}
+        />
+
+        <GetProModal
+          isOpen={!!proModalSource} // Open if source is not null
+          onClose={() => setProModalSource(null)}
+          onUpgrade={handleUpgradeToPro}
+          source={proModalSource} // Pass the source string ('notes' or 'arcade')
+        />
+
+        <VaultModal
+          isOpen={vaultOpen}
+          onClose={() => setVaultOpen(false)}
+          balance={coins}
+          onUpdateBalance={(newBalance) => setCoins(newBalance)}
+          onSync={() => Storage.syncWalletInventory(user)}
+          onActivatePro={(hours) => Storage.activateProSubscription(user, hours)}
+        />
+
+        {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
+        <TaskReminderSystem tasks={tasks} />
+
+
+        {/* --- COMMAND MENU --- */}
+        {
+          (onboardingStep >= 3 || onboardingInnerStep === 2) && (
+            <CommandMenu
+              onboardingMode={onboardingStep < 3}
+              onOnboardingNext={() => setOnboardingInnerStep(3)}
+              openNotes={() => setIsNoteLibraryOpen(true)}
+              openMusic={() => setShowMusic(true)}
+              openSocial={() => setShowFriends(true)}
+              openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
+              setTimerActive={setIsActive}
+
+              // Timer Controls
+              mode={mode}
+              setMode={handleModeChange}
+              timeLeft={timeLeft}
+              setTimeLeft={setTimeLeft}
+              isActive={isActive}
+              settings={settings}
+              setSettings={setSettings}
+
+              // Shortcuts
+              setEditingNote={setEditingNote}
+
+              // Sounds
+              playAmbience={toggleAmbience}
+              unlockedAmbiences={unlockedAmbiences}
+              ambientSounds={AMBIENT_SOUNDS} // Pass data constant
+
+              // Quicklinks
+              quicklinks={quicklinks}
+              setQuicklinks={setQuicklinks}
+            />
+          )
         }
-        onMessage={() => {
-          setViewingProfile(null);
-          setShowFriends(true);
-        }}
-      />
 
-      <NoteSystemModals
-        notes={notes}
-        tasks={tasks}
-        habits={habits}
-        onUpdateTasks={handleUpdateTasks}
-        onUpdateHabits={handleUpdateHabits}
-        isLibraryOpen={isNoteLibraryOpen}
-        closeLibrary={() => setIsNoteLibraryOpen(false)}
-        editingNote={editingNote}
-        setEditingNote={setEditingNote}
-        onSave={handleSaveNote}
-        onDelete={handleDeleteNote}
-        onReorder={handleReorderNotes}
-        onSaveOrder={() => saveNotesOrder(notes)}
-        isPro={isPro}
-        onOpenPro={() => setProModalSource('notes')}
-      />
-
-      <GetProModal
-        isOpen={!!proModalSource} // Open if source is not null
-        onClose={() => setProModalSource(null)}
-        onUpgrade={handleUpgradeToPro}
-        source={proModalSource} // Pass the source string ('notes' or 'arcade')
-      />
-
-      <VaultModal
-        isOpen={vaultOpen}
-        onClose={() => setVaultOpen(false)}
-        balance={coins}
-        onUpdateBalance={(newBalance) => setCoins(newBalance)}
-        onSync={() => Storage.syncWalletInventory(user)}
-        onActivatePro={(hours) => Storage.activateProSubscription(user, hours)}
-      />
-
-      {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
-      <TaskReminderSystem tasks={tasks} />
-
-
-      {/* --- COMMAND MENU --- */}
-      {
-        (onboardingStep >= 3 || onboardingInnerStep === 2) && (
-          <CommandMenu
-            onboardingMode={onboardingStep < 3}
-            onOnboardingNext={() => setOnboardingInnerStep(3)}
-            openNotes={() => setIsNoteLibraryOpen(true)}
-            openMusic={() => setShowMusic(true)}
-            openSocial={() => setShowFriends(true)}
-            openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
-            setTimerActive={setIsActive}
-
-            // Timer Controls
-            mode={mode}
-            setMode={handleModeChange}
-            timeLeft={timeLeft}
-            setTimeLeft={setTimeLeft}
-            isActive={isActive}
-            settings={settings}
-
-            // Shortcuts
-            setEditingNote={setEditingNote}
-
-            // Sounds
-            playAmbience={toggleAmbience}
-            unlockedAmbiences={unlockedAmbiences}
-            ambientSounds={AMBIENT_SOUNDS} // Pass data constant
-
-            // Quicklinks
-            quicklinks={quicklinks}
-            setQuicklinks={setQuicklinks}
-          />
-        )
-      }
-      
       </div>
     </VideoManager>
   );

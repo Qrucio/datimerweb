@@ -1,5 +1,17 @@
 export const releaseNotes = [
   {
+    version: "0.3.2",
+    date: "2026-01-10",
+    changes: [
+      "Fixed currency selector in Command Palette to update settings immediately without requiring page refresh",
+      "Enhanced currency selection UI with searchable list of all 150+ supported currencies",
+      "Added quick-access pills for commonly used currencies (USD, EUR, GBP, INR, JPY, CAD, AUD)",
+      "Implemented real-time search filtering by currency code or name",
+      "Added visual feedback with checkmark indicator for currently selected default currency",
+      "Removed deprecated currency setting from Settings menu in favor of Command Palette integration"
+    ]
+  },
+  {
     version: "0.3.1",
     date: "2026-01-09",
     changes: [

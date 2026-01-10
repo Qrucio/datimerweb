@@ -34,6 +34,7 @@ import {
     Pencil,
     Trash2,
     CheckSquare,
+    Check,
     Youtube,
     Chrome,
     Brain,
@@ -85,6 +86,7 @@ export function CommandMenu({
     setTimeLeft,
     isActive,
     settings,
+    setSettings,
     // Shortcuts
     setEditingNote,
     // Sounds
@@ -119,6 +121,14 @@ export function CommandMenu({
     // Currency State
     const [currencyResult, setCurrencyResult] = useState(null);
     const [showCurrencySettings, setShowCurrencySettings] = useState(false);
+    const [allCurrencies, setAllCurrencies] = useState({});
+    const [currencySearch, setCurrencySearch] = useState("");
+
+    useEffect(() => {
+        if (showCurrencySettings && Object.keys(allCurrencies).length === 0) {
+            CurrencyService.getCurrencies().then(setAllCurrencies);
+        }
+    }, [showCurrencySettings, allCurrencies]);
 
     // Quicklink Form State
     const [editingLink, setEditingLink] = useState(null); // { id, title, url }
@@ -166,6 +176,7 @@ export function CommandMenu({
                 setMathResult(null);
                 setCurrencyResult(null);
                 setShowCurrencySettings(false);
+                setCurrencySearch("");
                 setDictResult(null);
                 setEditingLink(null);
                 setLinkForm({ title: "", url: "" });
@@ -348,35 +359,9 @@ export function CommandMenu({
     
     // Currency Actions
     const updateDefaultCurrency = (code) => {
-        if (!openSettings) return; // Fallback if prop not available, but usually it updates parent state
-        // We need a way to update settings from here. 
-        // The `settings` prop is likely read-only from parent.
-        // We need `setSettings` or we can modify localStorage directly + force update?
-        // Since `UnifiedSettingsModal` updates `settings` state in App.jsx via `setSettings`, we need to pass that down.
-        // But `CommandMenu` only receives `settings`. 
-        
-        // HACK: We will update localStorage directly. The parent app might not react immediately unless it polls storage or we trigger an event.
-        // Better: Assuming the user passed `setSettings` or a `onSettingsChange` callback.
-        // Checking props... `CommandMenu` takes `settings` but not `setSettings`.
-        // However, it takes `openSettings`. 
-        
-        // Let's check `App.jsx` to see if we can pass a callback or if we should just reload.
-        // For now, I'll update localStorage and hope the app re-reads it or I can trigger a reload of the component.
-        
-        const currentSettings = JSON.parse(localStorage.getItem('zen_cache_settings') || '{}');
-        const newSettings = { ...currentSettings, defaultCurrency: code };
-        localStorage.setItem('zen_cache_settings', JSON.stringify(newSettings));
-        
-        // Trigger a custom event or force re-render?
-        // The `settings` prop comes from parent. If I update storage, parent won't know.
-        // I will dispatch a custom event that `App.jsx` could listen to, or just accept that it might require a refresh until I refactor App.jsx.
-        // actually, let's look at `storage.js`. It has `saveSettingsLocally`.
-        // Ideally I should ask the user to add `onSettingsChange` to CommandMenu props.
-        // BUT, for now, I will just do a window.location.reload() or similar? No that's bad.
-        // I will accept that the "Default Currency" visual in the dropdown updates, but the `settings.defaultCurrency` prop might be stale until next app load.
-        // Wait, I can use a local override for the display while the global one catches up.
-        
-        window.dispatchEvent(new CustomEvent('settings-changed', { detail: newSettings }));
+        if (setSettings) {
+            setSettings(prev => ({ ...prev, defaultCurrency: code }));
+        }
     };
 
 
@@ -597,13 +582,15 @@ export function CommandMenu({
                                     
                                     {/* Inline Settings Panel */}
                                     {showCurrencySettings && (
-                                        <div className="px-3 py-3 mx-2 mb-2 bg-white/5 border border-white/5 rounded-xl animate-in slide-in-from-top-2 fade-in duration-200">
+                                        <div className="px-3 py-3 mx-2 mb-2 bg-white/5 border border-white/5 rounded-xl animate-in slide-in-from-top-2 fade-in duration-200" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center justify-between mb-2">
                                                 <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">
                                                     Default Currency
                                                 </label>
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5">
+
+                                            {/* Quick Access */}
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
                                                 {['USD', 'EUR', 'GBP', 'INR', 'JPY', 'CAD', 'AUD'].map(code => (
                                                     <button
                                                         key={code}
@@ -620,6 +607,58 @@ export function CommandMenu({
                                                         {code}
                                                     </button>
                                                 ))}
+                                            </div>
+
+                                            {/* Search */}
+                                            <div className="relative mb-2">
+                                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-white/30 h-3 w-3" />
+                                                <input 
+                                                    type="text" 
+                                                    value={currencySearch}
+                                                    onChange={(e) => setCurrencySearch(e.target.value)}
+                                                    placeholder="Search currencies..." 
+                                                    className="w-full bg-black/20 border border-white/10 rounded-lg py-1.5 pl-7 pr-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                />
+                                            </div>
+
+                                            {/* Full List */}
+                                            <div className="max-h-[150px] overflow-y-auto custom-scrollbar flex flex-col gap-0.5">
+                                                {Object.entries(allCurrencies)
+                                                    .filter(([code, name]) => 
+                                                        !currencySearch || 
+                                                        code.toLowerCase().includes(currencySearch.toLowerCase()) || 
+                                                        name.toLowerCase().includes(currencySearch.toLowerCase())
+                                                    )
+                                                    .sort((a, b) => a[0].localeCompare(b[0]))
+                                                    .map(([code, name]) => (
+                                                        <button
+                                                            key={code}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                updateDefaultCurrency(code);
+                                                            }}
+                                                            className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors ${
+                                                                (settings?.defaultCurrency || 'USD') === code
+                                                                    ? 'bg-white/10 text-white'
+                                                                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <span className="text-[10px] font-bold font-mono w-6 shrink-0">{code}</span>
+                                                                <span className="text-xs truncate opacity-80">{name}</span>
+                                                            </div>
+                                                            {(settings?.defaultCurrency || 'USD') === code && (
+                                                                <Check size={10} className="text-emerald-400 shrink-0 ml-2" />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                 {Object.keys(allCurrencies).length === 0 && (
+                                                     <div className="py-4 text-center text-xs text-white/30 flex items-center justify-center gap-2">
+                                                         <Loader2 size={12} className="animate-spin" /> Loading currencies...
+                                                     </div>
+                                                 )}
                                             </div>
                                         </div>
                                     )}

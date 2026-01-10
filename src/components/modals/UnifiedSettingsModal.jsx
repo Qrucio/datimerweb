@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail, Wrench, Banknote
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail, Wrench
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
@@ -14,7 +14,6 @@ import { FlowTag } from '../ui/FlowTag';
 import ProfileCard from '../profile/ProfileCard';
 import VersionInfo from './VersionInfo';
 import { ALARM_SOUNDS } from '../../utils/data';
-import { CurrencyService } from '../../services/currencyService';
 
 const toggleStyles = `
   .toggle-switch {
@@ -405,25 +404,6 @@ const UnifiedSettingsModal = ({
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [expandedSections, setExpandedSections] = useState({ customize: true });
-  const [currencies, setCurrencies] = useState({});
-
-  useEffect(() => {
-    const loadCurrencies = async () => {
-      const list = await CurrencyService.getCurrencies();
-      setCurrencies(list);
-    };
-    if (isOpen) {
-      loadCurrencies();
-    }
-  }, [isOpen]);
-
-  // Set default currency if not set
-  useEffect(() => {
-    if (isOpen && !settings.defaultCurrency) {
-      const detected = CurrencyService.detectUserCurrency();
-      setSettings(prev => ({ ...prev, defaultCurrency: detected }));
-    }
-  }, [isOpen, settings.defaultCurrency]);
 
   useEffect(() => {
     if (isOpen) {
@@ -694,37 +674,6 @@ const UnifiedSettingsModal = ({
                 <AnimatePresence mode="wait">
                   {activeTab === 'preferences' && (
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
-                      <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">General</h3>
-                        <div className="flex flex-col bg-white/5 border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
-                           <div className="flex items-center justify-between py-4 px-5 group hover:bg-white/5 transition-colors">
-                            <label className="text-white/80 text-sm font-medium group-hover:text-white transition-colors flex items-center gap-2">
-                              <Banknote size={16} className="text-white/40" />
-                              Default Currency
-                            </label>
-                            <div className="relative flex items-center justify-center w-40 bg-black/20 rounded-lg border border-white/10 focus-within:border-white/30 transition-all shrink-0 group-focus-within:bg-black/40">
-                               <select
-                                  value={settings.defaultCurrency || 'USD'}
-                                  onChange={(e) => updateSetting('defaultCurrency', e.target.value)}
-                                  className="w-full bg-transparent text-white font-mono text-sm py-1.5 outline-none appearance-none pl-3 pr-8 cursor-pointer text-right"
-                               >
-                                  {Object.entries(currencies).length > 0 ? (
-                                    Object.entries(currencies)
-                                      .sort(([a], [b]) => a.localeCompare(b))
-                                      .map(([code, name]) => (
-                                      <option key={code} value={code.toUpperCase()} className="bg-[#1a1a1a] text-white">
-                                          {code.toUpperCase()}
-                                      </option>
-                                  ))) : (
-                                    <option value="USD" className="bg-[#1a1a1a]">USD</option>
-                                  )}
-                               </select>
-                               <ChevronDown size={14} className="absolute right-2.5 text-white/30 pointer-events-none" />
-                            </div>
-                          </div>
-                        </div>
-                      </section>
-
                       <section>
                         <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Timer Configuration</h3>
 
