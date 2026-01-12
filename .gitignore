@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .env
 altimer-companion/
+
+# OpenCode local config
+.opencode/
