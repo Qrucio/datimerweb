@@ -40,6 +40,8 @@ import ReleaseNotesPage from './pages/ReleaseNotesPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import DownloadsPage from './pages/DownloadsPage';
+import WindowsPromoModal from './components/modals/WindowsPromoModal';
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -4004,6 +4006,35 @@ function MainApp() {
 
 
 
+  // NEW: Windows Promo Popup State
+  const [showWindowsPromo, setShowWindowsPromo] = useState(false);
+
+  useEffect(() => {
+    // Check if dismissed
+    const isDismissed = localStorage.getItem('zen_windows_promo_dismissed');
+
+    // Check if desktop (not strict check, just avoiding mobile for now)
+    const isDesktop = window.innerWidth > 768;
+
+    // Check if not already installed (not running in Electron/Windows app)
+    // Assuming the Windows app might set a user agent or global variable
+    // For now, we just check if we are in a browser
+    const isBrowser = !window.navigator.userAgent.includes('Electron');
+
+    if (!isDismissed && isDesktop && isBrowser) {
+      // Show after a slight delay
+      const timer = setTimeout(() => {
+        setShowWindowsPromo(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const handleDismissWindowsPromo = () => {
+    setShowWindowsPromo(false);
+    localStorage.setItem('zen_windows_promo_dismissed', 'true');
+  };
+
   // --- FOCUS MODE STATE ---
 
 
@@ -6038,7 +6069,7 @@ function MainApp() {
               {/* --- DESKTOP HEADER --- */}
               <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
                 <div className="flex items-center gap-4">
-                  <WalletIndicator balance={coins} onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }} />
+                  {/* <WalletIndicator balance={coins} onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }} /> */}
                   <button onClick={() => setIsUnifiedModalOpen(true)} className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95">
                     <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
                   </button>
@@ -6056,34 +6087,7 @@ function MainApp() {
                 <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
                   <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
 
-                    {/* Video Promo Popup */}
-                    <AnimatePresence>
-                      {showVideoPromo && !isMusicPlaying && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
-                          animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
-                          exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
-                          className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="relative bg-[#0018b8] text-white px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(45,140,255,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#0018b8]">
-                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                              <Video size={16} className="text-white" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-bold tracking-tight leading-tight">Video rooms are now available</span>
-                              <span className="text-[10px] text-white/80 font-medium leading-tight">Hold each other accountable. Find it in Servers &gt; Video</span>
-                            </div>
-                            <button
-                              onClick={() => handleDismissVideoPromo()}
-                              className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
-                            >
-                              <X size={10} strokeWidth={3} />
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+
 
                     <div className="relative">
                       <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
@@ -6098,30 +6102,7 @@ function MainApp() {
 
                     {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
                     <div className="relative flex items-center justify-center">
-                      {/* Spotify Promo Popup */}
-                      <AnimatePresence>
-                        {showSpotifyPromo && !isMusicPlaying && !showMusic && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10, x: -29, scale: 0.9 }}
-                            animate={{ opacity: 1, y: 0, x: -29, scale: 1 }}
-                            exit={{ opacity: 0, y: 5, x: -29, scale: 0.9 }}
-                            className="absolute bottom-full mb-4 left-1/2 z-[100] cursor-default"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="relative bg-[#1DB954] text-black px-4 py-2.5 rounded-xl shadow-[0_0_20px_rgba(29,185,84,0.4)] flex items-center gap-3 whitespace-nowrap after:content-[''] after:absolute after:top-full after:left-[24px] after:border-[6px] after:border-transparent after:border-t-[#1DB954]">
-                              {/* Fix: Set inner fill to #1DB954 (Green) to match background, simulating transparency */}
-                              <SpotifyIcon size={20} innerFillClassName="fill-[#1DB954]" className="shrink-0 text-black appearance-none" />
-                              <span className="text-xs font-bold tracking-tight">Play Spotify directly from altimer!</span>
-                              <button
-                                onClick={() => handleDismissSpotifyPromo()}
-                                className="w-5 h-5 rounded-full bg-black/10 hover:bg-black/20 flex items-center justify-center transition-colors ml-1"
-                              >
-                                <X size={10} strokeWidth={3} />
-                              </button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+
 
                       <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
                     </div>
@@ -6635,17 +6616,23 @@ function MainApp() {
           source={proModalSource} // Pass the source string ('notes' or 'arcade')
         />
 
-        <VaultModal
+        {/* <VaultModal
           isOpen={vaultOpen}
           onClose={() => setVaultOpen(false)}
           balance={coins}
           onUpdateBalance={(newBalance) => setCoins(newBalance)}
           onSync={() => Storage.syncWalletInventory(user)}
           onActivatePro={(hours) => Storage.activateProSubscription(user, hours)}
-        />
+        /> */}
 
         {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
         <TaskReminderSystem tasks={tasks} />
+
+        {/* --- WINDOWS PROMO MODAL --- */}
+        <WindowsPromoModal
+          isOpen={showWindowsPromo}
+          onClose={handleDismissWindowsPromo}
+        />
 
 
         {/* --- COMMAND MENU --- */}
@@ -6708,6 +6695,9 @@ export default function App() {
     return <ContactPage />;
   }
 
+  if (pathname === '/downloads') {
+    return <DownloadsPage />;
+  }
 
   return (
     <ErrorBoundary>

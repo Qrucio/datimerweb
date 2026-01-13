@@ -4,7 +4,7 @@ import {
   X, Sliders, Palette, User, LogOut, Sparkles, Clock, Zap,
   Coffee, Flame, BarChart2, TrendingUp, Settings, Calendar,
   ChevronLeft, ChevronRight, ChevronDown, Crown, Copy, Check,
-  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail, Wrench
+  Pencil, Loader2, Lock, AlertTriangle, ExternalLink, RefreshCw, Volume2, Info, Mail, Wrench, Download
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
@@ -652,6 +652,17 @@ const UnifiedSettingsModal = ({
 
                 {user && (
                   <div className="mt-auto flex flex-col gap-2 w-full flex-shrink-0 pt-4 border-t border-white/5">
+                    
+                    {/* DOWNLOAD APP BUTTON */}
+                    <button onClick={() => window.open('/downloads', '_blank')} className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 flex items-center justify-between gap-3 group transition-all">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded-full bg-white/10 text-white/50 flex items-center justify-center group-hover:scale-110 group-hover:text-white transition-all">
+                          <Download size={12} strokeWidth={2.5} />
+                        </div>
+                        <span className="text-white/50 group-hover:text-white text-[10px] font-bold uppercase tracking-widest leading-none transition-colors">Download App</span>
+                      </div>
+                    </button>
+
                     {!isPro && (
                       <button onClick={onOpenPro} className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border border-cyan-500/30 flex items-center justify-between gap-3 group transition-all">
                         <div className="flex items-center gap-2.5"><div className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={12} strokeWidth={2.5} /></div><span className="text-cyan-400 text-[10px] font-bold uppercase tracking-widest leading-none">Get Flow</span></div>
