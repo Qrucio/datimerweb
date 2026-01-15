@@ -1,7 +1,7 @@
-# Altimer (Zen Timer App)
+# DaTimer (Zen Timer App)
 
 ## Project Overview
-Altimer is a comprehensive productivity application built with **React** and **Vite**. It combines a Pomodoro-style timer with social features, gamification, and multimedia integrations to enhance focus and study efficiency. The app features real-time collaboration, video calls, and a rich set of productivity tools like notes and task reminders.
+DaTimer is a comprehensive productivity application built with **React** and **Vite**. It combines a Pomodoro-style timer with social features, gamification, and multimedia integrations to enhance focus and study efficiency. The app features real-time collaboration, video calls, and a rich set of productivity tools like notes and task reminders.
 
 ### Key Features
 *   **Core Timer:** Customizable focus/break sessions with strict mode options.

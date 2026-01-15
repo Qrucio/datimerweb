@@ -73,7 +73,7 @@ export const releaseNotes = [
     changes: [
       "Introduced new About, Contact, and Privacy Policy pages",
       "Added dedicated About tab in Settings for app information",
-      "Standardized 'altimer' branding across the application",
+      "Standardized 'DaTimer' branding across the application",
       "Prepared infrastructure for future ad-supported features"
     ]
   },
@@ -81,7 +81,7 @@ export const releaseNotes = [
     version: "0.1.3",
     date: "2024-12-25",
     changes: [
-      "Changed tab title format from '{time left} | altimer' to '{time left} • altimer'",
+      "Changed tab title format from '{time left} | DaTimer' to '{time left} • DaTimer'",
       "Fixed smart pill time picker toggle - clicking the pencil icon now properly toggles the picker open/close",
       "Improved time picker UX - clicking outside the picker closes it smoothly"
     ]

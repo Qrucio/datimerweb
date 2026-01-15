@@ -175,7 +175,7 @@ export default function ReleaseNotesPage() {
               What's New
             </h1>
             <p className="text-white/40 text-lg md:text-xl font-light leading-relaxed max-w-lg">
-              Tracking the evolution of altimer.
+              Tracking the evolution of DaTimer.
             </p>
           </div>
 
@@ -254,7 +254,7 @@ export default function ReleaseNotesPage() {
             className="text-center mt-24 pt-8 border-t border-white/5"
           >
             <p className="text-white/20 text-xs tracking-widest uppercase hover:text-white/40 transition-colors cursor-default">
-              Altimer &copy; {new Date().getFullYear()}
+              DaTimer &copy; {new Date().getFullYear()}
             </p>
           </motion.div>
         </motion.div>

@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Overview</h2>
             <p className="mb-4">
-              altimer is built on a simple principle: your focus belongs to you. I am a solo developer, not a data brokerage.
+              DaTimer is built on a simple principle: your focus belongs to you. I am a solo developer, not a data brokerage.
               I collect only what is absolutely necessary to make the app function and to keep the servers running.
             </p>
           </section>
@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Advertising & Cookies</h2>
             <p className="mb-4">
-              To support the development costs of altimer, I use <span className="text-white/90 font-medium">Google AdSense</span> to display advertisements (not yet).
+              To support the development costs of DaTimer, I use <span className="text-white/90 font-medium">Google AdSense</span> to display advertisements (not yet).
             </p>
             <p className="mb-4">
               Google and its partners may use cookies to serve ads based on your prior visits to this website or other websites.
@@ -59,7 +59,7 @@ export default function PrivacyPolicyPage() {
             </p>
             <p>
               You can opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener noreferrer" className="text-white underline decoration-white/30 hover:decoration-white transition-all">Google's Ad Settings</a>.
-              Alternatively, you can disable ads entirely within altimer's settings if you prefer a cleaner experience. I believe the choice should be yours.
+              Alternatively, you can disable ads entirely within DaTimer's settings if you prefer a cleaner experience. I believe the choice should be yours.
             </p>
           </section>
 
@@ -74,7 +74,7 @@ export default function PrivacyPolicyPage() {
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
           <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-            Return to altimer
+            Return to DaTimer
           </a>
         </footer>
       </motion.div>

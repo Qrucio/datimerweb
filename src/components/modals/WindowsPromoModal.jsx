@@ -70,7 +70,7 @@ const WindowsPromoModal = ({ isOpen, onClose }) => {
                         <div className="p-8 text-center space-y-6">
                             <div className="space-y-2">
                                 <h2 className="text-2xl font-bold text-white tracking-tight">
-                                    Experience altimer on Windows
+                                    Experience DaTimer on Windows
                                 </h2>
                                 <p className="text-white/50 text-sm leading-relaxed max-w-sm mx-auto">
                                     Unlock system-level features like Strict Mode, Application Blocking, and more with our native desktop app.

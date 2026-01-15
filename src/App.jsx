@@ -419,7 +419,7 @@ const RevealLogo = ({ src, className, disableReveal = false }) => {
       {/* The Logo Image (The "A") */}
       <motion.img
         src={src}
-        alt="altimer Logo"
+        alt="DaTimer Logo"
         className={`${className} relative z-10 object-contain`}
         variants={{
           rest: { x: 0 },
@@ -5859,14 +5859,14 @@ function MainApp() {
 
     if (isActive) {
       const icon = modeIcons[mode] || '';
-      document.title = `${icon} ${formatTime(timeLeft)} • altimer`;
+      document.title = `${icon} ${formatTime(timeLeft)} • DaTimer`;
     } else {
       // Optional: You could show "⏸️ Paused" or just the app name
-      document.title = "altimer";
+      document.title = "DaTimer";
     }
 
     return () => {
-      document.title = "altimer";
+      document.title = "DaTimer";
     };
   }, [timeLeft, isActive, mode]);
 
@@ -6692,6 +6692,7 @@ export default function App() {
   }
 
   if (pathname === '/contact') {
+
     return <ContactPage />;
   }
 

@@ -325,7 +325,7 @@ export default function DownloadsPage() {
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-white/5">
               <p className="text-sm text-white/30">
-                &copy; {new Date().getFullYear()} altimer. All rights reserved.
+                &copy; {new Date().getFullYear()} DaTimer. All rights reserved.
               </p>
               <div className="flex items-center gap-6">
                 <a href="/privacy" className="text-sm text-white/30 hover:text-white/60 transition-colors">

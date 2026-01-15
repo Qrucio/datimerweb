@@ -45,7 +45,7 @@ export default function ContactPage() {
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
            <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-             Return to altimer
+             Return to DaTimer
            </a>
         </footer>
       </motion.div>

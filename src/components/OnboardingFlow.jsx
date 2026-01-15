@@ -325,7 +325,7 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
 
                         {/* Header Section */}
                         <div className={`flex flex-col items-center mb-16 transition-opacity duration-700 ${authMode === 'menu' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'}`}>
-                            <img src="/logo/altimerwhite.png" className="w-32 h-32 mb-8 opacity-90 animate-fade-in drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" alt="Altimer" />
+                            <img src="/logo/altimerwhite.png" className="w-32 h-32 mb-8 opacity-90 animate-fade-in drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" alt="DaTimer" />
                             <h2 className="text-4xl md:text-6xl text-white font-extralight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                                 Time is relative. Come bend it.
                             </h2>

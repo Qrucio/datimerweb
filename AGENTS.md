@@ -1,6 +1,6 @@
 # AGENTS.md — Guidelines for AI Coding Agents
 
-This file provides context, rules, and best practices for AI agents working on the **altimer** project. Adhering to these guidelines ensures a consistent, high-quality codebase and a smooth development workflow.
+This file provides context, rules, and best practices for AI agents working on the **DaTimer** project. Adhering to these guidelines ensures a consistent, high-quality codebase and a smooth development workflow.
 
 ## 🧠 CORE LOGIC: The "Think-Plan-Execute" Loop
 To ensure high reasoning and prevent premature code generation, you MUST follow this sequence:
@@ -27,7 +27,7 @@ To ensure high reasoning and prevent premature code generation, you MUST follow 
 ---
 
 ## 🚀 Project Overview
-**altimer** is a premium productivity timer application built for students and focus experts.
+**DaTimer** is a premium productivity timer application built for students and focus experts.
 - **Tech Stack:** React 19, Vite, TailwindCSS, Framer Motion, Supabase, LiveKit.
 - **Design Language:** Glassmorphism, monochrome aesthetics, high-polish animations.
 - **Key Features:** Pomodoro timer, Social (Friends/Servers), Gamification (Coins/Store), Video Calls (LiveKit).

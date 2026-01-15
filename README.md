@@ -1,4 +1,4 @@
-# altimer
+# DaTimer
 
 A comprehensive productivity timer application designed specifically for students and productivity experts, combining proven focus techniques with collaborative features, gamification, and multimedia support to enhance learning and work efficiency.
 

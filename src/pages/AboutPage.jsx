@@ -18,7 +18,7 @@ export default function AboutPage() {
       >
         <header className="mb-16 border-b border-white/5 pb-8">
           <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-4 tracking-tight">
-            About altimer
+            About DaTimer
           </h1>
         </header>
 
@@ -29,7 +29,7 @@ export default function AboutPage() {
               We live in an economy of distraction. Every app, notification, and algorithm is fighting for a slice of your attention.
             </p>
             <p>
-              altimer is a rebellion against that noise. It is designed to be a sanctuary for deep work, a place where you can enter
+              DaTimer is a rebellion against that noise. It is designed to be a sanctuary for deep work, a place where you can enter
               a flow state and stay there. No social feeds to scroll, just
               pure, unadulterated focus tools wrapped in a beautiful interface.
             </p>
@@ -38,7 +38,7 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Indie Built</h2>
             <p className="mb-4">
-              altimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer
+              DaTimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer
               who needed a better way to work.
             </p>
             <p>
@@ -50,7 +50,7 @@ export default function AboutPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Stack</h2>
             <p>
-              For the curious: altimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed.
+              For the curious: DaTimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed.
               It uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations.
               The backend is powered by <span className="text-white/90 font-medium">Supabase</span>.
             </p>
@@ -59,7 +59,7 @@ export default function AboutPage() {
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
           <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
-            Return to altimer
+            Return to DaTimer
           </a>
         </footer>
       </motion.div>
