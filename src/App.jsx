@@ -1692,7 +1692,7 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     checkMobile(); // Check on mount
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [onboardingStep]);
+  }, []);
 
   // Auto-reset logic
   useEffect(() => {
