@@ -3,6 +3,7 @@ import { AccessToken } from "npm:livekit-server-sdk@2.9.2";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const ALLOWED_ORIGINS = [
+    'https://datimer.netlify.app',
     'https://altimer.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000'

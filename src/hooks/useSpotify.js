@@ -18,7 +18,7 @@ const SCOPES = [
 
 const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
 const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
-const REDIRECT_URI = "https://altimer.netlify.app/";
+const REDIRECT_URI = "https://datimer.netlify.app/";
 
 // --- PKCE Helpers ---
 const generateRandomString = (length) => {

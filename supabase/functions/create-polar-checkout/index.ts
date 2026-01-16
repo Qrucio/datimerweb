@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const ALLOWED_ORIGINS = [
+    'https://datimer.netlify.app',
     'https://altimer.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000'

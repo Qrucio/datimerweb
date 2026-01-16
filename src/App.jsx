@@ -108,7 +108,7 @@ const getUniqueHandle = async (baseName) => {
 const AppLoader = () => (
   <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
     <div className="flex flex-col items-center gap-4">
-      <RevealLogo src="/logo/altimerwhite.png" className="w-16 h-16 opacity-50" disableReveal={true} />
+      <RevealLogo src="/logo/logo-mark-light.svg" className="w-16 h-16 opacity-50" disableReveal={true} />
       <div className="flex gap-1">
         <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
         <div className="w-1.5 h-1.5 bg-white/20 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
@@ -6051,7 +6051,7 @@ function MainApp() {
               {/* --- MOBILE HEADER --- */}
               <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
                 <div className="flex items-center gap-2">
-                  <RevealLogo src="/logo/altimerwhite.png" className="w-10 h-10" />
+                  <RevealLogo src="/logo/logo-mark-light.svg" className="w-10 h-10" />
                 </div>
                 <div className="flex items-center gap-3">
                   <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
@@ -6124,7 +6124,7 @@ function MainApp() {
 
               {/* --- DESKTOP LOGO --- */}
               <div className={`hidden md:flex absolute top-8 left-1/2 -translate-x-1/2 z-50 transition-opacity duration-1000 ease-out delay-500 ${onboardingStep === 3 ? uiOpacityClass : 'opacity-0 pointer-events-none'}`}>
-                <RevealLogo src="/logo/altimerwhite.png" className="w-14 h-14" />
+                <RevealLogo src="/logo/logo-mark-light.svg" className="w-14 h-14" />
               </div>
 
               {/* --- TIMER SECTION (Main) --- */}

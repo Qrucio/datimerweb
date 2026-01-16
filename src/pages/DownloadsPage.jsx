@@ -219,7 +219,7 @@ export default function DownloadsPage() {
       title: 'Windows',
       subtitle: 'Access features like Screen Time, Strict Mode and more to come!',
       available: true,
-      downloadUrl: 'https://www.dropbox.com/scl/fi/vynls6lppstrqov06oebe/altimer_0.3.5_x64-setup.exe?rlkey=obph884633pq5otb8i41btari&st=uzjvy9xp&dl=1',
+      downloadUrl: 'https://www.dropbox.com/scl/fi/tgo29ku6mw9rzhj51kpu4/DaTimer_0.3.6_x64-setup.exe?rlkey=q27c6ycv4uef0e3761m0zy0j7&st=6clzcy8u&dl=1',
       featured: true
     },
     {
