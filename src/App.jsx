@@ -1266,7 +1266,7 @@ const NotificationCenter = () => {
       // Small delay for smooth entrance after app load
       setTimeout(() => setIsVisible(true), 1000);
     }
-  }, []);
+  }, [onboardingStep]);
 
   const handleDismiss = () => {
     if (activeUpdates.length === 0) return;
@@ -1692,7 +1692,7 @@ const LiquidResetBtn = ({ onReset, disabled }) => {
     checkMobile(); // Check on mount
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [onboardingStep]);
 
   // Auto-reset logic
   useEffect(() => {
@@ -3220,7 +3220,7 @@ function MainApp() {
 
     setTimeout(() => clearInterval(interval), 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [onboardingStep]);
 
   // --- CACHE-FIRST STATE INITIALIZATION ---
   const [notes, setNotes] = useState(Storage.getNotes());
@@ -3396,7 +3396,7 @@ function MainApp() {
       }
     };
     syncHistory();
-  }, []);
+  }, [onboardingStep]);
 
   // --- SYNC NOTES ON LOAD (Fix for Deletion Sync) ---
   useEffect(() => {
@@ -3484,7 +3484,7 @@ function MainApp() {
         }
       }
     } catch (e) { console.error("Error restoring stats", e); }
-  }, []);
+  }, [onboardingStep]);
 
   // --- SHOPIFY SUBSCRIPTION SYNC ---
   useEffect(() => {
@@ -3819,7 +3819,7 @@ function MainApp() {
       audio.removeEventListener('playing', onCanPlay);
       audio.removeEventListener('canplay', onCanPlay);
     };
-  }, []);
+  }, [onboardingStep]);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [socialInitialServerId, setSocialInitialServerId] = useState(null);
@@ -3989,7 +3989,7 @@ function MainApp() {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  }, [onboardingStep]);
 
   const playBtnRef = useRef(null);
   const endTimeRef = useRef(null);
@@ -4021,14 +4021,15 @@ function MainApp() {
     // For now, we just check if we are in a browser
     const isBrowser = !window.navigator.userAgent.includes('Electron');
 
-    if (!isDismissed && isDesktop && isBrowser) {
+    // Only show on main screen (after onboarding)
+    if (!isDismissed && isDesktop && isBrowser && onboardingStep >= 3) {
       // Show after a slight delay
       const timer = setTimeout(() => {
         setShowWindowsPromo(true);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [onboardingStep]);
 
   const handleDismissWindowsPromo = () => {
     setShowWindowsPromo(false);
@@ -4046,7 +4047,7 @@ function MainApp() {
       // Volume will be set dynamically on play
       audioRefs.current[sound.id] = audio;
     });
-  }, []); // Run once on mount
+  }, [onboardingStep]); // Run once on mount
 
   // Update audio source if custom sounds are added (future proofing)
   // or if we needed to reload them. For now, static list is fine.
@@ -4349,7 +4350,7 @@ function MainApp() {
       subscription.unsubscribe();
       supabase.removeChannel(profileChannel);
     };
-  }, []);
+  }, [onboardingStep]);
 
   const handleUserMapping = async (supaUser) => {
     // GUARD: Skip Auth check if in Demo Mode
@@ -4475,7 +4476,7 @@ function MainApp() {
       }
     }
     return { isOnline, isActive, statusText, mode, timeLeft };
-  }, []);
+  }, [onboardingStep]);
 
   // 1. LISTEN TO FRIEND REQUESTS (Incoming)
   useEffect(() => {
@@ -5080,7 +5081,7 @@ function MainApp() {
       audio.removeEventListener('playing', handleCanPlay);
       audio.removeEventListener('canplay', handleCanPlay);
     };
-  }, []);
+  }, [onboardingStep]);
 
   // --- HANDLER: PLAY MUSIC (Mutually Exclusive with Lofi) ---
   const handlePlayMusic = (track) => {
@@ -5166,7 +5167,7 @@ function MainApp() {
       }
     });
     setAmbienceState({});
-  }, []);
+  }, [onboardingStep]);
 
   // 3. Wrap changeAmbienceVolume in useCallback
   const changeAmbienceVolume = useCallback((id, newVol) => {
@@ -5177,7 +5178,7 @@ function MainApp() {
       ...prev,
       [id]: { ...prev[id], volume: newVol }
     }));
-  }, []);
+  }, [onboardingStep]);
 
   // --- HANDLER: TOGGLE LOFI ---
   const toggleLofi = () => {

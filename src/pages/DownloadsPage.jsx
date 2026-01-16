@@ -219,7 +219,7 @@ export default function DownloadsPage() {
       title: 'Windows',
       subtitle: 'Access features like Screen Time, Strict Mode and more to come!',
       available: true,
-      downloadUrl: 'https://www.dropbox.com/scl/fi/tgo29ku6mw9rzhj51kpu4/DaTimer_0.3.6_x64-setup.exe?rlkey=q27c6ycv4uef0e3761m0zy0j7&st=6clzcy8u&dl=1',
+      downloadUrl: 'https://www.dropbox.com/scl/fi/9h69e1grcszr526cwfl5k/DaTimer_0.3.7_x64-setup.exe?rlkey=fz56wgxrjc7semhafkd8qwzb5&st=wvjizmgd&dl=0',
       featured: true
     },
     {
