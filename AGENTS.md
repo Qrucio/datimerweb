@@ -132,4 +132,56 @@ Before considering a task "done", verify:
 - Use Supabase RLS (Row Level Security) logic when proposing database changes.
 
 ---
+
+## 🔐 Authentication & Session Management
+
+Understanding the auth flow is critical for debugging user state issues.
+
+### Key Files
+- **`src/App.jsx`** (lines ~4318-4430): Contains the main auth effect and `handleUserMapping` function
+- **`src/components/OnboardingFlow.jsx`**: Login/signup UI (Google OAuth, anonymous, email/password)
+- **`src/components/modals/UnifiedSettingsModal.jsx`**: Account tab renders conditionally based on `user` state
+
+### Auth Flow
+1. **`supabase.auth.onAuthStateChange`** fires when session changes (login, logout, token refresh, expiry)
+2. **`handleUserMapping(supaUser)`** is called with the user object (or `null` if signed out)
+3. If `supaUser` exists: fetch profile from `profiles` table, merge with auth data, set `user` state
+4. If `supaUser` is null: clear user state, reset `onboardingStep` to 0, clear localStorage
+
+### Important State Variables
+| Variable | Purpose |
+|----------|---------|
+| `user` | Current user object (null if not logged in) |
+| `onboardingStep` | 0 = login screen, 3 = main app |
+| `isAuthChecking` | True while validating session |
+| `dataLoaded` | True after user data is fetched |
+
+### LocalStorage Keys (Auth-related)
+- `zen_user_handle` — User's handle/username
+- `pomodoro_user_name` — Display name for timer UI
+
+### Common Auth Issues
+- **Stale user data after session expiry**: Ensure `handleUserMapping(null)` clears localStorage and resets `onboardingStep` to 0
+- **Avatar shows "?"**: Usually means `user.displayName` is undefined — check if user object is stale or null
+- **Account tab missing**: The sidebar only renders account button when `user` is truthy
+
+### Anonymous Users
+- `user.isAnonymous` indicates guest mode
+- Guest users get `displayName: "Guest"` and limited features
+- Social features are disabled for anonymous users
+
+---
+
+## ⚠️ Known Pre-existing Lint Errors
+
+The following lint errors exist in browser extension files and are **expected** (they use browser/chrome APIs):
+
+```
+altimer-companion/altimer-companion-new-chromium/*.js  → 'chrome' is not defined
+altimer-companion/altimer-companion-new-firefox/*.js   → 'browser' is not defined
+```
+
+These files run in extension context where `chrome`/`browser` globals are provided by the runtime. Do not attempt to fix these — they are not actual errors.
+
+---
 *Created to help you help us. Let's build something great.*

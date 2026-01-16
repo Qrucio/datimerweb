@@ -4412,9 +4412,17 @@ function MainApp() {
       }
 
     } else {
+      // SESSION EXPIRED OR USER SIGNED OUT
+      // Clear all user data to prevent stale state
       setUser(null);
-      if (onboardingStep !== 3) setOnboardingStep(0);
+      setOnboardingStep(0); // Always reset to login screen
       setDataLoaded(false);
+      
+      // Clear localStorage to prevent stale data showing
+      localStorage.removeItem('zen_user_handle');
+      localStorage.removeItem('pomodoro_user_name');
+      
+      console.log("Session cleared - user signed out or session expired.");
     }
 
     setIsAuthChecking(false);
