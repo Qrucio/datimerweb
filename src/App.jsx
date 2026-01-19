@@ -21,7 +21,6 @@ import HoloGrainBackground from './components/HoloGrainBackground';
 import SmartIntervention from './components/SmartIntervention';
 import BreakCheckIn from './components/BreakCheckIn'; // NEW
 import MusicModal from './components/modals/MusicModal';
-import VaultModal from './components/modals/VaultModal';
 import SocialProfileModal from './components/modals/SocialProfileModal';
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, ALARM_SOUNDS } from './utils/data';
@@ -35,7 +34,6 @@ import VideoPipWindow from './components/video/VideoPipWindow';
 import FriendsDock from './components/social/FriendsDock';
 import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
-import WalletIndicator from './components/gamification/WalletIndicator';
 import ReleaseNotesPage from './pages/ReleaseNotesPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import AboutPage from './pages/AboutPage';
@@ -2013,9 +2011,12 @@ const SegmentedToggle = ({ label, checked, onChange, id }) => (
 const PersonalityCard = ({ p, activeId, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isActive = activeId === p.id;
+  const isElon = p.id === 'elon';
 
   // Dynamic Styles
   const borderColor = isActive
+    ? (isElon ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-white shadow-[0_0_20px_rgba(255,255,255,0.2)]')
+    : 'border-white/10 hover:border-white/30';
 
 
   const containerBg = p.isEmpty
@@ -3163,11 +3164,6 @@ function MainApp() {
   const [focusMode, setFocusMode] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
-  // ---- COINS ----
-  const [coins, setCoins] = useState(() => Storage.getWallet().balance);
-  const [vaultOpen, setVaultOpen] = useState(false);
-  const coinBufferRef = useRef(0); // Internal counter for seconds
-
   // Ref to hold lateast state for Sync Replies without re-running effects
   const latestStateRef = useRef({ isActive: false, mode: 'focus', timeLeft: 25 * 60 });
   // Update this ref whenever state changes
@@ -4237,9 +4233,7 @@ function MainApp() {
         dailySessions: currentStats.dailySessions || 0,
         currentStreak: currentStreak // Ensure streak is synced to public stats
       },
-      streak: currentStreak,
-      wallet: Storage.getWallet(),
-      inventory: Storage.getInventory()
+      streak: currentStreak
     };
 
     setStats(prev => ({ ...prev, currentStreak }));
@@ -4270,8 +4264,6 @@ function MainApp() {
       // 3. User Settings (Wallet/Inventory)
       await UserService.upsertSettings({
         user_id: user.uid,
-        wallet: payload.wallet,
-        inventory: payload.inventory,
         updated_at: new Date()
       });
 
@@ -4566,11 +4558,6 @@ function MainApp() {
   // 3. LISTEN TO FRIENDS (List + Status)
   useEffect(() => {
     if (!user) return;
-
-    // 1. Sync Wallet (Server Authority)
-    if (!user.isAnonymous) {
-      Storage.syncWalletFromServer();
-    }
 
     const fetchFriends = async () => {
       // Manual Hydration for Reliability
@@ -4947,20 +4934,6 @@ function MainApp() {
             }
           }
 
-          // 3. WALLET / INVENTORY
-          if (serverData.wallet) {
-            const localWallet = Storage.getWallet();
-            // FIX: If local wallet is fresh (no timestamp AND empty), take server data
-            const isLocalFresh = !localWallet.lastUpdated && (!localWallet.balance || localWallet.balance === 0);
-            const isServerNewer = (serverData.wallet.lastUpdated || 0) > (localWallet.lastUpdated || 0);
-
-            if (isLocalFresh || isServerNewer) {
-              Storage.setWallet(serverData.wallet);
-              setCoins(serverData.wallet.balance || 0);
-            }
-          }
-          if (serverData.inventory) Storage.setInventory(serverData.inventory);
-
           // 4. TASKS & HABITS
           if (serverData.tasks) {
             setTasks(serverData.tasks);
@@ -5220,7 +5193,6 @@ function MainApp() {
       setOnboardingStep(0);
       setOnboardingInnerStep(0);
       setIsPro(false); // Explicit state update
-      setCoins(0);     // Reset wallet UI
       setNotes([]);    // Reset notes UI
       setTasks([]);
       setHabits([]);
@@ -5292,18 +5264,6 @@ function MainApp() {
             dailyFocusTime: updatedStats.dailyFocusTime,
             dailyBreakTime: updatedStats.dailyBreakTime
           }));
-
-          // --- 5. COIN LOGIC (NEW) ---
-          if (mode === 'focus') {
-            coinBufferRef.current += secondsPassed;
-            if (coinBufferRef.current >= 60) {
-              const newCoins = Math.floor(coinBufferRef.current / 60);
-              coinBufferRef.current %= 60; // Keep remainder
-
-              const updatedWallet = Storage.updateWallet(newCoins);
-              setCoins(updatedWallet.balance);
-            }
-          }
         }
 
         // --- D. SESSION END LOGIC ---
@@ -6078,7 +6038,6 @@ function MainApp() {
               {/* --- DESKTOP HEADER --- */}
               <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
                 <div className="flex items-center gap-4">
-                  {/* <WalletIndicator balance={coins} onClick={() => { if (checkGuestAccess()) setVaultOpen(true); }} /> */}
                   <button onClick={() => setIsUnifiedModalOpen(true)} className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95">
                     <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
                   </button>
@@ -6624,15 +6583,6 @@ function MainApp() {
           onUpgrade={handleUpgradeToPro}
           source={proModalSource} // Pass the source string ('notes' or 'arcade')
         />
-
-        {/* <VaultModal
-          isOpen={vaultOpen}
-          onClose={() => setVaultOpen(false)}
-          balance={coins}
-          onUpdateBalance={(newBalance) => setCoins(newBalance)}
-          onSync={() => Storage.syncWalletInventory(user)}
-          onActivatePro={(hours) => Storage.activateProSubscription(user, hours)}
-        /> */}
 
         {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
         <TaskReminderSystem tasks={tasks} />

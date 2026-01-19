@@ -172,6 +172,20 @@ Understanding the auth flow is critical for debugging user state issues.
 
 ---
 
+## 🧹 Maintenance & Refactoring
+
+### Feature Removal Protocol
+When tasked with removing a major feature (e.g., a gamification system):
+1.  **Exhaustive Search:** Grep for domain-specific terms (e.g., `coin`, `wallet`) AND generic terms (e.g., `store`, `inventory`) to find all tendrils.
+2.  **Deep Clean:** Do not just comment out UI. Remove:
+    - State variables (`useState`, `useRef`).
+    - Storage keys and sync logic in `src/utils/storage.js`.
+    - Backend sync payloads in `App.jsx`.
+    - Unused imports (run `npm run lint` to find these).
+3.  **Check Entanglements:** Verify that removing a feature's state doesn't break shared components (e.g., a card component that relied on a "locked" state from the removed feature).
+
+---
+
 ## ⚠️ Known Pre-existing Lint Errors
 
 The following lint errors exist in browser extension files and are **expected** (they use browser/chrome APIs):
