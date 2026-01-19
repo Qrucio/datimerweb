@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
-import { useVideo } from './contexts/VideoContext';
+
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { SocialService } from './services/socialService';
 import { UserService } from './services/userService';
 import { usePiP } from './hooks/usePiP';
 import { PictureInPicture2 } from 'lucide-react';
-import { AnimatePresence, motion, useDragControls } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
 import { Storage } from './utils/storage';
@@ -65,43 +65,9 @@ const getBrowserType = () => {
   return "chromium"; // Default to Chromium (Chrome, Brave, Edge, Opera)
 };
 
-// --- HANDLE GENERATOR HELPERS ---
-const generateCandidateHandle = (name) => {
-  // Cleans name, takes first 10 chars, adds random 4-digit suffix
-  const cleanName = name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 10);
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `@${cleanName}_${suffix}`.toLowerCase();
-};
 
-const getUniqueHandle = async (baseName) => {
-  let isUnique = false;
-  let attempt = 0;
-  let handle = "";
 
-  // Try up to 5 times to find a unique handle
-  while (!isUnique && attempt < 5) {
-    handle = generateCandidateHandle(baseName);
 
-    // Check against Public Profiles (Efficient Query)
-    const q = query(
-      collection(db, "publicProfiles"),
-      where("handle_lowercase", "==", handle.toLowerCase())
-    );
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      isUnique = true;
-    }
-    attempt++;
-  }
-
-  // Fallback: Use timestamp to guarantee uniqueness if loop fails
-  if (!isUnique) {
-    handle = `@${baseName.slice(0, 5)}_${Date.now().toString().slice(-6)}`;
-  }
-
-  return handle;
-};
 
 const AppLoader = () => (
   <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
@@ -161,35 +127,6 @@ class ErrorBoundary extends React.Component {
 // --- FIREBASE CONFIG REMOVED ---
 // App now uses Supabase (initialized in ./lib/supabase.js)
 
-// Gemini API Variable cleared - Feature disabled.
-const apiKey = "";
-
-// Helper for raw fetch calls to Gemini
-const callGeminiAPI = async (prompt) => {
-  return "Error: AI Service Disabled.";
-};
-
-const getGeminiAdvice = async (context) => {
-  return "AI advice is currently disabled.";
-};
-
-const generateSessionPlan = async (task, timeString) => {
-  return null;
-};
-
-
-
-const cleanText = (text) => {
-  if (!text) return "";
-  return text
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/__/g, '')
-    .replace(/`/g, '')
-    .replace(/^["']|["']$/g, '')
-    .trim();
-};
-
 const isVideo = (url) => {
   if (!url) return false;
   return url.match(/\.(mp4|webm|mov)$/i);
@@ -223,12 +160,6 @@ const isSameDay = (d1, d2) => {
     d1.getFullYear() === d2.getFullYear();
 };
 
-const isYesterday = (today, pastDate) => {
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  return isSameDay(pastDate, yesterday);
-};
-
 const formatDateId = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -237,16 +168,6 @@ const formatDateId = (date) => {
 };
 
 // Helper to format seconds into readable string (e.g., "1h 30m 10s")
-const formatDetailedDuration = (seconds) => {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  if (m < 60) return `${m}m ${s}s`;
-  const h = Math.floor(m / 60);
-  const remM = m % 60;
-  return `${h}h ${remM}m`;
-};
-
 const GlobalStyles = () => (
   <style>{`
    @import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bungee+Shade&family=Inter:wght@300;400;500;600&family=Montserrat:wght@700&family=Orbitron:wght@400;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Rajdhani:wght@700&family=Righteous&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
@@ -1017,330 +938,17 @@ const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
 );
 
 
-// ... (SettingsModal, ConfirmationModal, KeyboardHelpModal remain unchanged)
-const SettingsModal = ({ isOpen, onClose, settings, onSave, onBackgroundChange, user, isTimerRunning, devMode, setDevMode, customBackgrounds, onAddCustomBackground, onDeleteCustomBackground }) => {
-  const [localSettings, setLocalSettings] = useState(settings);
-  const [errors, setErrors] = useState({});
-  const fileInputRef = useRef(null);
-
-  useEffect(() => { if (isOpen) { setLocalSettings(settings); setErrors({}); } }, [isOpen]);
-
-  const handleChange = (e, mode) => { const value = e.target.value; if (value === '' || /^\d+$/.test(value)) { setLocalSettings(prev => ({ ...prev, [mode]: value })); if (errors[mode]) { setErrors(prev => ({ ...prev, [mode]: null })); } } };
-
-  const handleToggle = (key, value) => { setLocalSettings(prev => ({ ...prev, [key]: value })); }
-
-  const validateSettings = () => { const newErrors = {}; let hasError = false; const finalSettings = {};['focus', 'shortBreak', 'longBreak'].forEach(mode => { const val = localSettings[mode]; if (val === undefined || val === '' || parseInt(val) === 0) { newErrors[mode] = true; hasError = true; } else { finalSettings[mode] = parseInt(val); } }); finalSettings.autoStartBreaks = localSettings.autoStartBreaks; finalSettings.autoStartWork = localSettings.autoStartWork; finalSettings.background = localSettings.background; finalSettings.backgroundOpacity = localSettings.backgroundOpacity; return { hasError, newErrors, finalSettings }; };
-
-  const handleCloseAction = () => {
-    const hasChanges = JSON.stringify(localSettings) !== JSON.stringify(settings);
-    if (hasChanges) {
-      const { hasError, finalSettings } = validateSettings();
-      if (!hasError) {
-        onSave(finalSettings);
-      } else {
-        onClose();
-      }
-    } else {
-      onClose();
-    }
-  };
-
-  const handleFileSelect = (e) => { const file = e.target.files[0]; if (file && (file.type === "image/jpeg" || file.type === "image/png")) { const reader = new FileReader(); reader.onloadend = () => { const base64String = reader.result; const newBg = { id: `custom-${Date.now()}`, src: base64String, }; onAddCustomBackground(newBg); handleToggle('background', base64String); if (onBackgroundChange) onBackgroundChange(base64String); }; reader.readAsDataURL(file); } };
-  const allBackgrounds = [...BACKGROUND_OPTIONS, ...customBackgrounds];
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }} // Fast fade for backdrop
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={handleCloseAction}
-        >
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 10 }} // Reduced motion distance
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            // PERFORMANCE FIX: Use standard easing instead of spring
-            transition={{ duration: 0.25, ease: "easeOut" }}
-            className="bg-[#111] border border-white/10 p-4 md:p-8 rounded-2xl md:rounded-3xl w-[95vw] md:w-full md:max-w-3xl shadow-2xl overflow-y-auto max-h-[90vh] md:max-h-[85vh] no-scrollbar mx-2 md:mx-0 will-change-transform" // Added will-change-transform
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center mb-6 md:mb-8"><h3 className="text-xl md:text-2xl font-medium text-white tracking-tight">Settings</h3><button onClick={handleCloseAction} className="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 text-white/50 hover:text-white active:text-white/70 rounded-full hover:bg-white/10 transition-colors"><X size={24} /></button></div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-              <div className="space-y-6">
-                <h4 className="text-xs uppercase tracking-widest text-white/40 font-bold mb-4">Timer Configuration</h4>
-
-                {/* Vertical List Layout for Timers */}
-                {['focus', 'shortBreak', 'longBreak'].map((mode) => (
-                  <React.Fragment key={mode}>
-                    <div className="flex justify-between items-center group py-1">
-                      <label className={`text-sm font-medium capitalize transition-colors flex-shrink-0 ${errors[mode] ? 'text-red-400' : 'text-white/80 group-hover:text-white'}`}>
-                        {mode.replace(/([A-Z])/g, ' $1').trim()} (min)
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={localSettings[mode]}
-                        onChange={(e) => handleChange(e, mode)}
-                        className={`
-                          w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
-                          font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
-                          ${errors[mode] ? 'bg-red-500/10 ring-2 ring-500/50' : ''}
-                        `}
-                        placeholder={settings[mode]}
-                      />
-                    </div>
-                    {/* Interval Setting appearing after Long Break */}
-                    {mode === 'longBreak' && (
-                      <div className="flex justify-between items-center group py-1">
-                        <label className={`text-sm font-medium transition-colors flex-shrink-0 ${errors['pomosBeforeLongBreak'] ? 'text-red-400' : 'text-white/80 group-hover:text-white'}`}>
-                          Intervals
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={localSettings.pomosBeforeLongBreak}
-                          onChange={(e) => handleChange(e, 'pomosBeforeLongBreak')}
-                          className={`
-                            w-16 bg-white/5 hover:bg-white/10 rounded-lg py-2 text-center text-white 
-                            font-mono text-sm font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all 
-                            ${errors['pomosBeforeLongBreak'] ? 'bg-red-500/10 ring-2 ring-500/50' : ''}
-                          `}
-                        />
-                      </div>
-                    )}
-                  </React.Fragment>
-                ))}
-
-                <div className="w-full h-px bg-white/10 my-2"></div>
-
-                {/* Switched back to standard Toggle with new styling */}
-                <Toggle label="Auto-start Breaks" checked={!!localSettings.autoStartBreaks} onChange={(v) => handleToggle('autoStartBreaks', v)} />
-                <Toggle label="Auto-start Work" checked={!!localSettings.autoStartWork} onChange={(v) => handleToggle('autoStartWork', v)} />
-
-                {user && user.uid === 'cmxtLQPCqkfhkhNQZ04ZlXjCPbV2' && (
-                  <>
-                    <div className="w-full h-px bg-white/10 my-2"></div>
-                    <Toggle label="Dev Mode (No Stats)" checked={devMode} onChange={setDevMode} />
-                  </>
-                )}
-              </div>
-
-              {/* Right Column: Backgrounds (Unchanged) */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <ImageIcon size={16} className="text-white/50" />
-                  <label className="text-xs uppercase tracking-widest text-white/40 font-bold">Environment</label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {allBackgrounds.map((bg) => (
-                    <button
-                      key={bg.id}
-                      onClick={() => {
-                        handleToggle("background", bg.src);
-                        if (onBackgroundChange) onBackgroundChange(bg.src);
-                      }}
-                      className={`relative aspect-video rounded-xl overflow-hidden transition-all duration-300 group ${localSettings.background === bg.src
-                        ? "ring-2 ring-white scale-[1.02] shadow-xl z-10"
-                        : "opacity-60 hover:opacity-100 hover:scale-[1.02] hover:z-10"
-                        }`}
-                    >
-                      {bg.src ? (
-                        isVideo(bg.src) ? (
-                          <video src={bg.src} className="w-full h-full object-cover" autoPlay muted loop playsInline />
-                        ) : (
-                          <img src={bg.src} alt={bg.label} className="w-full h-full object-cover" />
-                        )
-                      ) : (
-                        <div className="w-full h-full bg-[#222] flex items-center justify-center border border-white/10">
-                          <span className="text-[10px] text-white/30 uppercase tracking-widest font-bold">Empty</span>
-                        </div>
-                      )}
-
-                      {localSettings.background === bg.src && (
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                          <div className="bg-white text-black rounded-full p-1 shadow-lg">
-                            <Check size={12} strokeWidth={4} />
-                          </div>
-                        </div>
-                      )}
-
-                      {isVideo(bg.src) && (
-                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white/90 uppercase tracking-widest border border-white/10 z-10 pointer-events-none">
-                          Animated
-                        </div>
-                      )}
-
-                      {bg.id.toString().startsWith("custom-") && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDeleteCustomBackground(bg.id); }}
-                          className="absolute top-1 right-1 p-1.5 bg-black/60 hover:bg-red-500 text-white/70 hover:text-white rounded-full transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm z-20"
-                          title="Delete"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </button>
-                  ))}
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="relative aspect-video rounded-xl overflow-hidden border border-dashed border-white/20 hover:border-white/50 hover:bg-white/5 transition-all duration-300 group flex flex-col items-center justify-center gap-2"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <Plus size={16} className="text-white/50 group-hover:text-white transition-colors" />
-                    </div>
-                    <span className="text-[10px] text-white/40 group-hover:text-white/80 uppercase tracking-widest font-bold">Upload</span>
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/png, image/jpeg" onChange={handleFileSelect} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, warning }) => {
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl font-medium text-white mb-2">{title}</h3><p className="text-white/70 text-sm mb-4 leading-relaxed">{message}</p>{warning && (<div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-xs text-red-200/80 mb-6 leading-relaxed">{warning}</div>)}
-            <div className="flex gap-3"><button onClick={onClose} className="flex-1 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-3 rounded-xl transition-colors">Cancel</button><button onClick={onConfirm} className="flex-1 bg-red-500/10 border border-red-500/50 hover:bg-red-500 text-red-400 hover:text-white text-xs font-bold py-3 rounded-xl transition-colors">Reset</button></div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
-const KeyboardHelpModal = ({ isOpen, onClose }) => {
-  const shortcuts = [
-    { key: 'Space', description: 'Play / Pause timer' },
-    { key: 'Tab', description: 'Cycle timer modes (when not started)' },
-    { key: 'P', description: 'Toggle Music' }, // <--- Added this line
-    { key: 'N', description: 'Open notes library' },
-    { key: 'O', description: 'Edit objective/session name' },
-    { key: 'S', description: 'Open / Close settings' },
-    { key: 'Esc', description: 'Exit from input fields or close modals' },
-    { key: 'Shift + ?', description: 'Toggle this help' },
-  ];
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-          <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#111] border border-white/10 p-8 rounded-3xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-medium text-white">Keyboard Shortcuts</h3><button onClick={onClose} className="text-white/50 hover:text-white transition-colors"><X size={20} /></button></div>
-            <div className="space-y-3">{shortcuts.map((shortcut, index) => (<div key={index} className="flex justify-between items-center py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"><span className="text-sm text-white/70">{shortcut.description}</span><kbd className="px-3 py-1.5 bg-white/10 border border-white/20 rounded-lg text-xs font-mono text-white/90 tracking-wider">{shortcut.key}</kbd></div>))}</div>
-            <button onClick={onClose} className="w-full mt-6 bg-white/5 hover:bg-white/10 text-white text-xs font-bold py-3 rounded-xl transition-colors">Close</button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 
 
 
-const NotificationCenter = () => {
-  const [activeUpdates, setActiveUpdates] = useState([]);
-  const [isVisible, setIsVisible] = useState(false);
 
-  useEffect(() => {
-    // 1. Filter updates that haven't been seen yet
-    const unseen = UPDATES.filter(update => !localStorage.getItem(update.id));
-    if (unseen.length > 0) {
-      setActiveUpdates(unseen);
-      // Small delay for smooth entrance after app load
-      setTimeout(() => setIsVisible(true), 1000);
-    }
-  }, [onboardingStep]);
 
-  const handleDismiss = () => {
-    if (activeUpdates.length === 0) return;
 
-    const current = activeUpdates[0];
-    // Mark as seen
-    localStorage.setItem(current.id, 'true');
 
-    // Animate out current card
-    setIsVisible(false);
 
-    // Wait for animation, then remove from queue and show next if available
-    setTimeout(() => {
-      setActiveUpdates(prev => prev.slice(1));
-      if (activeUpdates.length > 1) {
-        setIsVisible(true);
-      }
-    }, 400);
-  };
 
-  if (activeUpdates.length === 0) return null;
 
-  const currentUpdate = activeUpdates[0];
-  const Icon = currentUpdate.icon;
-
-  return (
-    <AnimatePresence mode="wait">
-      {isVisible && (
-        <motion.div
-          key="notification-card"
-          initial={{ opacity: 0, x: 20, y: 0 }}
-          animate={{ opacity: 1, x: 0, y: 0 }}
-          exit={{ opacity: 0, x: 20, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed bottom-8 right-8 z-40 w-[90vw] max-w-sm hidden md:block" // Hidden on mobile to avoid clutter, visible on desktop
-        >
-          <div className="bg-[#111] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-xl relative overflow-hidden group">
-            {/* Glossy Effect */}
-            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
-            <div className="flex items-start gap-4 relative z-10">
-              {/* Icon Bubble */}
-              <div className={`w-10 h-10 rounded-full ${currentUpdate.bg} flex items-center justify-center flex-shrink-0 border border-white/5`}>
-                <Icon size={20} className={currentUpdate.color} />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1">
-                  <h4 className="text-sm font-bold text-white tracking-wide">
-                    {currentUpdate.title}
-                  </h4>
-                  <span className="text-[10px] font-mono text-white/30 bg-white/5 px-1.5 py-0.5 rounded">
-                    {activeUpdates.length > 1 ? `1 / ${activeUpdates.length}` : 'NEW'}
-                  </span>
-                </div>
-                <p className="text-xs text-white/60 leading-relaxed mb-3">
-                  {currentUpdate.description}
-                </p>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleDismiss}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    {activeUpdates.length > 1 ? 'Next' : 'Got it'}
-                    {activeUpdates.length > 1 && <ArrowRight size={10} />}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
 
 
 const StickyNote = ({ text, onClick, className = "", style = {}, scale = 1 }) => (
@@ -1825,7 +1433,7 @@ const LiquidStrictBtn = ({
   const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
   const isMenuOpen = status === 'confirming';
-  const browserType = useRef(getBrowserType()).current;
+  const browserType = getBrowserType();
 
   const isMissing = !isExtensionConnected;
   const isBreak = mode !== 'focus';
@@ -3143,9 +2751,7 @@ function MainApp() {
   }, [isPiPActive]);
 
   /* --- EXISTING STATE --- */
-  const [userHandle, setUserHandle] = useState("");
-  const [showLoginBtn, setShowLoginBtn] = useState(true);
-  const [isAppReady, setIsAppReady] = useState(false);
+
   const [user, setUser] = useState(null);
   const { totalUnread: unreadCount, markAsRead, getLastReadTime, unreadCounts, mentionCounts, totalMentions } = useUnreadMessages(user);
   const [onboardingStep, setOnboardingStep] = useState(() => {
@@ -3153,7 +2759,7 @@ function MainApp() {
     return hasHandle ? 3 : (localStorage.getItem('pomodoro_user_name') ? 3 : 0);
   });
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
-  const [isMigrating, setIsMigrating] = useState(false);
+
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', backgroundOpacity: 0.3, backgroundBrightnessMap: {}, alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
   const [initialState] = useState(loadTimerState);
@@ -3172,20 +2778,12 @@ function MainApp() {
   }, [isActive, mode, timeLeft]);
 
 
-  // --- BUY ME A COFFEE ---
-  const [isBmcDisabled, setIsBmcDisabled] = useState(() => {
-    return localStorage.getItem('zen_bmc_disabled') === 'true';
-  });
 
-  const handleDisableBmc = () => {
-    setIsBmcDisabled(true);
-    localStorage.setItem('zen_bmc_disabled', 'true');
-  };
 
 
 
   // --- CAFFEINE TRACKER ---
-  const [showCaffeine, setShowCaffeine] = useState(false);
+
 
   // --- PROFILE VIEW STATE ---
   const [viewingProfile, setViewingProfile] = useState(null);
@@ -3243,7 +2841,7 @@ function MainApp() {
 
   // --- INTENTION MODE STATE ---
   const [intentionTask, setIntentionTask] = useState(() => localStorage.getItem('zen_intention_task') || "");
-  const [holoNoteContent, setHoloNoteContent] = useState(() => localStorage.getItem('zen_holo_note') || "1. Stretch\n2. Drink water\n3. Check messages");
+
 
   // Dynamic Reminder Logic
   const [remindMessage, setRemindMessage] = useState("");
@@ -3262,10 +2860,7 @@ function MainApp() {
     }
   }, [isActive, settings.intentionMode, intentionTask]);
 
-  const handleSaveHoloNote = (content) => {
-    setHoloNoteContent(content);
-    localStorage.setItem('zen_holo_note', content);
-  };
+
 
   const handleApplyAction = (actionText) => {
     // Extract numbers if present
@@ -3298,49 +2893,28 @@ function MainApp() {
     setIntentionTask(task);
     localStorage.setItem('zen_intention_task', task);
 
-    // AI SESSION PLANNER
-    let plan = null;
-    if (durationInput && (durationInput.length > 3 || isNaN(parseFloat(durationInput)))) {
-      // Show loading glow
-      setIsAIPlanning(true);
-      try {
-        // Only ask AI if input is complex (e.g. "Work deep until 5pm") or non-trivial
-        // Or if user specifically asks.
-        // Actually, let's try strict: If durationInput exists, we check if it is just a number.
-        plan = await generateSessionPlan(task, durationInput);
-      } finally {
-        setIsAIPlanning(false);
-      }
-    }
-
     let newFocus = settings.focus;
     let newShortBreak = settings.shortBreak;
     let newPomos = settings.pomosBeforeLongBreak;
 
-    if (plan && plan.focus) {
-      newFocus = plan.focus;
-      newShortBreak = plan.shortBreak || 5;
-      newPomos = plan.sessions || 4;
-    } else {
-      // Fallback or Simple Number Logic
-      let minutes = settings.focus;
-      if (durationInput) {
-        const lower = durationInput.toLowerCase();
-        const val = parseFloat(lower);
-        if (!isNaN(val)) {
-          if (lower.includes('h') || lower.includes('hr')) {
-            minutes = Math.round(val * 60);
-          } else {
-            minutes = Math.round(val);
-          }
+    // Manual Parsing Logic
+    let minutes = settings.focus;
+    if (durationInput) {
+      const lower = durationInput.toLowerCase();
+      const val = parseFloat(lower);
+      if (!isNaN(val)) {
+        if (lower.includes('h') || lower.includes('hr')) {
+          minutes = Math.round(val * 60);
+        } else {
+          minutes = Math.round(val);
         }
       }
-      if (minutes > 45) {
-        newFocus = 50;
-        newShortBreak = 10;
-      } else {
-        newFocus = minutes;
-      }
+    }
+    if (minutes > 45) {
+      newFocus = 50;
+      newShortBreak = 10;
+    } else {
+      newFocus = minutes;
     }
 
     const newSettings = {
@@ -3437,13 +3011,12 @@ function MainApp() {
     });
   };
 
-  const [devMode, setDevMode] = useState(false);
+
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
   const [showSettings, setShowSettings] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
   const [isPro, setIsPro] = useState(() => Storage.peekProStatus());
@@ -3465,8 +3038,7 @@ function MainApp() {
     }
   }, [settings, unlockedAmbiences, ambienceSetupDone]);
   const [isTallyHovered, setIsTallyHovered] = useState(false);
-  const [extraFocusPopup, setExtraFocusPopup] = useState({ visible: false, minutes: 0 });
-  const [smartMessageOverride, setSmartMessageOverride] = useState(null);
+
   const skipStatsRef = useRef({ attempted: 0, skipped: 0 });
 
   // Restore skipStats on mount
@@ -3537,7 +3109,7 @@ function MainApp() {
 
   const [isEditingSessions, setIsEditingSessions] = useState(false);
   const [sessionEditValue, setSessionEditValue] = useState("");
-  const [highlightCaffeine, setHighlightCaffeine] = useState(false);
+
 
   // FIX: Track if session has actually started to prevent premature interventions
   const [hasStartedSession, setHasStartedSession] = useState(false);
@@ -3552,7 +3124,7 @@ function MainApp() {
   }, [quicklinks]);
 
   // NEW: Track AI Planning State for Visual Feedback
-  const [isAIPlanning, setIsAIPlanning] = useState(false);
+
 
   // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
   const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
@@ -3650,8 +3222,7 @@ function MainApp() {
           // Case 1: No Profile -> New User logic
           console.log("No profile found, redirecting to onboarding...");
           setOnboardingStep(1);
-          setShowLoginBtn(false);
-          setIsMigrating(false);
+
         } else if (profile) {
           // Case 2: Profile Exists
 
@@ -3666,7 +3237,6 @@ function MainApp() {
           if (!profile.handle) {
             // If profile exists but no handle, go to onboarding
             setOnboardingStep(1);
-            setShowLoginBtn(false);
           }
           // Else, all good.
         }
@@ -3761,11 +3331,7 @@ function MainApp() {
   // --- AUDIO STATE ---
   const [volume, setVolume] = useState(() => Storage.getVolume());
 
-  // Wrapper to save volume on change
-  const handleSetVolume = (newVol) => {
-    setVolume(newVol);
-    Storage.setVolume(newVol);
-  };
+
 
   // 1. MUSIC (Focus Tracks)
   // 1. MUSIC (Focus Tracks)
@@ -3776,9 +3342,7 @@ function MainApp() {
   const [musicDuration, setMusicDuration] = useState(0);
 
   // 2. AMBIENCE (Rain, Wind, etc.) - NEW
-  const [currentAmbience, setCurrentAmbience] = useState(null);
-  const [isAmbiencePlaying, setIsAmbiencePlaying] = useState(false);
-  const [ambienceLoading, setAmbienceLoading] = useState(false);
+
   const [ambienceState, setAmbienceState] = useState({});
 
   // 3. LOFI GIRL
@@ -3894,32 +3458,36 @@ function MainApp() {
   };
   const [friendUids, setFriendUids] = useState([]); // Just the IDs for listening
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
-  const [friendConfig, setFriendConfig] = useState({}); // Stores { uid: { isPinned: true/false } }
-  const [isFullscreen, setIsFullscreen] = useState(false);
+
+
   const [isStrictMenuOpen, setIsStrictMenuOpen] = useState(false);
-  const [isBmcMenuOpen, setIsBmcMenuOpen] = useState(false);
+
 
 
   // --- STRICT MODE STATE & LOGIC ---
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
+
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+
+
+
+
+
+
+
+
+
+
+
   const [showStrictConfirm, setShowStrictConfirm] = useState(false);
   const [showStrictWarning, setShowStrictWarning] = useState(false);
   const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
-  // NEW: Spotify Promo Popup State
-  const [showSpotifyPromo, setShowSpotifyPromo] = useState(() => !localStorage.getItem('zen_spotify_promo_dismissed'));
-  const [showVideoPromo, setShowVideoPromo] = useState(() => !localStorage.getItem('zen_video_promo_dismissed'));
 
-  const handleDismissSpotifyPromo = () => {
-    setShowSpotifyPromo(false);
-    localStorage.setItem('zen_spotify_promo_dismissed', 'true');
-  };
 
-  const handleDismissVideoPromo = () => {
-    setShowVideoPromo(false);
-    localStorage.setItem('zen_video_promo_dismissed', 'true');
-  };
 
-  const wasMusicPlayingRef = useRef(false);
+
+
   // --- STRICT MODE LOGIC (UPDATED: EXTENSION BASED) ---
   const strictModeRef = useRef(strictMode);
 
@@ -3963,25 +3531,12 @@ function MainApp() {
   const timerIntervalRef = useRef(null);
   const lastTickRef = useRef(Date.now());
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-        setIsFullscreen(false);
-      }
-    }
-  };
+
 
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -3993,7 +3548,7 @@ function MainApp() {
   const accumulatedTimeRef = useRef(0);
   const lastHeartbeatRef = useRef(0);
   const prevSettings = useRef(DEFAULT_SETTINGS);
-  const lastStatSaveTime = useRef(Date.now());
+
   const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
   const prevNotes = useRef([]);
 
@@ -4004,6 +3559,7 @@ function MainApp() {
 
   // NEW: Windows Promo Popup State
   const [showWindowsPromo, setShowWindowsPromo] = useState(false);
+
 
   useEffect(() => {
     // Check if dismissed
@@ -4069,7 +3625,7 @@ function MainApp() {
       // --- ESCAPE KEY LOGIC (High Priority) ---
       if (e.key === 'Escape') {
         // A. Close Modals (LIFO - Last In First Out logic)
-        if (showKeyboardHelp) { setShowKeyboardHelp(false); return; }
+      
         if (showSettings) { setShowSettings(false); return; }
         if (showAccount) { setShowAccount(false); return; }
         if (showStats) { setShowStats(false); return; }
@@ -4082,14 +3638,9 @@ function MainApp() {
         if (showStrictConfirm) { setShowStrictConfirm(false); return; }
         if (showStrictWarning) { /* Strict warning usually blocks Esc, but we can allow dismissing if needed */ }
         if (showStrictDisableConfirm) { setShowStrictDisableConfirm(false); return; }
-        if (showResetConfirm) { setShowResetConfirm(false); return; }
 
-        // C. Blur Inputs / Edit Modes
-        if (isInputFocused) {
-          e.preventDefault();
-          activeElement.blur();
-          if (activeElement.id === 'session-name-input') { setIsEditingName(false); }
-        }
+
+      // C. Blur Inputs / Edit Modes
 
         // D. Close Note Editor made this change just for the sake of it 
         if (editingNote) {
@@ -4107,8 +3658,7 @@ function MainApp() {
 
       // --- OTHER SHORTCUTS ---
 
-      // Toggle Help
-      if (e.shiftKey && e.key === '?') { e.preventDefault(); setShowKeyboardHelp(prev => !prev); return; }
+
 
       // Space: Toggle Timer (Only in Session)
       if (e.key === ' ' && onboardingStep === 3) { e.preventDefault(); toggleTimer(); return; }
@@ -4162,7 +3712,7 @@ function MainApp() {
     // --- CRITICAL: ALL STATE VARIABLES MUST BE HERE ---
     isActive, onboardingStep, mode, timeLeft, settings,
     // Modals
-    showSettings, showFriends, showKeyboardHelp, showResetConfirm,
+    showSettings, showFriends,
     showAccount, showMusic, showStats, viewingFriendStats,
     showStrictConfirm, showStrictWarning, showStrictDisableConfirm,
     isNoteLibraryOpen, editingNote,
@@ -4171,7 +3721,7 @@ function MainApp() {
     // Inputs
   ]);
 
-  const playAlarm = (currentMode) => {
+  const playAlarm = () => {
     // 1. Get the current alarm sound ID from settings, default to 'digital'
     const soundId = settings.alarmSound || 'digital';
 
@@ -4243,7 +3793,7 @@ function MainApp() {
       const todayId = formatDateId(new Date());
 
       // 1. Update Profile (Public presence + stats)
-      const { error } = await UserService.updateProfile(user.uid, {
+      await UserService.updateProfile(user.uid, {
         timer_state: payload.timerState,
         stats: payload.stats,
         // streak: payload.streak, // If you add streak column to profiles
@@ -4272,40 +3822,7 @@ function MainApp() {
     }
   };
 
-  const handleDevStatsUpdate = async (newStats) => {
-    if (!user) return;
 
-    Storage.setTodayStats(newStats);
-
-    setStats(prev => ({
-      ...prev,
-      dailyFocusTime: newStats.dailyFocusTime,
-      dailyBreakTime: newStats.dailyBreakTime,
-      dailySessions: newStats.dailySessions
-    }));
-
-    try {
-      const todayId = formatDateId(new Date());
-
-      await UserService.updateProfile(user.id, {
-        stats: newStats,
-        last_active: new Date()
-      });
-
-      await UserService.upsertHistory({
-        user_id: user.id,
-        date_id: todayId,
-        focus_time: newStats.dailyFocusTime,
-        break_time: newStats.dailyBreakTime,
-        sessions: newStats.dailySessions,
-        data: newStats
-      });
-
-      console.log('[Dev Stats] Updated successfully');
-    } catch (e) {
-      console.error('[Dev Stats] Update failed:', e);
-    }
-  };
 
   // --- UPDATED AUTH EFFECT (Supabase) ---
   useEffect(() => {
@@ -4348,7 +3865,7 @@ function MainApp() {
     // GUARD: Skip Auth check if in Demo Mode
     if (window.location.search.includes('demo=')) {
       setIsAuthChecking(false);
-      setIsAppReady(true);
+
       return;
     }
 
@@ -4386,9 +3903,6 @@ function MainApp() {
         localStorage.removeItem('zen_user_handle');
         localStorage.setItem('pomodoro_user_name', "Guest");
         setOnboardingStep(3);
-        setShowLoginBtn(false);
-        setDataLoaded(true);
-        return;
       }
 
       // Registered User Logic
@@ -4400,7 +3914,7 @@ function MainApp() {
         // They can set handle in settings.
         console.warn("Handle missing for user, defaulting to dashboard.");
         setOnboardingStep(3);
-        setIsMigrating(false);
+
       }
 
     } else {
@@ -4719,9 +4233,9 @@ function MainApp() {
       }
 
       // SUCCESS: Force Fetch Friendship Data
-      const { success: fetchSuccess, data, error: fetchError } = await SocialService.fetchFriends(user.uid);
+      const { data } = await SocialService.fetchFriends(user.uid);
 
-      if (fetchSuccess && data) {
+      if (data) {
         const now = Date.now();
         const mapped = data.map(row => {
           const p = row.profile;
@@ -4966,7 +4480,7 @@ function MainApp() {
           const { success, data: todayHistory } = await UserService.getHistoryByDate(user.uid, todayId);
 
           if (success && todayHistory) {
-            const hydrated = Storage.hydrateTodayStats(todayHistory);
+            Storage.hydrateTodayStats(todayHistory);
             // Note: We don't need to force setStats here because:
             // 1) The Timer/Stats UI reads directly from localStorage on mount/tick
             // 2) The 'stats' state in App.jsx is mainly for public profile sync
@@ -5187,10 +4701,7 @@ function MainApp() {
       // 1. Clear ALL Persistent Data (Centralized)
       Storage.clearAll();
 
-      // 2. Reset UI State
-      setIsMigrating(false);
-      setIsMigrating(false);
-      setOnboardingStep(0);
+
       setOnboardingInnerStep(0);
       setIsPro(false); // Explicit state update
       setNotes([]);    // Reset notes UI
@@ -5285,9 +4796,7 @@ function MainApp() {
           let nextIsActive = false;
 
           if (mode === 'focus') {
-            if (!devMode) {
-              setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
-            }
+            setStats(prev => ({ ...prev, dailySessions: prev.dailySessions + 1 }));
             if (strictMode) document.exitFullscreen().catch(() => { });
 
             // 1. DETERMINE INTENDED NEXT MODE
@@ -5299,34 +4808,10 @@ function MainApp() {
               intendedTimeLeft = (Number(settings.longBreak) || 15) * 60;
             }
 
-            // 2. ELON MUSK LOGIC (Skip Break Check)
-            let skipBreak = false;
-
-            // (Elon logic removed)
-
-            if (skipBreak) {
-              // ELON MODE: SKIP BREAK
-              // We go straight back to FOCUS
-              nextMode = 'focus';
-              nextTimeLeft = (Number(settings.focus) || 25) * 60;
-
-              // Respect User Setting for Auto-Start
-              nextIsActive = settings.autoStartWork;
-
-              // NEW: Show Smart Pill Message (Purple Shimmer)
-              const msg = ELON_MSG[Math.floor(Math.random() * ELON_MSG.length)];
-              setSmartMessageOverride(msg);
-              new Audio('/sounds/breakskipped.mp3').play().catch(e => console.error("Break skipped sound failed", e));
-              setTimeout(() => {
-                setSmartMessageOverride(null);
-              }, 60000); // Show for 1 minute
-
-            } else {
               // NORMAL BEHAVIOR
               nextMode = intendedNextMode;
               nextTimeLeft = intendedTimeLeft;
               if (settings.autoStartBreaks) nextIsActive = true;
-            }
 
           } else if (mode === 'shortBreak') {
             // ... (existing shortBreak end logic) ...
@@ -5410,7 +4895,7 @@ function MainApp() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [isActive, mode, settings, pomoCount, devMode, strictMode, timerResetKey]);
+  }, [isActive, mode, settings, pomoCount, strictMode, timerResetKey]);
 
   useEffect(() => {
     if (isActive && endTimeRef.current) {
@@ -5447,7 +4932,6 @@ function MainApp() {
   // --- UPDATED TOGGLE TIMER ---
   const toggleTimer = () => {
     // BLOCK: Do not allow starting if AI is planning
-    if (isAIPlanning) return;
 
     // 1. Flush: effectively does nothing now (Silent)
     if (isActive) flushUnsavedTime();
@@ -5510,9 +4994,10 @@ function MainApp() {
       lastUpdated: Date.now()
     });
 
-    // 4. Close the modal
     setShowResetConfirm(false);
   };
+
+
 
   const handleModeChange = (newMode) => {
     flushUnsavedTime();
@@ -5532,7 +5017,7 @@ function MainApp() {
     });
   };
 
-  const isTimerRunning = isActive || (timeLeft < settings[mode] * 60 && timeLeft > 0);
+
 
   // FIX: Robustly clear Intention Data whenever Intention Mode is disabled
   // This ensures that toggling it OFF in current settings (even without save) clears the task.
@@ -5814,8 +5299,7 @@ function MainApp() {
     // 5. Update React State (Visuals)
     setSettings(newSettings);
   };
-  const handleAddCustomBackground = (newBg) => { setCustomBackgrounds(prev => [...prev, newBg]); };
-  const handleDeleteCustomBackground = (bgId) => { const bgToDelete = customBackgrounds.find(b => b.id === bgId); if (bgToDelete && settings.background === bgToDelete.src) { setSettings(prev => ({ ...prev, background: '' })); } setCustomBackgrounds(prev => prev.filter(bg => bg.id !== bgId)); };
+
   const formatTime = (seconds) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
 
   useEffect(() => {
@@ -5861,15 +5345,8 @@ function MainApp() {
     }
   }, [settings.intentionMode]);
 
-  const [showBreakCheckIn, setShowBreakCheckIn] = useState(false);
-  // Break Check-in Logic
-  useEffect(() => {
-    if (mode === 'shortBreak' || mode === 'longBreak') {
-      setShowBreakCheckIn(true);
-    } else {
-      setShowBreakCheckIn(false);
-    }
-  }, [mode]);
+
+
 
   // Background Logic:
   // 1. Intention Mode (Wizard OR Session): ALWAYS Show Video
@@ -6053,11 +5530,9 @@ function MainApp() {
                   />
                 )}
                 <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                  <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); handleDismissVideoPromo(); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
-
-
-
+                  <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
                     <div className="relative">
+
                       <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
                       {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
                     </div>
@@ -6066,7 +5541,7 @@ function MainApp() {
                     </motion.span>
                   </motion.button>
                   <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                  <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); handleDismissSpotifyPromo(); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
 
                     {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
                     <div className="relative flex items-center justify-center">
@@ -6133,7 +5608,7 @@ function MainApp() {
                                           : (remindMessage || `Remember: ${intentionTask}`)
                                       )
                                   )
-                                  : smartMessageOverride
+                                  : null
                               }
                               onUpdateEndTime={handleUpdateEndTime}
                             />
@@ -6152,7 +5627,6 @@ function MainApp() {
                       userName={user?.displayName?.split(' ')[0]}
                       onClose={() => toggleTimer()}
                       onApplyAction={handleApplyAction}
-                      getGeminiAdvice={getGeminiAdvice}
                     />
 
                     {/* SMART INTERVENTION OVERLAY
@@ -6329,7 +5803,7 @@ function MainApp() {
                         })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
 
                     ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
-                    ${isAIPlanning ? 'animate-pulse drop-shadow-[0_0_100px_rgba(192,132,252,1)] text-purple-100' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
+                    ${'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                   `}
                       style={{
                         WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
@@ -6355,8 +5829,7 @@ function MainApp() {
                       <button
                         ref={playBtnRef}
                         onClick={toggleTimer}
-                        disabled={isAIPlanning}
-                        className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-default ${isAIPlanning ? 'opacity-30 cursor-not-allowed scale-90' : ''}`}
+                        className={`w-20 h-20 rounded-full bg-white text-black flex items-center justify-center transition-all duration-300 active:scale-90 shadow-[0_0_40px_rgba(255,255,255,0.2)] md:hover:scale-110 md:shadow-[0_0_40px_rgba(255,255,255,0.1)] cursor-default`}
                       >
                         <div className="relative w-8 h-8 flex items-center justify-center">
                           <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ease-out ${isActive ? 'scale-100 rotate-0 opacity-100' : 'scale-50 rotate-90 opacity-0'}`}>
@@ -6373,8 +5846,6 @@ function MainApp() {
                         disabled={strictMode && mode === 'focus'}
                       />
                     </div>
-
-                    <ExtraTimePopup visible={extraFocusPopup.visible} minutes={extraFocusPopup.minutes} />
 
                     <GameCenter
                       mode={mode}
@@ -6438,7 +5909,7 @@ function MainApp() {
           onOpenPro={(source) => setProModalSource(source || 'settings')}
           onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
           initialTab={settingsTab}
-          onDevStatsUpdate={handleDevStatsUpdate}
+
         />
 
         <SocialProfileModal
@@ -6542,19 +6013,19 @@ function MainApp() {
         />
 
         <SocialProfileModal
-          isOpen={!!viewingProfile}
-          onClose={() => setViewingProfile(null)}
-          user={viewingProfile}
+          isOpen={!!viewingFriendStats}
+          onClose={() => setViewingFriendStats(null)}
+          user={viewingFriendStats}
           currentUser={user}
           onProfileUpdate={handleProfileUpdate}
           onAddFriend={
             // Only show Add Friend if NOT already friends and NOT self
-            (!viewingProfile || (viewingProfile.id !== user.uid && !friendUids.includes(viewingProfile.id)))
-              ? () => handleSendRequest(viewingProfile.id)
+            (!viewingFriendStats || (viewingFriendStats.id !== user.uid && !friendUids.includes(viewingFriendStats.id)))
+              ? () => handleSendRequest(viewingFriendStats.id)
               : null
           }
           onMessage={() => {
-            setViewingProfile(null);
+            setViewingFriendStats(null);
             setShowFriends(true);
           }}
         />
@@ -6587,11 +6058,7 @@ function MainApp() {
         {/* --- GLOBAL REMINDER SYSTEM (Hidden) --- */}
         <TaskReminderSystem tasks={tasks} />
 
-        {/* --- WINDOWS PROMO MODAL --- */}
-        <WindowsPromoModal
-          isOpen={showWindowsPromo}
-          onClose={handleDismissWindowsPromo}
-        />
+
 
 
         {/* --- COMMAND MENU --- */}
@@ -6634,7 +6101,6 @@ function MainApp() {
     </VideoManager>
   );
 }
-
 export default function App() {
   const pathname = window.location.pathname;
 
