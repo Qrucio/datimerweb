@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
@@ -14,18 +14,24 @@ import { Storage } from './utils/storage';
 import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
 import { CommandMenu } from './components/CommandMenu';
 import OnboardingFlow from './components/OnboardingFlow';
-import SocialModal from './components/modals/SocialModal';
 import IntentionWizard from './components/IntentionWizard';
 import HoloNote from './components/HoloNote';
 import HoloGrainBackground from './components/HoloGrainBackground';
 import SmartIntervention from './components/SmartIntervention';
 import BreakCheckIn from './components/BreakCheckIn'; // NEW
-import MusicModal from './components/modals/MusicModal';
-import SocialProfileModal from './components/modals/SocialProfileModal';
+const MusicModal = lazy(() => import('./components/modals/MusicModal'));
+const SocialProfileModal = lazy(() => import('./components/modals/SocialProfileModal'));
+const SocialModal = lazy(() => import('./components/modals/SocialModal'));
 import Avatar from './components/Avatar';
 import { BACKGROUND_OPTIONS, AMBIENT_SOUNDS, MUSIC_TRACKS, ALARM_SOUNDS } from './utils/data';
-import SnakeGame, { SnakeIcon } from './components/games/SnakeGame';
-import TypingGame from './components/games/TypingGame';
+const SnakeIcon = ({ size = 24, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M21 7H17V11H13V15H9V19H3V15H7V11H11V7H15V3H21V7Z" fill="currentColor" />
+    <circle cx="18.5" cy="5.5" r="1.5" fill="black" fillOpacity="0.5" />
+  </svg>
+);
+const SnakeGame = lazy(() => import('./components/games/SnakeGame'));
+const TypingGame = lazy(() => import('./components/games/TypingGame'));
 import CalendarPanel from './components/notes/CalendarPanel';
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
@@ -34,12 +40,12 @@ import VideoPipWindow from './components/video/VideoPipWindow';
 import FriendsDock from './components/social/FriendsDock';
 import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
-import ReleaseNotesPage from './pages/ReleaseNotesPage';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import AboutPage from './pages/AboutPage';
-import ContactPage from './pages/ContactPage';
-import DownloadsPage from './pages/DownloadsPage';
-import WindowsPromoModal from './components/modals/WindowsPromoModal';
+const ReleaseNotesPage = lazy(() => import('./pages/ReleaseNotesPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const DownloadsPage = lazy(() => import('./pages/DownloadsPage'));
+const WindowsPromoModal = lazy(() => import('./components/modals/WindowsPromoModal'));
 
 const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
 const FIREFOX_ID = "altimercompanion@qruciatus.com";
@@ -170,7 +176,7 @@ const formatDateId = (date) => {
 // Helper to format seconds into readable string (e.g., "1h 30m 10s")
 const GlobalStyles = () => (
   <style>{`
-   @import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bungee+Shade&family=Inter:wght@300;400;500;600&family=Montserrat:wght@700&family=Orbitron:wght@400;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Rajdhani:wght@700&family=Righteous&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bungee+Shade&family=Inter:wght@300;400;500;600&family=Montserrat:wght@700&family=Orbitron:wght@400;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Rajdhani:wght@700&family=Righteous&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
     @import url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css');
     
     body { 
@@ -2622,10 +2628,14 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                   className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
+                  <Suspense fallback={null}>
+                    <SnakeGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
+                  </Suspense>
                 </motion.div>
               ) : activeGame === 'typing' ? (
-                <TypingGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
+                <Suspense fallback={null}>
+                  <TypingGame onExit={() => setActiveGame(null)} timeLeft={timeLeft} />
+                </Suspense>
               ) : (
                 // --- GAME MENU ---
                 <motion.div
@@ -5902,54 +5912,58 @@ function MainApp() {
 
         />
 
-        <SocialProfileModal
-          isOpen={showStats}
-          onClose={() => {
-            setShowStats(false);
-            setViewingFriendStats(null);
-          }}
-          user={viewingFriendStats}
-          currentUser={user}
-          onAddFriend={null} // Already friends or viewing stats
-          onMessage={() => {
-            setShowStats(false); // Close modal
-            setShowFriends(true); // Open friends list
-            // Ideally switch to DMs
-          }}
-          onProfileUpdate={null} // Friends can't update friend profiles
-        />
+        <Suspense fallback={null}>
+          <SocialProfileModal
+            isOpen={showStats}
+            onClose={() => {
+              setShowStats(false);
+              setViewingFriendStats(null);
+            }}
+            user={viewingFriendStats}
+            currentUser={user}
+            onAddFriend={null} // Already friends or viewing stats
+            onMessage={() => {
+              setShowStats(false); // Close modal
+              setShowFriends(true); // Open friends list
+              // Ideally switch to DMs
+            }}
+            onProfileUpdate={null} // Friends can't update friend profiles
+          />
+        </Suspense>
 
 
         <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
-        <MusicModal
-          // ... (keep existing props like volume, currentTrack, etc.) ...
-          volume={volume}
-          onVolumeChange={setVolume}
-          isOpen={showMusic}
-          onClose={() => setShowMusic(false)}
-          currentTrack={currentTrack}
-          isPlaying={isMusicPlaying}
-          onPlay={handlePlayMusic}
-          onPause={handlePauseMusic}
-          isLoading={musicLoading}
-          progress={musicProgress}
-          duration={musicDuration}
-          onSeek={handleSeekMusic}
-          ambienceState={ambienceState}
-          onToggleAmbience={toggleAmbience}
-          onAmbienceVolume={changeAmbienceVolume}
-          onStopAllAmbience={stopAllAmbience}
-          isLofiPlaying={isLofiPlaying}
-          onToggleLofi={toggleLofi}
+        <Suspense fallback={null}>
+          <MusicModal
+            // ... (keep existing props like volume, currentTrack, etc.) ...
+            volume={volume}
+            onVolumeChange={setVolume}
+            isOpen={showMusic}
+            onClose={() => setShowMusic(false)}
+            currentTrack={currentTrack}
+            isPlaying={isMusicPlaying}
+            onPlay={handlePlayMusic}
+            onPause={handlePauseMusic}
+            isLoading={musicLoading}
+            progress={musicProgress}
+            duration={musicDuration}
+            onSeek={handleSeekMusic}
+            ambienceState={ambienceState}
+            onToggleAmbience={toggleAmbience}
+            onAmbienceVolume={changeAmbienceVolume}
+            onStopAllAmbience={stopAllAmbience}
+            isLofiPlaying={isLofiPlaying}
+            onToggleLofi={toggleLofi}
 
-          // --- NEW PROPS ---
-          isPro={isPro}
-          unlockedAmbiences={unlockedAmbiences}
-          ambienceSetupDone={ambienceSetupDone}
-          onSaveAmbienceSelection={handleSaveAmbienceSelection}
-          onOpenPro={() => setProModalSource('ambience')}
-        // -----------------
-        />
+            // --- NEW PROPS ---
+            isPro={isPro}
+            unlockedAmbiences={unlockedAmbiences}
+            ambienceSetupDone={ambienceSetupDone}
+            onSaveAmbienceSelection={handleSaveAmbienceSelection}
+            onOpenPro={() => setProModalSource('ambience')}
+          // -----------------
+          />
+        </Suspense>
         {/* --------------------- */}
 
         {/* --- ADD STRICT MODE MODALS HERE --- */}
@@ -5969,56 +5983,67 @@ function MainApp() {
         onClose={() => setShowCaffeine(false)}
       /> */}
 
-        <SocialModal
-          isOpen={showFriends}
-          onClose={() => {
-            setShowFriends(false);
-            setSocialView('list');
-            setSocialInitialServerId(null); // Reset target
-            setSocialInitialTab(null); // Reset tab
-          }}
-          initialServerId={socialInitialServerId} // PASS TARGET SERVER
-          initialTab={socialInitialTab} // PASS TARGET TAB
-          initialView={socialView}
-          user={user}
-          onMarkRead={markAsRead}
-          getLastReadTime={getLastReadTime}
-          unreadCounts={unreadCounts}
-          onViewProfile={setViewingProfile}
-          friends={friends}
-          friendRequests={friendRequests}
-          blockedUsers={blockedUsers}
-          onSendRequest={handleSendRequest}
-          onAcceptRequest={handleAcceptRequest}
-          onDeclineRequest={handleDeclineRequest}
-          onBlockUser={handleBlockUser}
-          onUnblockUser={handleUnblockUser}
-          checkOutgoingRequest={handleCheckOutgoingRequest}
-          onViewStats={handleViewFriendStats}
-          onTogglePin={handleTogglePin}
-          onSearchUsers={handleSearchUsers}
-          onRemoveFriend={handleRemoveFriend}
-          isFocusing={mode === 'focus'}
-          onMentionClick={handleMentionClick}
-        />
+        <Suspense fallback={null}>
+          <SocialModal
+            isOpen={showFriends}
+            onClose={() => {
+              setShowFriends(false);
+              setSocialView('list');
+              setSocialInitialServerId(null); // Reset target
+              setSocialInitialTab(null); // Reset tab
+            }}
+            initialServerId={socialInitialServerId} // PASS TARGET SERVER
+            initialTab={socialInitialTab} // PASS TARGET TAB
+            initialView={socialView}
+            user={user}
+            onMarkRead={markAsRead}
+            getLastReadTime={getLastReadTime}
+            unreadCounts={unreadCounts}
+            onViewProfile={setViewingProfile}
+            friends={friends}
+            friendRequests={friendRequests}
+            blockedUsers={blockedUsers}
+            onSendRequest={handleSendRequest}
+            onAcceptRequest={handleAcceptRequest}
+            onDeclineRequest={handleDeclineRequest}
+            onBlockUser={handleBlockUser}
+            onUnblockUser={handleUnblockUser}
+            checkOutgoingRequest={handleCheckOutgoingRequest}
+            onViewStats={handleViewFriendStats}
+            onTogglePin={handleTogglePin}
+            onSearchUsers={handleSearchUsers}
+            onRemoveFriend={handleRemoveFriend}
+            isFocusing={mode === 'focus'}
+            onMentionClick={handleMentionClick}
+          />
+        </Suspense>
 
-        <SocialProfileModal
-          isOpen={!!viewingFriendStats}
-          onClose={() => setViewingFriendStats(null)}
-          user={viewingFriendStats}
-          currentUser={user}
-          onProfileUpdate={handleProfileUpdate}
-          onAddFriend={
-            // Only show Add Friend if NOT already friends and NOT self
-            (!viewingFriendStats || (viewingFriendStats.id !== user.uid && !friendUids.includes(viewingFriendStats.id)))
-              ? () => handleSendRequest(viewingFriendStats.id)
-              : null
-          }
-          onMessage={() => {
-            setViewingFriendStats(null);
-            setShowFriends(true);
-          }}
-        />
+        <Suspense fallback={null}>
+          <SocialProfileModal
+            isOpen={!!viewingFriendStats}
+            onClose={() => setViewingFriendStats(null)}
+            user={viewingFriendStats}
+            currentUser={user}
+            onProfileUpdate={handleProfileUpdate}
+            onAddFriend={
+              // Only show Add Friend if NOT already friends and NOT self
+              (!viewingFriendStats || (viewingFriendStats.id !== user.uid && !friendUids.includes(viewingFriendStats.id)))
+                ? () => handleSendRequest(viewingFriendStats.id)
+                : null
+            }
+            onMessage={() => {
+              setViewingFriendStats(null);
+              setShowFriends(true);
+            }}
+          />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <WindowsPromoModal
+            isOpen={showWindowsPromo}
+            onClose={handleDismissWindowsPromo}
+          />
+        </Suspense>
 
         <NoteSystemModals
           notes={notes}
@@ -6094,30 +6119,23 @@ function MainApp() {
 export default function App() {
   const pathname = window.location.pathname;
 
-  if (pathname === '/releasenotes') {
-    return <ReleaseNotesPage />;
-  }
-
-  if (pathname === '/privacy') {
-    return <PrivacyPolicyPage />;
-  }
-
-  if (pathname === '/about') {
-    return <AboutPage />;
-  }
-
-  if (pathname === '/contact') {
-
-    return <ContactPage />;
-  }
-
-  if (pathname === '/downloads') {
-    return <DownloadsPage />;
-  }
-
   return (
-    <ErrorBoundary>
-      <MainApp />
-    </ErrorBoundary>
+    <Suspense fallback={<AppLoader />}>
+      {pathname === '/releasenotes' && <ReleaseNotesPage />}
+      {pathname === '/privacy' && <PrivacyPolicyPage />}
+      {pathname === '/about' && <AboutPage />}
+      {pathname === '/contact' && <ContactPage />}
+      {pathname === '/downloads' && <DownloadsPage />}
+
+      {pathname !== '/releasenotes' &&
+        pathname !== '/privacy' &&
+        pathname !== '/about' &&
+        pathname !== '/contact' &&
+        pathname !== '/downloads' && (
+          <ErrorBoundary>
+            <MainApp />
+          </ErrorBoundary>
+        )}
+    </Suspense>
   );
 }
