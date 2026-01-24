@@ -4352,33 +4352,23 @@ function MainApp() {
 
 
     const initStreak = async () => {
-      // 1. Calculate Local Streak (Most up-to-date regarding today's activity)
+      try {
+        if (user?.uid) {
+          // Server is authoritative - use it when available
+          const { success, data: serverStreak } = await UserService.getCurrentStreak(user.uid);
+          if (success) {
+            setStats(prev => ({ ...prev, currentStreak: serverStreak || 0 }));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch server streak, using local calculation:', err);
+      }
+      
+      // Offline fallback: calculate from local history
       const localHistory = Storage.getFullHistory();
       const localStreak = Storage.calculateStreak(localHistory);
-
-      // 2. Fetch Server Streak (Authoritative for past history on new devices)
-      const { success, data: serverStreak } = await UserService.getCurrentStreak(user.uid);
-
-      // 3. Reconcile: Trust the higher number (Union of knowledge)
-      const finalStreak = Math.max(localStreak, (success ? serverStreak : 0) || 0);
-
-      if (finalStreak > 0) {
-        setStats(prev => ({ ...prev, currentStreak: finalStreak }));
-
-        // 4. Force Sync Authoritative Streak to Profile (for friends)
-        // Only update if needed or to ensure consistency
-        if (finalStreak !== serverStreak) {
-          await UserService.updateProfile(user.uid, {
-            streak: finalStreak,
-            stats: {
-              ...stats,
-              currentStreak: finalStreak
-            }
-          });
-        }
-      } else {
-        setStats(prev => ({ ...prev, currentStreak: 0 }));
-      }
+      setStats(prev => ({ ...prev, currentStreak: localStreak }));
     };
     initStreak();
 
