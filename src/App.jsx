@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
 import { Storage } from './utils/storage';
-import UnifiedSettingsModal from './components/modals/UnifiedSettingsModal';
+const UnifiedSettingsModal = lazy(() => import('./components/modals/UnifiedSettingsModal'));
 import { CommandMenu } from './components/CommandMenu';
 import OnboardingFlow from './components/OnboardingFlow';
 import IntentionWizard from './components/IntentionWizard';
@@ -32,7 +32,7 @@ const SnakeIcon = ({ size = 24, className = "" }) => (
 );
 const SnakeGame = lazy(() => import('./components/games/SnakeGame'));
 const TypingGame = lazy(() => import('./components/games/TypingGame'));
-import CalendarPanel from './components/notes/CalendarPanel';
+const CalendarPanel = lazy(() => import('./components/notes/CalendarPanel'));
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
 import { VideoManager } from './components/video/VideoManager';
@@ -2450,20 +2450,22 @@ const NoteSystemModals = ({
 
             {/* RIGHT: SMART NOTES (40%) */}
             <div className="w-full lg:w-[40%] h-full flex flex-col border-t lg:border-t-0 lg:border-l border-dashed border-white/20 bg-white/0 overflow-hidden">
-              <CalendarPanel
-                tasks={tasks || []}
-                habits={habits || []}
-                notes={notes}
-                allTags={allTags}
-                onUpdateTasks={onUpdateTasks}
-                onAddTask={(newTask) => onUpdateTasks([...(tasks || []), newTask])}
-                onAddHabit={(newHabit) => onUpdateHabits([...(habits || []), newHabit])}
-                onUpdateTask={(id, updates) => onUpdateTasks((tasks || []).map(t => t.id === id ? { ...t, ...updates } : t))}
-                onUpdateHabit={(id, updates) => onUpdateHabits((habits || []).map(h => h.id === id ? { ...h, ...updates } : h))}
-                onDeleteTask={(id) => onUpdateTasks((tasks || []).filter(t => t.id !== id))}
-                onDeleteHabit={(id) => onUpdateHabits((habits || []).filter(h => h.id !== id))}
-                onClose={closeLibrary}
-              />
+              <Suspense fallback={null}>
+                <CalendarPanel
+                  tasks={tasks || []}
+                  habits={habits || []}
+                  notes={notes}
+                  allTags={allTags}
+                  onUpdateTasks={onUpdateTasks}
+                  onAddTask={(newTask) => onUpdateTasks([...(tasks || []), newTask])}
+                  onAddHabit={(newHabit) => onUpdateHabits([...(habits || []), newHabit])}
+                  onUpdateTask={(id, updates) => onUpdateTasks((tasks || []).map(t => t.id === id ? { ...t, ...updates } : t))}
+                  onUpdateHabit={(id, updates) => onUpdateHabits((habits || []).map(h => h.id === id ? { ...h, ...updates } : h))}
+                  onDeleteTask={(id) => onUpdateTasks((tasks || []).filter(t => t.id !== id))}
+                  onDeleteHabit={(id) => onUpdateHabits((habits || []).filter(h => h.id !== id))}
+                  onClose={closeLibrary}
+                />
+              </Suspense>
             </div>
           </div>
         </motion.div>
@@ -5894,23 +5896,25 @@ function MainApp() {
 
 
 
-        <UnifiedSettingsModal
-          isOpen={isUnifiedModalOpen}
-          onClose={() => setIsUnifiedModalOpen(false)}
-          user={user}
-          signOut={handleSignOut}
-          settings={settings}
-          setSettings={setSettings}
-          handleSettingsSave={handleSettingsSave}
-          handleBackgroundChange={handleBackgroundChange}
-          backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
-          stats={stats}
-          isPro={isPro}
-          onOpenPro={(source) => setProModalSource(source || 'settings')}
-          onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
-          initialTab={settingsTab}
+        <Suspense fallback={null}>
+          <UnifiedSettingsModal
+            isOpen={isUnifiedModalOpen}
+            onClose={() => setIsUnifiedModalOpen(false)}
+            user={user}
+            signOut={handleSignOut}
+            settings={settings}
+            setSettings={setSettings}
+            handleSettingsSave={handleSettingsSave}
+            handleBackgroundChange={handleBackgroundChange}
+            backgrounds={[...BACKGROUND_OPTIONS, ...customBackgrounds]}
+            stats={stats}
+            isPro={isPro}
+            onOpenPro={(source) => setProModalSource(source || 'settings')}
+            onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
+            initialTab={settingsTab}
 
-        />
+          />
+        </Suspense>
 
         <Suspense fallback={null}>
           <SocialProfileModal

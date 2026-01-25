@@ -12,5 +12,17 @@ export default defineConfig({
   },
   build: {
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-framer': ['framer-motion'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-livekit': ['livekit-client', '@livekit/components-react', '@livekit/components-styles'],
+          'vendor-math': ['mathjs'],
+          'vendor-date': ['date-fns'],
+        },
+      },
+    },
   },
 })
