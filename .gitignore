@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .env
 altimer-companion/
+nul
 
 # local configs and sisyphus
 .opencode/
