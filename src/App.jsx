@@ -47,29 +47,7 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const DownloadsPage = lazy(() => import('./pages/DownloadsPage'));
 const WindowsPromoModal = lazy(() => import('./components/modals/WindowsPromoModal'));
 
-const CHROME_ID = "jedfahaahenadaohjcppmoghhepiigdp";
-const FIREFOX_ID = "altimercompanion@qruciatus.com";
 
-const syncWithExtension = (isActive, isStrict, mode) => {
-  // We send a message to the window. 
-  // The content.js (injected by extension) will catch this and relay it.
-  window.postMessage({
-    type: "ALTIMER_SYNC_REQUEST",
-    payload: {
-      type: 'SYNC_TIMER',
-      isActive: isActive,
-      isStrict: isStrict,
-      mode: mode
-    }
-  }, "*");
-};
-
-const getBrowserType = () => {
-  const userAgent = navigator.userAgent.toLowerCase();
-  if (userAgent.indexOf("firefox") > -1) return "firefox";
-  if (userAgent.indexOf("safari") > -1 && userAgent.indexOf("chrome") === -1) return "webkit";
-  return "chromium"; // Default to Chromium (Chrome, Brave, Edge, Opera)
-};
 
 
 
@@ -1432,16 +1410,15 @@ const LiquidStrictBtn = ({
   onDisable,
   isLocked,
   onMouseEnter,
-  isExtensionConnected,
   mode,
   onMenuChange
 }) => {
   const [status, setStatus] = useState('idle');
   const containerRef = useRef(null);
   const isMenuOpen = status === 'confirming';
-  const browserType = getBrowserType();
 
-  const isMissing = !isExtensionConnected;
+  // Always show "download app" prompt since we can't detect desktop app installation
+  const isMissing = true;
   const isBreak = mode !== 'focus';
   const showAllowed = isStrict && isBreak;
 
@@ -1513,25 +1490,17 @@ const LiquidStrictBtn = ({
             {isMissing ? (
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-white/70 leading-relaxed">
-                  Strict Mode requires our free companion extension to block websites.
+                  Strict Mode requires our free desktop app to block websites.
                 </p>
-                {browserType === 'webkit' ? (
-                  <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
-                    <p className="text-xs text-white/50">Safari/WebKit is not currently supported.</p>
-                  </div>
-                ) : (
-                  <>
-                    <a
-                      href={browserType === 'firefox' ? "https://addons.mozilla.org/firefox/downloads/file/4633776/079d159c8a564ccb9d72-1.0.0.xpi" : "https://www.dropbox.com/scl/fi/mvitnd6gv7zvxmwxxwe7w/altimer-companion-chromium.zip?rlkey=utl46iuck2qwof84d52pw6tvk&st=cvl1ifog&dl=1"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-3 bg-white text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg"
-                    >
-                      <Download size={14} />
-                      {browserType === 'firefox' ? "Add to Firefox" : "Download Extension"}
-                    </a>
-                  </>
-                )}
+                <a
+                  href="/downloads"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-white text-black font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-gray-200 transition-colors shadow-lg"
+                >
+                  <Download size={14} />
+                  Download App
+                </a>
                 <button onClick={() => setStatus('idle')} className="w-full py-2 text-xs text-white/30 hover:text-white transition-colors">Close</button>
               </div>
             ) : (
@@ -2780,7 +2749,6 @@ function MainApp() {
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
   const [timerResetKey, setTimerResetKey] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
-  const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
   // Ref to hold lateast state for Sync Replies without re-running effects
   const latestStateRef = useRef({ isActive: false, mode: 'focus', timeLeft: 25 * 60 });
@@ -2799,34 +2767,6 @@ function MainApp() {
 
   // --- PROFILE VIEW STATE ---
   const [viewingProfile, setViewingProfile] = useState(null);
-
-  // Check if extension is installed (Universal Method)
-  useEffect(() => {
-    const checkExtension = () => {
-      // Check both html and body tags to be safe
-      const onHtml = document.documentElement.getAttribute('data-altimer-extension-installed') === 'true';
-      const onBody = document.body && document.body.getAttribute('data-altimer-extension-installed') === 'true';
-
-      if (onHtml || onBody) {
-        setIsExtensionConnected(true);
-        return true;
-      }
-      return false;
-    };
-
-    // 1. Check immediately
-    if (checkExtension()) return;
-
-    // 2. Poll for a few seconds (in case extension loads slightly slower)
-    const interval = setInterval(() => {
-      if (checkExtension()) {
-        clearInterval(interval);
-      }
-    }, 500);
-
-    setTimeout(() => clearInterval(interval), 5000);
-    return () => clearInterval(interval);
-  }, [onboardingStep]);
 
   // --- CACHE-FIRST STATE INITIALIZATION ---
   const [notes, setNotes] = useState(Storage.getNotes());
@@ -3503,16 +3443,13 @@ function MainApp() {
   // --- STRICT MODE LOGIC (UPDATED: EXTENSION BASED) ---
   const strictModeRef = useRef(strictMode);
 
-  // Keep Ref in sync & Sync with Extension
+  // Keep Ref in sync
   useEffect(() => {
     strictModeRef.current = strictMode;
-    // Sync whenever Strict Mode OR The Timer Mode changes
-    syncWithExtension(isActive, strictMode, mode);
     localStorage.setItem('zen_strict_mode', strictMode);
-  }, [strictMode, isActive, mode]); // <--- Added 'mode' dependency
+  }, [strictMode, isActive, mode]);
 
   const enableStrictMode = () => {
-    if (!isExtensionConnected) return; // Guard: Don't enable if extension missing
     setStrictMode(true);
     setShowStrictConfirm(false);
 
@@ -4941,9 +4878,6 @@ function MainApp() {
     const newIsActive = !isActive;
     setIsActive(newIsActive);
 
-    // 2. Extension Sync (Browser API only, no DB)
-    syncWithExtension(newIsActive, strictMode, mode);
-
     if (newIsActive) {
       lastHeartbeatRef.current = Date.now();
       setHasStartedSession(true); // Mark session as started
@@ -5557,7 +5491,7 @@ function MainApp() {
                     </motion.div>
                   </motion.div>
                   <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
-                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} isExtensionConnected={isExtensionConnected} mode={mode} onMenuChange={setIsStrictMenuOpen} />
+                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} mode={mode} onMenuChange={setIsStrictMenuOpen} />
                   {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
