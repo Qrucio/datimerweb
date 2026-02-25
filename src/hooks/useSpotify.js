@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { SecureStorage } from '../utils/security';
 import { logger } from '../utils/logger';
 
@@ -71,6 +71,7 @@ export const useSpotify = () => {
     const [playlists, setPlaylists] = useState([]);
     const [userProfile, setUserProfile] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isValidatingToken, setIsValidatingToken] = useState(true); // Add validation state
 
     // Playback state
     const [player, setPlayer] = useState(null);
@@ -84,32 +85,115 @@ export const useSpotify = () => {
     const playerRef = useRef(null);
     const progressInterval = useRef(null);
 
-    // --- Token Exchange (runs on redirect back from Spotify) ---
+    // --- Helper: Clear all Spotify storage ---
+    const clearSpotifyStorage = useCallback(() => {
+        window.localStorage.removeItem("spotify_token");
+        window.localStorage.removeItem("spotify_token_expiry");
+        window.localStorage.removeItem("spotify_code_verifier");
+        window.localStorage.removeItem("spotify_refresh_token");
+    }, []);
+
+    // --- Helper: Validate token by making API call ---
+    const validateToken = useCallback(async (accessToken) => {
+        try {
+            const response = await fetch("https://api.spotify.com/v1/me", {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            return response.ok; // Returns true if token is valid
+        } catch (error) {
+            logger.debug("[Spotify] Token validation failed", error);
+            return false;
+        }
+    }, []);
+
+    // --- Refresh Token Logic (stable reference with useCallback) ---
+    const refreshAccessToken = useCallback(async () => {
+        const refreshTokenEnc = window.localStorage.getItem("spotify_refresh_token");
+        
+        if (!refreshTokenEnc) {
+            logger.debug("[Spotify] No refresh token available");
+            return false;
+        }
+
+        const refreshToken = await SecureStorage.decrypt(refreshTokenEnc);
+        
+        if (!refreshToken || !CLIENT_ID) {
+            logger.debug("[Spotify] Refresh token decrypt failed or no CLIENT_ID");
+            return false;
+        }
+
+        try {
+            logger.debug("[Spotify] Refreshing token...");
+            const response = await fetch(TOKEN_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    client_id: CLIENT_ID,
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                }),
+            });
+
+            const data = await response.json();
+            
+            if (data.access_token) {
+                logger.debug("[Spotify] Token refreshed successfully");
+                
+                // Validate the new token before storing
+                const isValid = await validateToken(data.access_token);
+                if (!isValid) {
+                    logger.debug("[Spotify] Newly refreshed token is invalid");
+                    clearSpotifyStorage();
+                    return false;
+                }
+
+                const encToken = await SecureStorage.encrypt(data.access_token);
+                if (encToken) window.localStorage.setItem("spotify_token", encToken);
+                
+                if (data.refresh_token) {
+                    const encRefresh = await SecureStorage.encrypt(data.refresh_token);
+                    if (encRefresh) window.localStorage.setItem("spotify_refresh_token", encRefresh);
+                }
+                
+                // Update expiry time (conservative: 55 minutes instead of 60)
+                const expiryTime = Date.now() + (55 * 60 * 1000);
+                window.localStorage.setItem("spotify_token_expiry", expiryTime.toString());
+                
+                setToken(data.access_token);
+                return true;
+            } else {
+                logger.debug("[Spotify] Refresh failed - invalid response", data);
+                
+                // If refresh token is expired or invalid, clear everything
+                if (data.error === 'invalid_grant') {
+                    logger.debug("[Spotify] Refresh token expired or revoked");
+                    clearSpotifyStorage();
+                }
+                return false;
+            }
+        } catch (error) {
+            logger.debug("[Spotify] Refresh error", error);
+            return false;
+        }
+    }, [validateToken, clearSpotifyStorage]);
+
+    // --- Token Exchange and Restoration (runs on redirect back from Spotify and on page load) ---
     useEffect(() => {
-        const exchangeToken = async () => {
+        const initializeAuth = async () => {
+            setIsValidatingToken(true);
+            
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const storedVerifierEnc = window.localStorage.getItem('spotify_code_verifier');
-            const storedVerifier = await SecureStorage.decrypt(storedVerifierEnc);
+            const storedVerifier = storedVerifierEnc ? await SecureStorage.decrypt(storedVerifierEnc) : null;
 
-            // If we already have a token, restore it
-            let existingTokenEnc = window.localStorage.getItem("spotify_token");
-            if (existingTokenEnc) {
-                const existingToken = await SecureStorage.decrypt(existingTokenEnc);
-                if (existingToken) {
-                    logger.debug("[Spotify] Restoring token from secure storage");
-                    setToken(existingToken);
-                    return;
-                }
-            }
-
+            // CASE 1: OAuth code present - exchange it for tokens (initial login)
             if (code && storedVerifier) {
                 try {
+                    logger.debug("[Spotify] Exchanging OAuth code for tokens");
                     const response = await fetch(TOKEN_ENDPOINT, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: new URLSearchParams({
                             client_id: CLIENT_ID,
                             grant_type: 'authorization_code',
@@ -122,7 +206,9 @@ export const useSpotify = () => {
                     const data = await response.json();
 
                     if (data.access_token) {
-                        logger.debug("[Spotify] Token Exchange Successful");
+                        logger.debug("[Spotify] Token exchange successful");
+                        
+                        // Encrypt and store tokens
                         const encToken = await SecureStorage.encrypt(data.access_token);
                         if (encToken) window.localStorage.setItem("spotify_token", encToken);
                         
@@ -131,22 +217,90 @@ export const useSpotify = () => {
                             if (encRefresh) window.localStorage.setItem("spotify_refresh_token", encRefresh);
                         }
                         
+                        // Store token expiry time (conservative: 55 minutes instead of 60)
+                        const expiryTime = Date.now() + (55 * 60 * 1000);
+                        window.localStorage.setItem("spotify_token_expiry", expiryTime.toString());
+                        
                         window.localStorage.removeItem('spotify_code_verifier');
                         setToken(data.access_token);
-                        // Clean up URL
                         window.history.replaceState({}, document.title, "/");
                     } else {
-                        console.error("Spotify Token Error:", data);
+                        console.error("[Spotify] Token exchange error:", data);
                         alert(`Spotify Login Failed: ${data.error_description || "Unknown Error"}`);
                     }
                 } catch (error) {
-                    console.error("Spotify Token Exchange Failed:", error);
+                    console.error("[Spotify] Token exchange failed:", error);
+                } finally {
+                    setIsValidatingToken(false);
                 }
+                return;
             }
+
+            // CASE 2: No OAuth code - try to restore existing session
+            const existingTokenEnc = window.localStorage.getItem("spotify_token");
+            const tokenExpiry = window.localStorage.getItem("spotify_token_expiry");
+            
+            if (!existingTokenEnc) {
+                logger.debug("[Spotify] No stored token found");
+                setIsValidatingToken(false);
+                return;
+            }
+
+            const existingToken = await SecureStorage.decrypt(existingTokenEnc);
+            
+            if (!existingToken) {
+                logger.debug("[Spotify] Token decryption failed");
+                clearSpotifyStorage();
+                setIsValidatingToken(false);
+                return;
+            }
+
+            // Check expiry time
+            const now = Date.now();
+            const expiry = tokenExpiry ? parseInt(tokenExpiry) : 0;
+            const isExpiringSoon = expiry && now >= (expiry - 10 * 60 * 1000); // 10 minutes buffer
+            
+            // STEP 1: Validate the token with Spotify API
+            logger.debug("[Spotify] Validating stored token");
+            const isValid = await validateToken(existingToken);
+            
+            if (isValid && !isExpiringSoon) {
+                // Token is valid and not expiring soon - use it
+                logger.debug("[Spotify] Token is valid, restoring session");
+                setToken(existingToken);
+                setIsValidatingToken(false);
+                return;
+            }
+            
+            if (isValid && isExpiringSoon) {
+                // Token is valid but expiring soon - refresh proactively
+                logger.debug("[Spotify] Token expiring soon, refreshing proactively");
+                const refreshed = await refreshAccessToken();
+                
+                if (!refreshed) {
+                    // Refresh failed, but current token still works
+                    logger.debug("[Spotify] Refresh failed, but using current valid token");
+                    setToken(existingToken);
+                }
+                setIsValidatingToken(false);
+                return;
+            }
+            
+            // STEP 2: Token is invalid - try to refresh
+            logger.debug("[Spotify] Token invalid, attempting refresh");
+            const refreshed = await refreshAccessToken();
+            
+            if (!refreshed) {
+                // Refresh failed - clear everything
+                logger.debug("[Spotify] Refresh failed, clearing session");
+                clearSpotifyStorage();
+            }
+            
+            setIsValidatingToken(false);
         };
 
-        exchangeToken();
-    }, []);
+        initializeAuth();
+    }, [refreshAccessToken, validateToken, clearSpotifyStorage]);
 
     // --- Initialize Web Playback SDK ---
     useEffect(() => {
@@ -240,48 +394,6 @@ export const useSpotify = () => {
         };
     }, [isPlaying, duration]);
 
-    // --- Refresh Token Logic ---
-    const refreshAccessToken = async () => {
-        const refreshTokenEnc = window.localStorage.getItem("spotify_refresh_token");
-        const refreshToken = await SecureStorage.decrypt(refreshTokenEnc);
-        
-        if (!refreshToken || !CLIENT_ID) return false;
-
-        try {
-            console.log("[Spotify] Refreshing Token...");
-            const response = await fetch(TOKEN_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    client_id: CLIENT_ID,
-                    grant_type: 'refresh_token',
-                    refresh_token: refreshToken,
-                }),
-            });
-
-            const data = await response.json();
-            if (data.access_token) {
-                console.log("[Spotify] Token Refreshed Successfully");
-                const encToken = await SecureStorage.encrypt(data.access_token);
-                if (encToken) window.localStorage.setItem("spotify_token", encToken);
-                
-                if (data.refresh_token) {
-                    const encRefresh = await SecureStorage.encrypt(data.refresh_token);
-                    if (encRefresh) window.localStorage.setItem("spotify_refresh_token", encRefresh);
-                }
-                setToken(data.access_token);
-                return true;
-            } else {
-                console.error("[Spotify] Refresh Failed:", data);
-                logout();
-                return false;
-            }
-        } catch (e) {
-            console.error("[Spotify] Refresh Error:", e);
-            return false;
-        }
-    };
-
     // --- Login with PKCE ---
     const login = async () => {
         console.log("[Spotify] Login initiated");
@@ -311,7 +423,7 @@ export const useSpotify = () => {
         window.location.href = `${AUTH_ENDPOINT}?${params.toString()}`;
     };
 
-    const logout = () => {
+    const logout = useCallback(() => {
         if (playerRef.current) {
             playerRef.current.disconnect();
         }
@@ -322,10 +434,8 @@ export const useSpotify = () => {
         setDeviceId(null);
         setCurrentTrack(null);
         setIsPlayerReady(false);
-        window.localStorage.removeItem("spotify_token");
-        window.localStorage.removeItem("spotify_code_verifier");
-        window.localStorage.removeItem("spotify_refresh_token");
-    };
+        clearSpotifyStorage();
+    }, [clearSpotifyStorage]);
 
     const fetchPlaylists = async () => {
         if (!token) return;
@@ -559,6 +669,7 @@ export const useSpotify = () => {
         login,
         logout,
         userProfile,
+        isValidatingToken,
 
         // Library
         playlists,

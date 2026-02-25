@@ -38,6 +38,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
     const {
         token, login, logout, playlists, fetchPlaylists, userProfile, playPlaylist,
         isLoading: isSpotifyLoading,
+        isValidatingToken,
         // Playback state
         isPlayerReady,
         currentTrack: spotifyTrack,
@@ -220,7 +221,15 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                 )}
                                 {activeTab === 'spotify' && (
                                     <motion.div key="spotify" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: tabTransition.enter }} exit={{ opacity: 0, x: -10, transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
-                                        {!token ? (
+                                        {isValidatingToken ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center">
+                                                <div className="w-20 h-20 bg-[#1DB954]/20 rounded-full flex items-center justify-center mb-6">
+                                                    <SpotifyIcon size={40} className="text-[#1DB954] animate-pulse" />
+                                                </div>
+                                                <h3 className="text-xl font-bold text-white mb-2">Validating Session...</h3>
+                                                <p className="text-white/40 max-w-sm">Please wait while we restore your Spotify connection.</p>
+                                            </div>
+                                        ) : !token ? (
                                             <div className="h-full flex flex-col items-center justify-center text-center">
                                                 <div className="w-20 h-20 bg-[#1DB954]/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
                                                     <SpotifyIcon size={40} className="text-[#1DB954]" />

@@ -5,7 +5,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const ALLOWED_ORIGINS = [
     'https://datimer.netlify.app',
     'https://altimer.netlify.app',
-    'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'http://localhost:3000'
 ];
 

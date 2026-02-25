@@ -36,7 +36,7 @@ To ensure high reasoning and prevent premature code generation, you MUST follow 
 
 ## 🛠 Development Environment
 - **Install Dependencies:** `npm install`
-- **Start Dev Server:** `npm run dev` (Runs on `http://localhost:5173`)
+- **Start Dev Server:** `npm run dev` (Runs on `http://127.0.0.1:5173`)
 - **Linting:** `npm run lint`
 - **Build:** `npm run build`
 - **HMR Safety:** **NEVER** run `npm run build` while the dev server is running or during an active iteration session. It can break Hot Module Replacement and cause inconsistent states. Only build to verify production readiness before a release.
