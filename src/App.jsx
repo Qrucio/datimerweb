@@ -2282,7 +2282,7 @@ const NoteSystemModals = ({
 
               <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
                 <div className="max-w-7xl mx-auto" ref={containerRef}>
-                  <div className="flex flex-wrap justify-center gap-6">
+                  <div className="flex flex-wrap gap-6">
 
                     {/* ADD BUTTON or LOCKED BUTTON */}
                     {isLimitReached ? (
