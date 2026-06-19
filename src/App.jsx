@@ -32,7 +32,6 @@ const SnakeIcon = ({ size = 24, className = "" }) => (
 );
 const SnakeGame = lazy(() => import('./components/games/SnakeGame'));
 const TypingGame = lazy(() => import('./components/games/TypingGame'));
-const CalendarPanel = lazy(() => import('./components/notes/CalendarPanel'));
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
 import { VideoManager } from './components/video/VideoManager';
@@ -2270,8 +2269,8 @@ const NoteSystemModals = ({
               <CloseButton onClick={closeLibrary} />
             </div>
 
-            {/* LEFT: STANDARD NOTES (60%) */}
-            <div className="w-full lg:w-[60%] flex flex-col h-full relative">
+            {/* LEFT: STANDARD NOTES */}
+            <div className="w-full flex flex-col h-full relative">
               <div className="w-full flex flex-col items-center pt-2 md:pt-6 pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
                 <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
@@ -2282,15 +2281,15 @@ const NoteSystemModals = ({
               </div>
 
               <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
-                <div className="max-w-5xl mx-auto" ref={containerRef}>
-                  <div className="flex flex-wrap gap-6">
+                <div className="max-w-7xl mx-auto" ref={containerRef}>
+                  <div className="flex flex-wrap justify-center gap-6">
 
                     {/* ADD BUTTON or LOCKED BUTTON */}
                     {isLimitReached ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] overflow-hidden"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenPro();
@@ -2308,7 +2307,7 @@ const NoteSystemModals = ({
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onMouseMove={handleGlowMove}
-                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group !cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] overflow-hidden"
+                        className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group !cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] overflow-hidden"
                         onClick={(e) => {
                           e.stopPropagation();
                           const initialTags = selectedTag !== "All" ? [selectedTag] : [];
@@ -2358,7 +2357,7 @@ const NoteSystemModals = ({
 
                           // --- STYLING ---
                           style={{ backgroundColor: note.color || '#ffeb3b', touchAction: 'none', cursor: 'default' }}
-                          className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group !cursor-default active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)]`}
+                          className={`aspect-square shadow-xl p-4 md:p-6 text-black relative group !cursor-default active:cursor-grabbing flex flex-col overflow-hidden w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)]`}
 
                           // --- ANIMATIONS ---
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -2417,25 +2416,7 @@ const NoteSystemModals = ({
               </div>
             </div>
 
-            {/* RIGHT: SMART NOTES (40%) */}
-            <div className="w-full lg:w-[40%] h-full flex flex-col border-t lg:border-t-0 lg:border-l border-dashed border-white/20 bg-white/0 overflow-hidden">
-              <Suspense fallback={null}>
-                <CalendarPanel
-                  tasks={tasks || []}
-                  habits={habits || []}
-                  notes={notes}
-                  allTags={allTags}
-                  onUpdateTasks={onUpdateTasks}
-                  onAddTask={(newTask) => onUpdateTasks([...(tasks || []), newTask])}
-                  onAddHabit={(newHabit) => onUpdateHabits([...(habits || []), newHabit])}
-                  onUpdateTask={(id, updates) => onUpdateTasks((tasks || []).map(t => t.id === id ? { ...t, ...updates } : t))}
-                  onUpdateHabit={(id, updates) => onUpdateHabits((habits || []).map(h => h.id === id ? { ...h, ...updates } : h))}
-                  onDeleteTask={(id) => onUpdateTasks((tasks || []).filter(t => t.id !== id))}
-                  onDeleteHabit={(id) => onUpdateHabits((habits || []).filter(h => h.id !== id))}
-                  onClose={closeLibrary}
-                />
-              </Suspense>
-            </div>
+
           </div>
         </motion.div>
       )}
