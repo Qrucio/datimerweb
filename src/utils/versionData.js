@@ -1,5 +1,15 @@
 export const releaseNotes = [
   {
+    version: "0.4.0",
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      "Added new Stopwatch mode alongside the Pomodoro timer",
+      "Seamlessly tracks stopwatch time into daily stats and maintains streaks",
+      "Dynamic UI adjustments including hiding irrelevant indicators when using the stopwatch",
+      "Smart state persistence to remember stopwatch progress across reloads"
+    ]
+  },
+  {
     version: "0.3.2",
     date: "2026-01-10",
     changes: [

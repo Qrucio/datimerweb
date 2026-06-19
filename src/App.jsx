@@ -123,10 +123,15 @@ const loadTimerState = () => {
     if (saved) {
       const { mode, isActive, targetEndTime, timeLeft, pomoCount } = JSON.parse(saved);
       if (isActive && targetEndTime) {
-        const remaining = Math.ceil((targetEndTime - Date.now()) / 1000);
-        return remaining > 0
-          ? { mode, isActive: true, timeLeft: remaining, pomoCount: pomoCount || 0 }
-          : { mode, isActive: false, timeLeft: 0, pomoCount: pomoCount || 0 };
+        if (mode === 'stopwatch') {
+          const elapsed = Math.ceil((Date.now() - targetEndTime) / 1000);
+          return { mode, isActive: true, timeLeft: elapsed, pomoCount: pomoCount || 0 };
+        } else {
+          const remaining = Math.ceil((targetEndTime - Date.now()) / 1000);
+          return remaining > 0
+            ? { mode, isActive: true, timeLeft: remaining, pomoCount: pomoCount || 0 }
+            : { mode, isActive: false, timeLeft: 0, pomoCount: pomoCount || 0 };
+        }
       }
       return { mode, isActive: false, timeLeft, pomoCount: pomoCount || 0 };
     }
@@ -488,7 +493,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
         targetDate = new Date(Date.now() + timeLeft * 1000);
       }
 
-      if (targetDate) {
+      if (targetDate && mode !== 'stopwatch') {
         const endStr = formatTime(targetDate);
         // UNIFIED FORMAT: "10:30 AM | Ends at 11:20 AM"
         message = `${currentTimeStr} | Ends at ${endStr}`;
@@ -590,7 +595,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
           </AnimatePresence>
 
           {/* Edit Pencil Icon (Only show if not overriding and time is valid AND TIMER IS PAUSED) */}
-          {!overrideMessage && !isActive && (
+          {!overrideMessage && !isActive && mode !== 'stopwatch' && (
             <motion.button
               initial={{ opacity: 0, scale: 0.5, width: 0 }}
               animate={{ opacity: 1, scale: 1, width: 'auto' }}
@@ -2719,6 +2724,7 @@ const DEFAULT_STATS = {
   dailyFocusTime: 0,
   dailyBreakTime: 0,
   dailySessions: 0,
+  dailyStopwatchTime: 0,
   currentStreak: 0,
   lastActiveDate: null
 };
@@ -2749,10 +2755,10 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
 
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', backgroundOpacity: 0.3, backgroundBrightnessMap: {}, alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', backgroundOpacity: 0.3, backgroundBrightnessMap: {}, alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
-  const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft || DEFAULT_SETTINGS.focus * 60);
+  const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft ?? DEFAULT_SETTINGS.focus * 60);
   const [isActive, setIsActive] = useState(initialState?.isActive || false);
   const [timerResetKey, setTimerResetKey] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
@@ -2907,7 +2913,7 @@ function MainApp() {
 
     // Attempt to load today's stats from LS, otherwise default
     const local = localStorage.getItem('zen_stats_current');
-    return local ? JSON.parse(local) : DEFAULT_STATS;
+    return local ? { ...DEFAULT_STATS, ...JSON.parse(local) } : DEFAULT_STATS;
   });
 
   // --- FIX: Hydrate History from Server on Load ---
@@ -3737,6 +3743,7 @@ function MainApp() {
         dailyFocusTime: currentStats.dailyFocusTime || 0,
         dailyBreakTime: currentStats.dailyBreakTime || 0,
         dailySessions: currentStats.dailySessions || 0,
+        dailyStopwatchTime: currentStats.dailyStopwatchTime || 0,
         currentStreak: currentStreak // Ensure streak is synced to public stats
       },
       streak: currentStreak
@@ -3764,6 +3771,7 @@ function MainApp() {
         focus_time: payload.stats.dailyFocusTime,
         break_time: payload.stats.dailyBreakTime,
         sessions: payload.stats.dailySessions,
+        stopwatch_time: payload.stats.dailyStopwatchTime,
         data: payload.stats
       });
 
@@ -4678,7 +4686,9 @@ function MainApp() {
       lastTickRef.current = Date.now();
 
       if (!endTimeRef.current) {
-        endTimeRef.current = Date.now() + timeLeft * 1000;
+        endTimeRef.current = mode === 'stopwatch' 
+          ? Date.now() - timeLeft * 1000 
+          : Date.now() + timeLeft * 1000;
       }
 
       // 2. Start the Timer Loop
@@ -4692,7 +4702,9 @@ function MainApp() {
         const delta = now - lastTickRef.current;
 
         // --- A. UI COUNTDOWN (Visual Only) ---
-        const diff = endTimeRef.current - now;
+        const diff = mode === 'stopwatch' 
+          ? now - endTimeRef.current 
+          : endTimeRef.current - now;
         const secondsRemaining = Math.max(0, Math.ceil(diff / 1000));
 
         setTimeLeft(prev => {
@@ -4896,7 +4908,9 @@ function MainApp() {
       mode,
       timeLeft,
       // If starting, set target. If pausing, nullify target.
-      targetEndTime: newIsActive ? Date.now() + timeLeft * 1000 : null
+      targetEndTime: newIsActive 
+        ? (mode === 'stopwatch' ? Date.now() - timeLeft * 1000 : Date.now() + timeLeft * 1000) 
+        : null
     };
 
     if (newIsActive) {
@@ -4918,11 +4932,8 @@ function MainApp() {
 
     // 2. Reset Timer State
     setIsActive(false);
-    setMode('focus');
-    setTimeLeft(settings['focus'] * 60);
-    setPomoCount(0);
-    setTimeLeft(settings['focus'] * 60);
-    setPomoCount(0);
+    const nextTime = mode === 'stopwatch' ? 0 : (settings[mode] || 25) * 60;
+    setTimeLeft(nextTime);
     setPomoCount(0);
     endTimeRef.current = null;
     setHasStartedSession(false); // Reset session tracking
@@ -4932,8 +4943,8 @@ function MainApp() {
     syncTimerState({
       isActive: false,
       targetEndTime: null,
-      mode: 'focus',
-      timeLeft: settings['focus'] * 60,
+      mode: mode,
+      timeLeft: nextTime,
       lastUpdated: Date.now()
     });
 
@@ -4947,7 +4958,10 @@ function MainApp() {
     accumulatedTimeRef.current = 0;
     setMode(newMode);
     setIsActive(false);
-    setTimeLeft(settings[newMode] * 60);
+    
+    const newTimeLeft = newMode === 'stopwatch' ? 0 : settings[newMode] * 60;
+    setTimeLeft(newTimeLeft);
+    
     setHasStartedSession(false); // Reset session tracking
     setCurrentSessionTotalDuration(null); // Reset dynamic duration
 
@@ -4956,7 +4970,7 @@ function MainApp() {
       isActive: false,
       targetEndTime: null,
       mode: newMode,
-      timeLeft: settings[newMode] * 60,
+      timeLeft: newTimeLeft,
     });
   };
 
@@ -5585,15 +5599,15 @@ function MainApp() {
                   getGeminiAdvice={getGeminiAdvice}
                 /> */}
                     {/* --- MODE SWITCHER (Updated with Inline Edit & Centered Text) --- */}
-                    <div className="flex items-center justify-center mb-2 h-10 w-full max-w-md">
-                      {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }].map((m) => {
+                    <div className="flex items-center justify-center mb-2 h-10 w-full max-w-xl text-sm">
+                      {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }, { id: 'stopwatch', label: 'Stopwatch' }].map((m) => {
                         const isCurrent = mode === m.id;
                         const isEditing = editingModeId === m.id;
                         // FIX: Use dynamic session duration if available for current mode, else default
                         const defaultSeconds = settings[m.id] * 60;
                         const totalSeconds = (isCurrent && currentSessionTotalDuration) ? currentSessionTotalDuration : defaultSeconds;
 
-                        const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
+                        const progress = m.id === 'stopwatch' ? 100 : (totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0);
 
                         let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
 
@@ -5614,8 +5628,10 @@ function MainApp() {
                               e.stopPropagation();
                               if (!isActive) {
                                 if (isCurrent) {
-                                  setEditInputValue(settings[m.id].toString());
-                                  setEditingModeId(m.id);
+                                  if (m.id !== 'stopwatch') {
+                                    setEditInputValue(settings[m.id].toString());
+                                    setEditingModeId(m.id);
+                                  }
                                 } else {
                                   handleModeChange(m.id);
                                 }
@@ -5656,7 +5672,7 @@ function MainApp() {
                             ) : (
                               <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
                                 <span className="whitespace-nowrap">{m.label}</span>
-                                {!isActive && isCurrent && (
+                                {!isActive && isCurrent && m.id !== 'stopwatch' && (
                                   <div className="hidden md:flex overflow-hidden max-w-0 opacity-0 group-hover:max-w-[20px] group-hover:opacity-100 transition-all duration-300 ease-out items-center">
                                     <Pencil size={12} className="text-white ml-1 flex-shrink-0" />
                                   </div>
@@ -5670,7 +5686,7 @@ function MainApp() {
 
                     {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
                     <div
-                      className="relative z-50 flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px]"
+                      className={`relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 cursor-default min-w-[100px] transition-opacity duration-300 ${mode === 'stopwatch' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                       onMouseEnter={() => setIsTallyHovered(true)}
                       onMouseLeave={() => setIsTallyHovered(false)}
                       onDoubleClick={() => {
@@ -5790,13 +5806,15 @@ function MainApp() {
                       />
                     </div>
 
-                    <GameCenter
-                      mode={mode}
-                      timeLeft={timeLeft}
-                      background={settings.background}
-                      isPro={isPro}
-                      onOpenPro={() => setProModalSource('arcade')}
-                    />
+                    {mode !== 'stopwatch' && (
+                      <GameCenter
+                        mode={mode}
+                        timeLeft={timeLeft}
+                        background={settings.background}
+                        isPro={isPro}
+                        onOpenPro={() => setProModalSource('arcade')}
+                      />
+                    )}
 
                     {/* <TimerModeSelector
                   mode={mode}

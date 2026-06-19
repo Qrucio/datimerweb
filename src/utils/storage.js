@@ -58,7 +58,8 @@ export const Storage = {
                 date: serverData.date_id,
                 dailyFocusTime: Math.max(currentLocal.dailyFocusTime || 0, serverData.focus_time || 0),
                 dailyBreakTime: Math.max(currentLocal.dailyBreakTime || 0, serverData.break_time || 0),
-                dailySessions: Math.max(currentLocal.dailySessions || 0, serverData.sessions || 0)
+                dailySessions: Math.max(currentLocal.dailySessions || 0, serverData.sessions || 0),
+                dailyStopwatchTime: Math.max(currentLocal.dailyStopwatchTime || 0, serverData.stopwatch_time || 0)
             };
         } else {
             // NEW DAY or UNINITIALIZED: Take Server Data specificially
@@ -69,7 +70,8 @@ export const Storage = {
                     date: serverData.date_id,
                     dailyFocusTime: serverData.focus_time || 0,
                     dailyBreakTime: serverData.break_time || 0,
-                    dailySessions: serverData.sessions || 0
+                    dailySessions: serverData.sessions || 0,
+                    dailyStopwatchTime: serverData.stopwatch_time || 0
                 };
             } else {
                 // OLD DATA: Ignore
@@ -99,13 +101,16 @@ export const Storage = {
                 date: today,
                 dailyFocusTime: 0,
                 dailyBreakTime: 0,
-                dailySessions: 0
+                dailySessions: 0,
+                dailyStopwatchTime: 0
             };
         }
 
         // Update the values
         if (mode === 'focus') {
             data.dailyFocusTime = (data.dailyFocusTime || 0) + elapsedSeconds;
+        } else if (mode === 'stopwatch') {
+            data.dailyStopwatchTime = (data.dailyStopwatchTime || 0) + elapsedSeconds;
         } else {
             data.dailyBreakTime = (data.dailyBreakTime || 0) + elapsedSeconds;
         }
@@ -154,6 +159,7 @@ export const Storage = {
                     focus_time: dayData.dailyFocusTime || 0,
                     break_time: dayData.dailyBreakTime || 0,
                     sessions: dayData.dailySessions || 0,
+                    stopwatch_time: dayData.dailyStopwatchTime || 0,
                     data: dayData
                 }, { onConflict: 'user_id, date_id' });
             } catch (e) {
@@ -183,7 +189,7 @@ export const Storage = {
             let fullHistory = [...history];
 
             // If today has data, append it for streak calculation
-            if (today.date && (today.dailyFocusTime > 0 || today.dailySessions > 0)) {
+            if (today.date && (today.dailyFocusTime > 0 || today.dailySessions > 0 || today.dailyStopwatchTime > 0)) {
                 // Check if today already exists in history (duplicate protection)
                 const exists = fullHistory.find(d => d.date === today.date);
                 if (!exists) {
@@ -230,7 +236,8 @@ export const Storage = {
                 date: row.date_id,
                 dailyFocusTime: row.focus_time,
                 dailyBreakTime: row.break_time,
-                dailySessions: row.sessions
+                dailySessions: row.sessions,
+                dailyStopwatchTime: row.stopwatch_time
             };
         });
 
