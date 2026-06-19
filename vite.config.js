@@ -23,7 +23,6 @@ export default defineConfig({
           'vendor-framer': ['framer-motion'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-livekit': ['livekit-client', '@livekit/components-react', '@livekit/components-styles'],
-          'vendor-math': ['mathjs'],
           'vendor-date': ['date-fns'],
         },
       },

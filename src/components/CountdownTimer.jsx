@@ -58,7 +58,7 @@ const Separator = React.memo(({ value }) => {
     )
 })
 
-const CountdownTimer = ({ timeLeft, disableAnimation = false, clockType }) => {
+const CountdownTimer = ({ timeLeft, disableAnimation = true, clockType }) => {
     // Format MM:SS
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
