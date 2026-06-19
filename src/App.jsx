@@ -2268,13 +2268,13 @@ const NoteSystemModals = ({
             <div className="w-full flex flex-col h-full relative">
               <div className="w-full flex flex-col items-center shrink-0" onClick={(e) => e.stopPropagation()}>
                 {/* Header Bar */}
-                <div className="w-full flex items-center justify-between px-6 md:px-8 pt-6 pb-4 relative">
+                <div className="w-full flex items-center justify-between px-6 md:px-8 pt-10 md:pt-12 pb-6 relative">
                   <div className="w-10 h-10 invisible" /> {/* Spacer to align title */}
                   <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide">Notes</h2>
                   <CloseButton onClick={closeLibrary} />
                 </div>
                 {/* Tags */}
-                <div className="flex gap-2 overflow-x-auto max-w-full px-6 pb-4 no-scrollbar mask-gradient">
+                <div className="flex gap-2 overflow-x-auto max-w-full px-6 mt-2 mb-8 pb-2 no-scrollbar mask-gradient">
                   {allTags.map(tag => (
                     <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
                   ))}
