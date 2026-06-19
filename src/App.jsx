@@ -1155,7 +1155,7 @@ const TagPill = ({ label, active, onClick, onDelete }) => (
     className={`
       flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border
       ${active
-        ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
+        ? 'bg-white text-black border-white shadow-sm'
         : 'bg-white/5 text-white/60 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'
       }
     `}
@@ -2263,17 +2263,18 @@ const NoteSystemModals = ({
           className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
           onClick={closeLibrary}
         >
-          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative pt-12">
-            {/* GLOBAL CLOSE BUTTON */}
-            <div className="absolute top-6 right-6 z-[70]">
-              <CloseButton onClick={closeLibrary} />
-            </div>
-
+          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative">
             {/* LEFT: STANDARD NOTES */}
             <div className="w-full flex flex-col h-full relative">
-              <div className="w-full flex flex-col items-center pt-2 md:pt-6 pb-4 shrink-0" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide mb-6">Notes</h2>
-                <div className="flex gap-2 overflow-x-auto max-w-full px-6 no-scrollbar mask-gradient">
+              <div className="w-full flex flex-col items-center shrink-0" onClick={(e) => e.stopPropagation()}>
+                {/* Header Bar */}
+                <div className="w-full flex items-center justify-between px-6 md:px-8 pt-6 pb-4 relative">
+                  <div className="w-10 h-10 invisible" /> {/* Spacer to align title */}
+                  <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide">Notes</h2>
+                  <CloseButton onClick={closeLibrary} />
+                </div>
+                {/* Tags */}
+                <div className="flex gap-2 overflow-x-auto max-w-full px-6 pb-4 no-scrollbar mask-gradient">
                   {allTags.map(tag => (
                     <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
                   ))}
