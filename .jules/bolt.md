@@ -1,0 +1,3 @@
+## 2024-03-24 - Memoize Timer Digits
+**Learning:** In a countdown timer component (`CountdownTimer.jsx`) that updates every second, re-rendering all digits (even those that haven't changed, like minutes or tens of seconds) is inefficient. Specifically, recalculating Framer Motion states for static digits in a hot path causes unnecessary overhead.
+**Action:** Use `React.memo` on the individual `Digit` and `Separator` sub-components. This ensures that only the digits that actually change (typically the units of seconds) trigger a re-render and animation recalculation, significantly reducing React's render workload on every tick.
