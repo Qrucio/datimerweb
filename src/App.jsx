@@ -2261,29 +2261,53 @@ const NoteSystemModals = ({
           exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
-          onClick={closeLibrary}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
         >
-          <div className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative">
+          <div 
+            className="flex flex-col lg:flex-row w-full h-full overflow-hidden relative"
+            onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+          >
             {/* LEFT: STANDARD NOTES */}
-            <div className="w-full flex flex-col h-full relative">
-              <div className="w-full flex flex-col items-center shrink-0" onClick={(e) => e.stopPropagation()}>
+            <div 
+              className="w-full flex flex-col h-full relative"
+              onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+            >
+              <div className="w-full flex flex-col items-center shrink-0">
                 {/* Header Bar */}
-                <div className="w-full flex items-center justify-between px-6 md:px-8 pt-10 md:pt-12 pb-6 relative">
-                  <div className="w-10 h-10 invisible" /> {/* Spacer to align title */}
-                  <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide">Notes</h2>
-                  <CloseButton onClick={closeLibrary} />
+                <div 
+                  className="w-full flex items-center justify-center pt-10 md:pt-12 pb-8 relative"
+                  onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+                >
+                  <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide pointer-events-none mt-1">Notes</h2>
+                  <div className="absolute right-6 md:right-10 flex items-center h-full pt-10 md:pt-12 pb-8 top-0">
+                    <CloseButton onClick={closeLibrary} />
+                  </div>
                 </div>
                 {/* Tags */}
-                <div className="flex gap-2 overflow-x-auto max-w-full px-6 mt-2 mb-8 pb-2 no-scrollbar mask-gradient">
+                <div 
+                  className="flex gap-3 overflow-x-auto max-w-full px-8 mt-2 mb-12 pb-2 no-scrollbar"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {allTags.map(tag => (
                     <TagPill key={tag} label={tag} active={selectedTag === tag} onClick={() => setSelectedTag(tag)} />
                   ))}
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-20">
-                <div className="max-w-7xl mx-auto" ref={containerRef}>
-                  <div className="flex flex-wrap gap-6">
+              <div 
+                className="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-10 pb-24"
+                onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+              >
+                <div 
+                  className="max-w-7xl mx-auto pt-2" 
+                  ref={containerRef}
+                  onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+                >
+                  <div 
+                    className="flex flex-wrap gap-6 md:gap-8"
+                    onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
+                  >
 
                     {/* ADD BUTTON or LOCKED BUTTON */}
                     {isLimitReached ? (
@@ -2430,20 +2454,21 @@ const NoteSystemModals = ({
           exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30"
-          onClick={handleSave}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) handleSave() }}
         >
           <motion.div
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             className="w-[85vw] md:w-[550px] aspect-square shadow-2xl relative flex flex-col p-6 md:p-8 overflow-hidden transition-colors duration-500 rounded-sm max-h-[85vh]"
             style={{ backgroundColor: editorColor }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-black/5 pointer-events-none" />
 
-            <input autoFocus type="text" value={editorTitle} onChange={(e) => setEditorTitle(e.target.value)} onKeyDown={handleTitleKeyDown} placeholder="Title..." className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-2 p-0" />
+            <input autoFocus type="text" value={editorTitle} onChange={(e) => setEditorTitle(e.target.value)} onKeyDown={handleTitleKeyDown} placeholder="Title..." className="relative z-10 w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 text-black/80 placeholder-black/30 text-2xl md:text-3xl font-bold mb-1 px-0 pt-0 pb-2 leading-normal overflow-visible" style={{ lineHeight: 1.4 }} />
 
             <div className="relative z-10 flex flex-wrap gap-2 mb-4 items-center min-h-[32px]">
               {editorTags.map(tag => (
