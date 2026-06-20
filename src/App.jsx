@@ -3917,6 +3917,7 @@ function MainApp() {
     let mode = 'focus';
     let timeLeft = 0;
     const GRACE_PERIOD = 5 * 60 * 1000; // 5 mins
+    const MAX_STOPWATCH_DURATION = 12 * 60 * 60 * 1000; // 12 hours
 
     if (data.timer_state) {
       const ts = data.timer_state;
@@ -3924,29 +3925,41 @@ function MainApp() {
       const timeSinceUpdate = now - lastUpdated;
 
       // LOGIC FIX: If timer is actively running and has time left, user IS online.
-      const isTimerRunning = ts.isActive && (ts.targetEndTime - now > 0);
+      const isTimerRunning = ts.isActive && (
+        ts.mode === 'stopwatch' 
+          ? (now - ts.targetEndTime < MAX_STOPWATCH_DURATION)
+          : (ts.targetEndTime - now > 0)
+      );
       const isStale = !isTimerRunning && (timeSinceUpdate > GRACE_PERIOD);
 
       if (!isStale) {
         isOnline = true;
+        mode = ts.mode || 'focus';
         if (ts.isActive) {
-          const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
-          if (remaining > 0) {
-            isActive = true;
-            mode = ts.mode;
-            timeLeft = remaining;
-            statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
-
-            // Override Online Status for Focus Mode specifically
-            // Even if they haven't moved mouse (lastUpdated is old), the timer proves they are here.
-            isOnline = true;
+          isActive = true;
+          if (mode === 'stopwatch') {
+            const elapsed = Math.max(0, Math.ceil((now - ts.targetEndTime) / 1000));
+            timeLeft = elapsed;
+            const elapsedMin = Math.floor(elapsed / 60);
+            statusText = elapsedMin > 0 ? `Stopwatch • ${elapsedMin}m` : `Stopwatch • <1m`;
           } else {
-            isActive = false;
-            statusText = "Idle";
+            const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
+            if (remaining > 0) {
+              timeLeft = remaining;
+              statusText = `${mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(timeLeft / 60)}m`;
+            } else {
+              isActive = false;
+              statusText = "Idle";
+            }
           }
         } else {
           isActive = false;
-          statusText = "Paused";
+          if (mode === 'stopwatch') {
+            const elapsedMin = Math.floor((ts.timeLeft || 0) / 60);
+            statusText = elapsedMin > 0 ? `Stopwatch • Paused • ${elapsedMin}m` : `Stopwatch • Paused`;
+          } else {
+            statusText = "Paused";
+          }
         }
       } else {
         isOnline = false;

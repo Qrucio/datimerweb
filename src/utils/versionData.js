@@ -1,5 +1,15 @@
 export const releaseNotes = [
   {
+    version: "0.4.1",
+    date: "2026-06-20",
+    changes: [
+      "Fixed stopwatch status not appearing correctly for friends (showed 'Idle' instead of 'Stopwatch • Xm')",
+      "Fixed non-friend server members always showing as 'Offline' regardless of their actual timer state",
+      "Added 12-hour staleness cap for stopwatch to prevent phantom online status on browser close",
+      "Paused stopwatch now shows elapsed time to friends (e.g. 'Stopwatch • Paused • 5m')"
+    ]
+  },
+  {
     version: "0.4.0",
     date: new Date().toISOString().split('T')[0],
     changes: [

@@ -32,35 +32,55 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
     const calculateMemberStatus = (profile, now) => {
         if (!profile || !profile.timer_state) return { status: 'offline', statusText: 'Offline', isOnline: false };
 
-        const { mode, startTime, duration, lastUpdated } = profile.timer_state;
+        const ts = profile.timer_state;
+        const lastUpdated = ts.lastUpdated || 0;
+        const timeSinceUpdate = now - new Date(lastUpdated).getTime();
+        const GRACE_PERIOD = 5 * 60 * 1000; // 5 mins
+        const MAX_STOPWATCH_DURATION = 12 * 60 * 60 * 1000; // 12 hours
 
-        // Stale check (e.g. 24h)
-        if (now - new Date(lastUpdated).getTime() > 24 * 60 * 60 * 1000) {
+        const isTimerRunning = ts.isActive && (
+            ts.mode === 'stopwatch' 
+              ? (now - ts.targetEndTime < MAX_STOPWATCH_DURATION)
+              : (ts.targetEndTime - now > 0)
+        );
+        const isStale = !isTimerRunning && (timeSinceUpdate > GRACE_PERIOD);
+
+        if (isStale) {
             return { status: 'offline', statusText: 'Offline', isOnline: false };
         }
 
-        if (mode === 'focus' && startTime) {
-            const elapsed = Math.floor((now - new Date(startTime).getTime()) / 60000);
-            // If duration is set, show remaining? Or just elapsed? 
-            // FriendView usually shows Elapsed for Focus or Duration?
-            // Let's match the screenshot: "Focus • 49m" (Likely elapsed or remaining)
-            // If calculateFriendStatus is standard, it probably does:
-            let timeDisplay = `${elapsed}m`;
-            if (duration) {
-                const remaining = Math.max(0, duration - elapsed);
-                timeDisplay = `${remaining}m`;
+        let isOnline = true;
+        let status = 'online';
+        let statusText = 'Online';
+
+        if (ts.isActive) {
+            if (ts.mode === 'stopwatch') {
+                status = 'focus'; // Give it a work color/glow
+                const elapsed = Math.max(0, Math.ceil((now - ts.targetEndTime) / 1000));
+                const elapsedMin = Math.floor(elapsed / 60);
+                statusText = elapsedMin > 0 ? `Stopwatch • ${elapsedMin}m` : `Stopwatch • <1m`;
+            } else {
+                const remaining = Math.ceil((ts.targetEndTime - now) / 1000);
+                if (remaining > 0) {
+                    status = ts.mode === 'focus' ? 'focus' : 'break';
+                    statusText = `${ts.mode === 'focus' ? 'Focus' : 'Break'} • ${Math.floor(remaining / 60)}m`;
+                } else {
+                    status = 'online';
+                    statusText = 'Idle';
+                }
             }
-            return { status: 'focus', statusText: `Focus • ${timeDisplay}`, isOnline: true };
+        } else {
+            if (ts.mode === 'stopwatch') {
+                status = 'online';
+                const elapsedMin = Math.floor((ts.timeLeft || 0) / 60);
+                statusText = elapsedMin > 0 ? `Stopwatch • Paused • ${elapsedMin}m` : `Stopwatch • Paused`;
+            } else {
+                status = 'online';
+                statusText = 'Paused';
+            }
         }
 
-        if (mode === 'break' && startTime) {
-            const elapsed = Math.floor((now - new Date(startTime).getTime()) / 60000);
-            return { status: 'break', statusText: `Break • ${elapsed}m`, isOnline: true };
-        }
-
-        if (mode === 'idle') return { status: 'online', statusText: 'Online', isOnline: true };
-
-        return { status: 'offline', statusText: 'Offline', isOnline: false };
+        return { status, statusText, isOnline };
     };
 
     const now = Date.now();
