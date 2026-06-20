@@ -179,6 +179,7 @@ export const useSpotify = () => {
 
     // --- Token Exchange and Restoration (runs on redirect back from Spotify and on page load) ---
     useEffect(() => {
+        return; // SPOTIFY INTEGRATION TEMPORARILY DISABLED
         const initializeAuth = async () => {
             setIsValidatingToken(true);
             
@@ -304,6 +305,7 @@ export const useSpotify = () => {
 
     // --- Initialize Web Playback SDK ---
     useEffect(() => {
+        return; // SPOTIFY INTEGRATION TEMPORARILY DISABLED
         if (!token) return;
 
         const initPlayer = async () => {
@@ -377,6 +379,7 @@ export const useSpotify = () => {
 
     // --- Progress tracking ---
     useEffect(() => {
+        return; // SPOTIFY INTEGRATION TEMPORARILY DISABLED
         if (isPlaying) {
             progressInterval.current = setInterval(() => {
                 setProgress(prev => Math.min(prev + 1000, duration));
@@ -533,6 +536,7 @@ export const useSpotify = () => {
 
     // --- Polling for "Passive Mode" (Sync with external devices) ---
     useEffect(() => {
+        return; // SPOTIFY INTEGRATION TEMPORARILY DISABLED
         if (!token) return;
 
         // Poll every 5 seconds (slightly slower to be safe) to get state from other devices

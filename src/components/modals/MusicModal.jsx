@@ -154,7 +154,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                         <div className="flex items-center justify-between p-6 md:p-8 pb-4 z-20 shrink-0 mt-8 md:mt-0"> <div> <h2 className="text-2xl md:text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2> <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p> </div> <CloseButton onClick={onClose} /> </div>
                         <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-center items-center">
                             <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl whitespace-nowrap">
-                                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi', icon: Radio }, { id: 'spotify', label: 'Spotify', icon: SpotifyIcon }].map((tab) => {
+                                {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi', icon: Radio } /*, { id: 'spotify', label: 'Spotify', icon: SpotifyIcon } */].map((tab) => {
                                     const isActive = activeTab === tab.id; const Icon = tab.icon;
                                     const isSpotify = tab.id === 'spotify';
                                     const activeClass = isSpotify

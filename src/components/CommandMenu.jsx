@@ -10,6 +10,7 @@ import {
     CommandShortcut,
 } from "./ui/command";
 import {
+    Target,
     Calculator,
     Calendar,
     CreditCard,
@@ -75,6 +76,7 @@ export function CommandMenu({
     onOnboardingNext,
     openNotes,
     openMusic,
+    openSyllabus,
     openSettings,
     openSocial,
     setTimerActive,
@@ -215,10 +217,11 @@ export function CommandMenu({
             { id: 'confetti', label: 'Throw Confetti', icon: PartyPopper, action: runConfetti },
             { id: 'notes', label: 'Notes', icon: StickyNote, action: () => { openNotes?.(); setOpen(false); } },
             { id: 'sounds', label: 'Soundscapes', icon: MusicIcon, action: () => { openMusic?.(); setOpen(false); } },
+            { id: 'syllabus', label: 'Syllabus Tracker', icon: Target, action: () => { openSyllabus?.(); setOpen(false); } },
             { id: 'friends', label: 'Friends', icon: User, action: () => { openSocial?.(); setOpen(false); } },
         ];
         return items.sort((a, b) => (commandUsage[b.id] || 0) - (commandUsage[a.id] || 0));
-    }, [commandUsage, openNotes, openMusic, openSocial]);
+    }, [commandUsage, openNotes, openMusic, openSocial, openSyllabus]);
 
     // --- PARSERS & DETECTORS ---
 

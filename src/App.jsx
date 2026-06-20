@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins, Target } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { SocialService } from './services/socialService';
 import { UserService } from './services/userService';
@@ -20,6 +20,7 @@ import HoloGrainBackground from './components/HoloGrainBackground';
 import SmartIntervention from './components/SmartIntervention';
 import BreakCheckIn from './components/BreakCheckIn'; // NEW
 const MusicModal = lazy(() => import('./components/modals/MusicModal'));
+const SyllabusTrackerModal = lazy(() => import('./components/modals/SyllabusTrackerModal'));
 const SocialProfileModal = lazy(() => import('./components/modals/SocialProfileModal'));
 const SocialModal = lazy(() => import('./components/modals/SocialModal'));
 import Avatar from './components/Avatar';
@@ -2984,6 +2985,7 @@ function MainApp() {
 
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
+  const [showSyllabus, setShowSyllabus] = useState(false);
   const [isPro, setIsPro] = useState(() => Storage.peekProStatus());
   const [proModalSource, setProModalSource] = useState(null);
   const [showStats, setShowStats] = useState(false);
@@ -3593,6 +3595,7 @@ function MainApp() {
         if (showStats) { setShowStats(false); return; }
         if (showFriends) { setShowFriends(false); return; }
         if (showMusic) { setShowMusic(false); return; }
+        if (showSyllabus) { setShowSyllabus(false); return; }
         if (viewingFriendStats) { setViewingFriendStats(null); setShowStats(false); return; }
         if (isNoteLibraryOpen) { setIsNoteLibraryOpen(false); return; }
 
@@ -5524,8 +5527,16 @@ function MainApp() {
                       {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
                     </motion.div>
                   </motion.div>
-                  <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
-                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} mode={mode} onMenuChange={setIsStrictMenuOpen} />
+                  
+                  <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : hoveredDockIndex === 2 ? 'right' : null} isDimmed={isMusicPlaying} />
+                  
+                  <motion.button layout onMouseEnter={() => setHoveredDockIndex(2)} onMouseLeave={() => setHoveredDockIndex(null)} onClick={() => setShowSyllabus(true)} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${showSyllabus ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                    <Target size={20} className={showSyllabus ? 'text-indigo-400' : ''} />
+                    <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2`}>Syllabus</motion.span>
+                  </motion.button>
+
+                  <BendingDivider activeSide={hoveredDockIndex === 2 ? 'left' : (hoveredDockIndex === 3 || isStrictMenuOpen) ? 'right' : null} isDimmed={showSyllabus || strictMode} />
+                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(3)} isLocked={isStrictLocked} mode={mode} onMenuChange={setIsStrictMenuOpen} />
                   {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
@@ -5910,6 +5921,10 @@ function MainApp() {
 
         <MiniLofiPlayer isPlaying={isLofiPlaying} onToggle={toggleLofi} volume={volume} />
         <Suspense fallback={null}>
+          <SyllabusTrackerModal 
+            isOpen={showSyllabus} 
+            onClose={() => setShowSyllabus(false)} 
+          />
           <MusicModal
             // ... (keep existing props like volume, currentTrack, etc.) ...
             volume={volume}
@@ -6061,6 +6076,7 @@ function MainApp() {
               openNotes={() => setIsNoteLibraryOpen(true)}
               openMusic={() => setShowMusic(true)}
               openSocial={() => setShowFriends(true)}
+              openSyllabus={() => setShowSyllabus(true)}
               openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
               setTimerActive={setIsActive}
 

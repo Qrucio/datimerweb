@@ -1,5 +1,12 @@
 export const releaseNotes = [
   {
+    version: "0.4.3",
+    date: "2026-06-20",
+    changes: [
+      "Temporarily removed Spotify integration to refine and improve the experience further"
+    ]
+  },
+  {
     version: "0.4.2",
     date: "2026-06-20",
     changes: [

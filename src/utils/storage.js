@@ -17,6 +17,7 @@ const KEYS = {
     VOLUME: 'zen_volume',           // Global Volume
     SPOTIFY_PROMO_DISMISSED: 'zen_spotify_promo_dismissed',
     VERSION_SEEN: 'zen_version_seen',
+    SYLLABUS: 'zen_syllabus_progress',
 };
 
 // 7 Days Grace Period in Milliseconds
@@ -518,6 +519,30 @@ export const Storage = {
     hasNewVersion: (currentVersion) => {
         const lastSeen = Storage.getLastSeenVersion();
         return !lastSeen || currentVersion !== lastSeen;
+    },
+
+    // --- 16. SYLLABUS TRACKER ---
+    getSyllabusProgress: () => {
+        try {
+            return JSON.parse(localStorage.getItem(KEYS.SYLLABUS) || '{}');
+        } catch { return {}; }
+    },
+    
+    updateSyllabusTopic: (examId, subjectId, chapterId, topicIdx, confidenceLevel) => {
+        try {
+            const data = Storage.getSyllabusProgress();
+            if (!data[examId]) data[examId] = {};
+            if (!data[examId][subjectId]) data[examId][subjectId] = {};
+            if (!data[examId][subjectId][chapterId]) data[examId][subjectId][chapterId] = {};
+            
+            // confidenceLevel: 0 (none), 1 (low), 2 (medium), 3 (high)
+            data[examId][subjectId][chapterId][topicIdx] = confidenceLevel;
+            localStorage.setItem(KEYS.SYLLABUS, JSON.stringify(data));
+            return data;
+        } catch(e) {
+            console.error("Error saving syllabus progress", e);
+            return Storage.getSyllabusProgress();
+        }
     },
 
     // --- 14. SESSION CLEANUP ---
