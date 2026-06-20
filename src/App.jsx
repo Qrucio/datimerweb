@@ -4132,13 +4132,28 @@ function MainApp() {
 
     const interval = setInterval(() => {
       const now = Date.now();
-      setFriends(prev => prev.map(f => {
-        if (f.timerState) {
-          const status = calculateFriendStatus({ timer_state: f.timerState }, now);
-          return { ...f, ...status };
-        }
-        return f;
-      }));
+      setFriends(prev => {
+        let hasChanges = false;
+        const nextFriends = prev.map(f => {
+          if (f.timerState) {
+            const status = calculateFriendStatus({ timer_state: f.timerState }, now);
+            // ⚡ Bolt Optimization: Only update friend object if status actually changed.
+            // Impact: Prevents the entire App from re-rendering every second when friend statuses haven't changed.
+            if (
+              f.isOnline !== status.isOnline ||
+              f.isActive !== status.isActive ||
+              f.statusText !== status.statusText ||
+              f.mode !== status.mode ||
+              f.timeLeft !== status.timeLeft
+            ) {
+              hasChanges = true;
+              return { ...f, ...status };
+            }
+          }
+          return f;
+        });
+        return hasChanges ? nextFriends : prev;
+      });
     }, 1000);
 
     return () => {
