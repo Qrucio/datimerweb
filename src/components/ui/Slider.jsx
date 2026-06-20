@@ -33,10 +33,10 @@ const Slider = ({ value, max = 1, onChange, color = "white", className = "" }) =
 
             {/* Visual Track */}
             <div className="absolute inset-x-0 flex items-center pointer-events-none z-10">
-                <div className={`w-full rounded-full transition-all duration-300 ease-out ${bgBase} h-[2px] group-hover:h-[4px] group-active:h-[4px]`}>
+                <div className={`w-full rounded-full transition-transform duration-200 ease-out origin-center ${bgBase} h-[2px] transform scale-y-100 group-hover:scale-y-[2] group-active:scale-y-[2]`}>
                     {/* Filled Part */}
                     <div
-                        className="h-full rounded-full transition-all duration-75 ease-out"
+                        className="h-full rounded-full transition-[width] duration-75 ease-out"
                         style={{ width: `${percentage}%`, backgroundColor: color }}
                     />
                 </div>

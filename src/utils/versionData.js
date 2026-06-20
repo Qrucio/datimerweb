@@ -1,5 +1,14 @@
 export const releaseNotes = [
   {
+    version: "0.4.2",
+    date: "2026-06-20",
+    changes: [
+      "Refined volume sliders in Music Modal with hardware-accelerated smooth scale animations to fix janky height transitions",
+      "Restored proper larger click/drag hit areas to Spotify seekbar and volume controls to make adjustment easier",
+      "Updated Lofi Girl Radio stream source to the latest live broadcast link"
+    ]
+  },
+  {
     version: "0.4.1",
     date: "2026-06-20",
     changes: [

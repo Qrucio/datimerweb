@@ -195,7 +195,25 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                     <motion.div key={track.id} onClick={() => { if (isSelectionMode) { if (isActive) onToggleAmbience(track); else if (selectedCount < 3) onToggleAmbience(track, true); } else { if (isUnlocked) onToggleAmbience(track, false); else onOpenPro('ambience'); } }} className={`relative aspect-[4/3] rounded-2xl md:rounded-3xl p-4 flex flex-col justify-between overflow-hidden cursor-pointer transition-all duration-300 border group ${isActive ? 'bg-white border-white shadow-[0_0_30px_rgba(255,255,255,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'} ${(isSelectionMode && isActive) ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-black' : ''} ${(isSelectionMode && !isActive && selectedCount >= 3) ? 'opacity-30 grayscale cursor-not-allowed' : ''}`}>
                                                         {!isSelectionMode && !isUnlocked && <div className="absolute inset-0 bg-black/60 z-30 flex items-center justify-center backdrop-blur-[2px]"><Lock size={24} className="text-white/50" /></div>}
                                                         <div className="flex justify-between items-start pointer-events-none"> <span className={`p-2 md:p-3 rounded-xl md:rounded-2xl transition-colors duration-300 ${isActive ? 'bg-black/5 text-black' : 'bg-white/10 text-white'}`}> <Icon size={20} strokeWidth={1.5} className={isActive ? "animate-pulse" : ""} /> </span> {isActive && <div className="w-1.5 h-1.5 md:w-2 md:h-2 bg-green-500 rounded-full shadow-[0_0_10px_#22c55e]" />} </div>
-                                                        <div className="relative z-20"> <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>{track.title}</h4> <div className={`transition-all duration-300 ease-out overflow-hidden ${isActive ? 'h-5 opacity-100 mt-2' : 'h-0 opacity-0'}`} onClick={(e) => e.stopPropagation()}> <Slider value={trackState?.volume || 0.5} onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))} color={isActive ? "black" : "white"} className="py-1" /> </div> </div>
+                                                        <div className="relative z-20">
+                                                            <h4 className={`font-medium text-xs md:text-sm transition-colors duration-300 truncate ${isActive ? 'text-black mb-1' : 'text-white mb-0'}`}>{track.title}</h4>
+                                                            <AnimatePresence initial={false}>
+                                                                {isActive && (
+                                                                    <motion.div
+                                                                        initial={{ height: 0, opacity: 0 }}
+                                                                        animate={{ height: 28, opacity: 1 }}
+                                                                        exit={{ height: 0, opacity: 0 }}
+                                                                        transition={{ duration: 0.25, ease: "easeOut" }}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        className="overflow-hidden"
+                                                                    >
+                                                                        <div className="pt-2">
+                                                                            <Slider value={trackState?.volume || 0.5} onChange={(e) => onAmbienceVolume(track.id, parseFloat(e.target.value))} color={isActive ? "black" : "white"} className="py-1" />
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
                                                     </motion.div>
                                                 );
                                             })}
@@ -500,7 +518,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                             {/* Seek Bar Row (Top) */}
                                             <div className="w-full flex items-center gap-3">
                                                 <span className="text-[10px] font-mono text-white/40 shrink-0 w-8 text-right">{formatTime(spotifyProgress / 1000)}</span>
-                                                <Slider value={spotifyProgress} max={spotifyDuration || 1} onChange={(e) => spotifySeek(Number(e.target.value))} color="white" className="flex-1 h-1 group-hover:h-1.5 transition-all" />
+                                                <Slider value={spotifyProgress} max={spotifyDuration || 1} onChange={(e) => spotifySeek(Number(e.target.value))} color="white" className="flex-1" />
                                                 <span className="text-[10px] font-mono text-white/40 shrink-0 w-8">{formatTime(spotifyDuration / 1000)}</span>
                                             </div>
 
@@ -559,7 +577,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                         <div className="flex items-center justify-end w-[30%] gap-3">
                                             <button onClick={toggleMute} className="text-white/50 hover:text-white transition-colors">{volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}</button>
                                             <div className="w-24">
-                                                <Slider value={volume} max={1} onChange={(e) => { onVolumeChange(parseFloat(e.target.value)); spotifySetVolume(parseFloat(e.target.value)); }} color="white" className="h-1" />
+                                                <Slider value={volume} max={1} onChange={(e) => { onVolumeChange(parseFloat(e.target.value)); spotifySetVolume(parseFloat(e.target.value)); }} color="white" />
                                             </div>
                                         </div>
                                     </div>

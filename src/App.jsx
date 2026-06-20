@@ -2706,7 +2706,7 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
                 ref={iframeRef}
                 className="w-full h-full"
                 // Added enablejsapi=1 to allow volume control
-                src="https://www.youtube.com/embed/jfKfPfyJRdk?enablejsapi=1&autoplay=1&controls=0&mute=0&loop=1&playlist=jfKfPfyJRdk"
+                src="https://www.youtube.com/embed/X4VbdwhkE10?enablejsapi=1&autoplay=1&controls=0&mute=0&loop=1&playlist=X4VbdwhkE10"
                 title="Lofi Girl Mini"
                 frameBorder="0"
                 allow="autoplay; encrypted-media;"
