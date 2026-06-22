@@ -82,4 +82,42 @@ const Avatar = ({ userData, photoURL, name, size = "md", isPinned = false, isPro
         </div>
     );
 };
-export default Avatar;
+// ⚡ Bolt Optimization: Memoize Avatar with a custom compare function
+// Avatar is rendered heavily in lists (chat, friend lists, servers).
+// Doing a shallow compare on all top-level props EXCEPT userData,
+// and doing a specific ID/URL/name check on userData prevents unnecessary re-renders while remaining robust to new props.
+const areEqual = (prevProps, nextProps) => {
+    const { userData: prevUser, ...prevRest } = prevProps;
+    const { userData: nextUser, ...nextRest } = nextProps;
+
+    // Shallow compare all non-userData props
+    const prevKeys = Object.keys(prevRest);
+    const nextKeys = Object.keys(nextRest);
+    if (prevKeys.length !== nextKeys.length) return false;
+    for (let i = 0; i < prevKeys.length; i++) {
+        const key = prevKeys[i];
+        if (prevRest[key] !== nextRest[key]) {
+            return false;
+        }
+    }
+
+    // Safely compare userData object properties to prevent object reference inequality from triggering re-renders
+    if (prevUser && nextUser) {
+        return (
+            prevUser.uid === nextUser.uid &&
+            prevUser.id === nextUser.id &&
+            prevUser.photoURL === nextUser.photoURL &&
+            prevUser.photo_url === nextUser.photo_url &&
+            prevUser.displayName === nextUser.displayName &&
+            prevUser.display_name === nextUser.display_name &&
+            prevUser.name === nextUser.name &&
+            prevUser.isPro === nextUser.isPro &&
+            prevUser.isPinned === nextUser.isPinned &&
+            prevUser.subscription?.plan === nextUser.subscription?.plan
+        );
+    }
+
+    return prevUser === nextUser;
+};
+
+export default React.memo(Avatar, areEqual);
