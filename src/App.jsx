@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
@@ -969,6 +969,13 @@ const NOTE_COLORS = [
   '#a7ffeb', // Teal
   '#f8bbd0', // Pink
   '#d1c4e9', // Purple
+];
+
+const SLASH_COMMANDS = [
+  { id: 'task', label: 'Task List', icon: CheckSquare, action: 'task' },
+  { id: 'list', label: 'Bullet List', icon: List, action: 'list' },
+  { id: 'bold', label: 'Bold', icon: Bold, action: 'bold' },
+  { id: 'italic', label: 'Italic', icon: Italic, action: 'italic' },
 ];
 
 
@@ -2056,11 +2063,13 @@ const NoteSystemModals = ({
     e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
   };
 
-  const allExistingTags = [...new Set(notes.flatMap(n => n.tags || []))];
-  const allTags = ["All", ...allExistingTags];
-  const tagSuggestions = tagInput.trim()
-    ? allExistingTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !editorTags.includes(t))
-    : [];
+  const allExistingTags = useMemo(() => [...new Set(notes.flatMap(n => n.tags || []))], [notes]);
+  const allTags = useMemo(() => ["All", ...allExistingTags], [allExistingTags]);
+  const tagSuggestions = useMemo(() => {
+    return tagInput.trim()
+      ? allExistingTags.filter(t => t.toLowerCase().includes(tagInput.toLowerCase()) && !editorTags.includes(t))
+      : [];
+  }, [tagInput, allExistingTags, editorTags]);
 
   useEffect(() => { setActiveSuggestionIndex(0); }, [tagInput]);
 
@@ -2116,13 +2125,9 @@ const NoteSystemModals = ({
     setTimeout(() => { textarea.focus(); const newPos = (start < lineStart) ? start : start + insertion.length; textarea.setSelectionRange(newPos, newPos); }, 0);
   };
 
-  const SLASH_COMMANDS = [
-    { id: 'task', label: 'Task List', icon: CheckSquare, action: 'task' },
-    { id: 'list', label: 'Bullet List', icon: List, action: 'list' },
-    { id: 'bold', label: 'Bold', icon: Bold, action: 'bold' },
-    { id: 'italic', label: 'Italic', icon: Italic, action: 'italic' },
-  ];
-  const filteredCommands = SLASH_COMMANDS.filter(c => c.id.includes(slashQuery.toLowerCase()) || c.label.toLowerCase().includes(slashQuery.toLowerCase()));
+  const filteredCommands = useMemo(() => {
+    return SLASH_COMMANDS.filter(c => c.id.includes(slashQuery.toLowerCase()) || c.label.toLowerCase().includes(slashQuery.toLowerCase()));
+  }, [slashQuery]);
 
   const executeSlashCommand = (command) => {
     const textarea = bodyInputRef.current;
@@ -2254,7 +2259,9 @@ const NoteSystemModals = ({
     setEditingNote(note);
   };
 
-  const filteredNotes = selectedTag === "All" ? notes : notes.filter(n => n.tags && n.tags.includes(selectedTag));
+  const filteredNotes = useMemo(() => {
+    return selectedTag === "All" ? notes : notes.filter(n => n.tags && n.tags.includes(selectedTag));
+  }, [selectedTag, notes]);
 
   return (
     <AnimatePresence>
@@ -5293,7 +5300,7 @@ function MainApp() {
     };
   }, [timeLeft, isActive, mode]);
 
-  const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
+  const dashboardFriends = useMemo(() => friends.filter(f => f.isOnline || f.isPinned), [friends]);
   const isSessionInProgress = timeLeft !== settings.focus * 60;
   const isStrictLocked = strictMode && mode === 'focus' && isSessionInProgress;
 
