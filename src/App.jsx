@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
 import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
@@ -972,7 +972,7 @@ const NOTE_COLORS = [
 ];
 
 
-const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
+const StickyNoteWidget = React.memo(({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
   const hasNotes = notes.length > 0;
   const showStack = notes.length > 1;
   const topNote = notes[0];
@@ -1067,7 +1067,7 @@ const StickyNoteWidget = ({ notes, onOpenLibrary, isLibraryOpen, onSave }) => {
       </div>
     </div>
   );
-};
+});
 
 // --- RICH TEXT & TAGGING HELPERS ---
 
@@ -2797,6 +2797,7 @@ function MainApp() {
   };
 
   const [isNoteLibraryOpen, setIsNoteLibraryOpen] = useState(false);
+  const handleOpenLibrary = useCallback(() => setIsNoteLibraryOpen(true), []);
   const [editingNote, setEditingNote] = useState(null); // If null -> New Note
 
   const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
@@ -3234,7 +3235,7 @@ function MainApp() {
     }
   };
 
-  const handleSaveNote = async (note) => {
+  const handleSaveNote = useCallback(async (note) => {
     // 1. OPTIMISTIC UPDATE
     const exists = notes.some(n => n.id === note.id);
     const updatedNotes = exists
@@ -3258,7 +3259,7 @@ function MainApp() {
         console.error("Note sync failed:", e);
       }
     }
-  };
+  }, [notes, user]);
 
   const handleDeleteNote = async (noteId) => {
     // 1. Remove from Active Notes
@@ -4132,13 +4133,21 @@ function MainApp() {
 
     const interval = setInterval(() => {
       const now = Date.now();
-      setFriends(prev => prev.map(f => {
-        if (f.timerState) {
-          const status = calculateFriendStatus({ timer_state: f.timerState }, now);
-          return { ...f, ...status };
-        }
-        return f;
-      }));
+      setFriends(prev => {
+        let hasChanges = false;
+        const newFriends = prev.map(f => {
+          if (f.timerState) {
+            const status = calculateFriendStatus({ timer_state: f.timerState }, now);
+            const changed = Object.keys(status).some(key => f[key] !== status[key]);
+            if (changed) {
+              hasChanges = true;
+              return { ...f, ...status };
+            }
+          }
+          return f;
+        });
+        return hasChanges ? newFriends : prev;
+      });
     }, 1000);
 
     return () => {
@@ -4275,11 +4284,11 @@ function MainApp() {
     } catch (e) { console.error("Pin failed", e); }
   }, [user]);
 
-  const handleViewFriendStats = (friend) => {
+  const handleViewFriendStats = useCallback((friend) => {
     setViewingFriendStats(friend);
     setShowStats(true);
     setShowFriends(false);
-  };
+  }, []);
 
   const handleSearchUsers = useCallback(async (queryText) => {
     if (!queryText) return [];
@@ -5293,7 +5302,7 @@ function MainApp() {
     };
   }, [timeLeft, isActive, mode]);
 
-  const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
+  const dashboardFriends = useMemo(() => friends.filter(f => f.isOnline || f.isPinned), [friends]);
   const isSessionInProgress = timeLeft !== settings.focus * 60;
   const isStrictLocked = strictMode && mode === 'focus' && isSessionInProgress;
 
@@ -5855,7 +5864,7 @@ function MainApp() {
               `}>
                 <StickyNoteWidget
                   notes={notes}
-                  onOpenLibrary={() => setIsNoteLibraryOpen(true)}
+                  onOpenLibrary={handleOpenLibrary}
                   isLibraryOpen={isNoteLibraryOpen}
                   onSave={handleSaveNote}
                 />

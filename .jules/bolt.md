@@ -5,3 +5,7 @@
 ## 2023-10-27 - Remove mathjs dependency and replace with native Function evaluator
 **Learning:** Using `new Function` with strict regex validation can safely replace large math evaluation libraries like `mathjs` for simple math operations, significantly improving bundle size and loading times.
 **Action:** When evaluating simple math expressions, check if the input is strictly sanitized and use native JS functionality instead of bringing in heavy third-party dependencies.
+
+## 2024-05-18 - Avoid unnecessary React state updates in intervals
+**Learning:** Returning a newly mapped array in an interval's state setter `setFriends(prev => prev.map(...))` triggers a re-render even if the actual content hasn't logically changed because the array reference changes.
+**Action:** Optimize state setters inside frequent intervals by comparing properties against the previous state and returning the original state reference `prev` if no changes occurred, preventing cascading re-renders across the component tree.
