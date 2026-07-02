@@ -2,7 +2,7 @@ import React from 'react';
 import { Pin } from 'lucide-react';
 import { useRemoteParticipants } from '@livekit/components-react';
 
-const FriendsDock = ({ friends, onViewFriendStats }) => {
+const FriendsDock = React.memo(({ friends, onViewFriendStats }) => {
     // get remote participants to check who is in the call
     const remoteParticipants = useRemoteParticipants();
 
@@ -33,6 +33,6 @@ const FriendsDock = ({ friends, onViewFriendStats }) => {
             ))}
         </div>
     );
-};
+});
 
 export default FriendsDock;

@@ -4132,13 +4132,27 @@ function MainApp() {
 
     const interval = setInterval(() => {
       const now = Date.now();
-      setFriends(prev => prev.map(f => {
-        if (f.timerState) {
-          const status = calculateFriendStatus({ timer_state: f.timerState }, now);
-          return { ...f, ...status };
-        }
-        return f;
-      }));
+      setFriends(prev => {
+        let hasChanges = false;
+        const newFriends = prev.map(f => {
+          if (f.timerState) {
+            const status = calculateFriendStatus({ timer_state: f.timerState }, now);
+            // Shallow compare to see if status actually changed
+            if (
+              f.isOnline !== status.isOnline ||
+              f.isActive !== status.isActive ||
+              f.statusText !== status.statusText ||
+              f.mode !== status.mode ||
+              f.timeLeft !== status.timeLeft
+            ) {
+              hasChanges = true;
+              return { ...f, ...status };
+            }
+          }
+          return f;
+        });
+        return hasChanges ? newFriends : prev;
+      });
     }, 1000);
 
     return () => {
@@ -4275,11 +4289,11 @@ function MainApp() {
     } catch (e) { console.error("Pin failed", e); }
   }, [user]);
 
-  const handleViewFriendStats = (friend) => {
+  const handleViewFriendStats = useCallback((friend) => {
     setViewingFriendStats(friend);
     setShowStats(true);
     setShowFriends(false);
-  };
+  }, []);
 
   const handleSearchUsers = useCallback(async (queryText) => {
     if (!queryText) return [];
@@ -5293,7 +5307,7 @@ function MainApp() {
     };
   }, [timeLeft, isActive, mode]);
 
-  const dashboardFriends = friends.filter(f => f.isOnline || f.isPinned);
+  const dashboardFriends = React.useMemo(() => friends.filter(f => f.isOnline || f.isPinned), [friends]);
   const isSessionInProgress = timeLeft !== settings.focus * 60;
   const isStrictLocked = strictMode && mode === 'focus' && isSessionInProgress;
 

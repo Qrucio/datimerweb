@@ -5,3 +5,11 @@
 ## 2023-10-27 - Remove mathjs dependency and replace with native Function evaluator
 **Learning:** Using `new Function` with strict regex validation can safely replace large math evaluation libraries like `mathjs` for simple math operations, significantly improving bundle size and loading times.
 **Action:** When evaluating simple math expressions, check if the input is strictly sanitized and use native JS functionality instead of bringing in heavy third-party dependencies.
+
+## 2026-07-02 - Shallow Compare inside setInterval
+**Learning:** When using  to poll and update state arrays (like friend status) in a root component, unconditionally returning a new array via  causes the entire app to re-render, even if the actual data hasn't changed.
+**Action:** Use a shallow comparison flag inside the  callback to check if any properties actually updated. If there are no changes, return the  state reference to preserve object identity and bypass downstream re-renders.
+
+## 2024-05-19 - Shallow Compare inside setInterval
+**Learning:** When using `setInterval` to poll and update state arrays (like friend status) in a root component, unconditionally returning a new array via `setFriends` causes the entire app to re-render, even if the actual data hasn't changed.
+**Action:** Use a shallow comparison flag inside the `setFriends` callback to check if any properties actually updated. If there are no changes, return the `prev` state reference to preserve object identity and bypass downstream re-renders.
