@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Ban, Bell, Loader2, UserPlus, Check, UserMinus, Pin, X } from 'lucide-react';
+import { Ban, Bell, Loader2, UserPlus, Check, UserMinus, Pin, X, PlaySquare } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import Avatar from '../Avatar';
 import CloseButton from '../ui/CloseButton';
 import { getIconById } from '../../utils/iconOptions';
 
 import LiquidButton from '../ui/LiquidButton';
+import { RoomsService } from '../../services/roomsService';
 
 const FriendView = ({
     user, friends, friendRequests, onSendRequest, onAcceptRequest, onDeclineRequest,
@@ -153,6 +154,18 @@ const FriendView = ({
         setRawSearchResults(prev => prev.filter(r => r.uid !== targetUser.uid));
     };
 
+    const handleInviteToRoom = async (friend) => {
+        const res = await RoomsService.createRoom(user.uid, friend.uid);
+        if (res.success) {
+            window.dispatchEvent(new CustomEvent('join_room', { 
+                detail: { roomId: res.room.id, isHost: true, remoteUserId: friend.uid }
+            }));
+            if (onClose) onClose();
+        } else {
+            setErrorMsg("Failed to create room.");
+        }
+    };
+
     const sortedFriends = [...friends].sort((a, b) => { if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1; return 0; });
 
     // Framer Motion Variants
@@ -279,6 +292,7 @@ const FriendView = ({
                                     </div>
                                     <div className="flex gap-2 items-center shrink-0 ml-2 z-10" onClick={(e) => e.stopPropagation()}>
                                         <button onClick={() => onTogglePin(friend.uid, friend.isPinned)} className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}><Pin size={16} className={friend.isPinned ? "fill-white" : ""} /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleInviteToRoom(friend); }} className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors" title="Invite to Coworking Room"><PlaySquare size={16} /></button>
                                         <LiquidButton icon={UserMinus} label="Remove" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
                                     </div>
                                 </div>

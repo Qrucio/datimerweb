@@ -10,6 +10,10 @@ import { PictureInPicture2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import CloseButton from './components/ui/CloseButton';
+import { RoomsService } from './services/roomsService';
+import { useRoomSync } from './hooks/useRoomSync';
+import RoomInviteToast from './components/social/RoomInviteToast';
+import RemoteTimerPane from './components/RemoteTimerPane';
 import { Storage } from './utils/storage';
 const UnifiedSettingsModal = lazy(() => import('./components/modals/UnifiedSettingsModal'));
 import { CommandMenu } from './components/CommandMenu';
@@ -112,7 +116,7 @@ class ErrorBoundary extends React.Component {
 
 const isVideo = (url) => {
   if (!url) return false;
-  return url.match(/\.(mp4|webm|mov)$/i);
+  return url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
 };
 
 
@@ -2730,6 +2734,8 @@ const DEFAULT_STATS = {
 };
 
 function MainApp() {
+
+
   const { isActive: isPiPActive, togglePiP, PiPPortal } = usePiP();
   /* --- PIP VIDEO PAUSE LOGIC --- */
   const mainVideoRef = useRef(null);
@@ -2802,6 +2808,99 @@ function MainApp() {
   const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
   const [settingsTab, setSettingsTab] = useState('preferences');
 
+
+
+  // --- ROOM SYNC STATE ---
+  const [activeRoomId, setActiveRoomId] = useState(null);
+  const [isRoomHost, setIsRoomHost] = useState(false);
+  const [remoteRoomUserId, setRemoteRoomUserId] = useState(null);
+  const [incomingRoomInvite, setIncomingRoomInvite] = useState(null);
+
+  // --- DEV TOOLS ---
+  const [isDevSplit, setIsDevSplit] = useState(false);
+  const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const isSplitScreen = !!activeRoomId || isDevSplit;
+
+  // NTP Clock Sync
+  useEffect(() => {
+    RoomsService.syncClock();
+  }, [activeRoomId]); // FIX #10: Re-sync on room join
+
+  // Track timeLeft in a ref so we can use it in memo closures without adding it as a dependency
+  // This prevents broadcasting to the DB every single second during a countdown, while ensuring
+  // we always capture the absolute latest time if a broadcast IS triggered by another dependency.
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+
+  // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
+  const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
+
+  // Prepare Local Timer State for broadcasting
+  // Only capture timeLeft when paused to avoid broadcasting every second during countdown
+  const pausedTimeLeft = isActive ? null : timeLeftRef.current;
+  const localTimerState = React.useMemo(() => {
+    if (!activeRoomId) return null; // FIX #5: Gate behind roomId
+    return {
+      isActive,
+      remainingDuration: (isActive ? timeLeftRef.current : pausedTimeLeft) * 1000,
+      totalDuration: currentSessionTotalDuration,
+      serverEndTime: isActive ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) : null,
+      mode,
+      background: settings.background,
+      backgroundOpacity: settings.backgroundOpacity,
+      clockType: settings.clockType
+    };
+  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, currentSessionTotalDuration]);
+
+  useRoomSync(activeRoomId, isRoomHost, localTimerState);
+
+  // Room Join & Invite Listeners
+  useEffect(() => {
+    if (!user) return;
+
+    const handleJoinRoom = (e) => {
+      // If host, don't split yet — wait for participant to accept
+      if (e.detail.isHost) {
+        // Store pending room info, listen for participant acceptance
+        const pendingRoomId = e.detail.roomId;
+        const pendingRemoteUserId = e.detail.remoteUserId;
+        
+        const acceptChannel = supabase.channel(`room_accept:${pendingRoomId}`)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${pendingRoomId}` }, (payload) => {
+            // Y accepted — their timer state is now in the room
+            if (payload.new.participant_timer_state) {
+              setActiveRoomId(pendingRoomId);
+              setIsRoomHost(true);
+              setRemoteRoomUserId(pendingRemoteUserId);
+              supabase.removeChannel(acceptChannel);
+            }
+          })
+          .subscribe();
+        
+        // Store cleanup in case component unmounts
+        return () => supabase.removeChannel(acceptChannel);
+      } else {
+        // Participant joining — split immediately (they accepted)
+        setActiveRoomId(e.detail.roomId);
+        setIsRoomHost(e.detail.isHost);
+        setRemoteRoomUserId(e.detail.remoteUserId);
+      }
+    };
+    window.addEventListener('join_room', handleJoinRoom);
+
+    // FIX #3: Listen for invites via postgres_changes on the `rooms` table
+    // instead of unreliable ephemeral broadcasts.
+    const channel = supabase.channel(`invites:${user.uid}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms', filter: `participant_id=eq.${user.uid}` }, (payload) => {
+        setIncomingRoomInvite(payload.new);
+      })
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('join_room', handleJoinRoom);
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
 
   // --- INTENTION MODE STATE ---
@@ -3091,8 +3190,6 @@ function MainApp() {
   // NEW: Track AI Planning State for Visual Feedback
 
 
-  // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
-  const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
 
   const commitSessionEdit = () => {
     const val = parseInt(sessionEditValue, 10);
@@ -5335,6 +5432,16 @@ function MainApp() {
 
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
         <GlobalStyles />
+        <RoomInviteToast 
+            invite={incomingRoomInvite}
+            onAccept={() => {
+                setActiveRoomId(incomingRoomInvite.id);
+                setIsRoomHost(false);
+                setRemoteRoomUserId(incomingRoomInvite.host_id);
+                setIncomingRoomInvite(null);
+            }}
+            onDecline={() => setIncomingRoomInvite(null)}
+        />
 
         {/* 1. BACKGROUND LAYERS (Main Window) */}
         {useIntentionTheme ? (
@@ -5344,13 +5451,13 @@ function MainApp() {
           // STANDARD / VIDEO BACKGROUND
           activeBackground && (
             isVideo(activeBackground) ? (
-              <div className="fixed inset-0 z-0 overflow-hidden">
+              <div className={`fixed inset-y-0 left-0 z-0 overflow-hidden w-full`}>
                 <video
                   ref={mainVideoRef}
                   src={activeBackground}
                   autoPlay loop muted playsInline disablePictureInPicture
                   style={{
-                    filter: 'brightness(1.2) contrast(1.1)', // Brightened as requested
+                    filter: 'brightness(1.2) contrast(1.1)',
                     transform: 'translateZ(0)',
                     opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
                   }}
@@ -5359,7 +5466,7 @@ function MainApp() {
               </div>
             ) : (
               <div
-                className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+                className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
                 style={{
                   backgroundImage: `url(${activeBackground})`,
                   opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
@@ -5371,10 +5478,10 @@ function MainApp() {
 
         {/* 2. OVERLAY LAYER (Standard dimming, disabled for Gradient to keep it vivid?) */}
         <div
-          className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
+          className={`fixed inset-y-0 left-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out w-full`}
           style={{
             backgroundColor: (activeBackground && !useIntentionTheme)
-              ? 'transparent' // We handle dimming via image opacity
+              ? 'transparent'
               : useIntentionTheme
                 ? 'rgba(0,0,0,0)'
                 : focusMode
@@ -5385,38 +5492,39 @@ function MainApp() {
         {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
 
         {/* 1.5 BACKGROUND LAYERS (PiP Window - Duplicated) */}
-        <PiPPortal>
+        {isPiPActive && (
+          <PiPPortal>
           {useIntentionTheme ? (
             <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
           ) : (
-            activeBackground && (
-              isVideo(activeBackground) ? (
-                <div className="fixed inset-0 z-0 overflow-hidden">
-                  <video
-                    ref={mainVideoRef}
-                    src={activeBackground}
-                    autoPlay loop muted playsInline disablePictureInPicture
-                    style={{
-                      filter: 'brightness(1.2) contrast(1.1)',
-                      transform: 'translateZ(0)',
-                      opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
-                    }}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div
-                  className="fixed inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+          activeBackground && (
+            isVideo(activeBackground) ? (
+              <div className={`fixed inset-y-0 left-0 z-0 overflow-hidden w-full`}>
+                <video
+                  ref={mainVideoRef}
+                  src={activeBackground}
+                  autoPlay loop muted playsInline disablePictureInPicture
                   style={{
-                    backgroundImage: `url(${activeBackground})`,
+                    filter: 'brightness(1.2) contrast(1.1)',
+                    transform: 'translateZ(0)',
                     opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
                   }}
+                  className="w-full h-full object-cover"
                 />
-              )
+              </div>
+            ) : (
+              <div
+                className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
+                style={{
+                  backgroundImage: `url(${activeBackground})`,
+                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                }}
+              />
             )
+          )
           )}
           <div
-            className="fixed inset-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out"
+            className={`fixed inset-y-0 left-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out w-full`}
             style={{
               backgroundColor: (activeBackground && !useIntentionTheme)
                 ? 'transparent'
@@ -5428,7 +5536,8 @@ function MainApp() {
             }}
           />
           {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
-        </PiPPortal>
+          </PiPPortal>
+        )}
 
 
 
@@ -5542,7 +5651,7 @@ function MainApp() {
 
               {/* --- TIMER SECTION (Main) --- */}
               <PiPPortal>
-                <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute md:inset-0 z-10 md:pointer-events-none">
+                <main className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute z-10 md:pointer-events-none transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] md:inset-0 ${isSplitScreen ? 'md:-translate-x-1/4' : 'translate-x-0'}`}>
                   <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
                     {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
@@ -5844,6 +5953,35 @@ function MainApp() {
 
                   </div>
                 </main>
+
+                {/* --- REMOTE USER PANE (Right Half) --- */}
+                <AnimatePresence>
+                  {isSplitScreen && (
+                    <motion.div 
+                      initial={{ x: '100%' }}
+                      animate={{ x: 0 }}
+                      exit={{ x: '100%' }}
+                      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                      className="hidden md:flex absolute inset-y-0 right-0 w-1/2 z-[2] pointer-events-auto rounded-l-[40px] border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden backdrop-blur-3xl bg-black/20"
+                    >
+                        <RemoteTimerPane 
+                            roomId={isDevSplit ? 'dev-room' : activeRoomId} 
+                            isHost={isRoomHost} 
+                            remoteUserId={isDevSplit ? 'dev-user' : remoteRoomUserId}
+                            localBackgroundOpacity={settings.backgroundOpacity}
+                            localBackground={activeBackground}
+                            localClockType={settings.clockType}
+                            isDevMock={isDevSplit}
+                            onSyncClick={(remoteState, remoteTimeLeft) => {
+                               setIsActive(remoteState.isActive);
+                               setTimeLeft(remoteTimeLeft);
+                               if (remoteState.mode) handleModeChange(remoteState.mode);
+                            }}
+                        />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
               </PiPPortal>
 
               {/* STICKY NOTE WIDGET CONTAINER */}
@@ -6087,6 +6225,15 @@ function MainApp() {
             />
           )
         }
+
+        {isLocalDev && (
+          <button
+            onClick={() => setIsDevSplit(!isDevSplit)}
+            className="fixed bottom-4 right-4 z-[9999] bg-purple-500/80 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-lg backdrop-blur-md"
+          >
+            Dev Split
+          </button>
+        )}
 
       </div>
     </VideoManager>
