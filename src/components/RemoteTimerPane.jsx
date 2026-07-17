@@ -216,130 +216,124 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
         img.onerror = () => setAssetError(true);
     }, [isDataReady, activeBackground]);
 
-    // --- PURE SKELETON STATE: No data at all yet ---
-    if (!isDataReady) {
-        return (
-            <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center">
-                <SkeletonContent localClockType={localClockType} />
-            </div>
-        );
-    }
-
-    // --- DATA READY: Render real UI, with skeleton overlay if asset still loading ---
     return (
         <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center bg-black">
-            {/* FIX #7: Remote Background — supports both image and video */}
-            {activeBackground && isVideo(activeBackground) ? (
-                <div className="absolute inset-0 z-0 overflow-hidden">
-                    <video
-                        ref={videoRef}
-                        src={activeBackground}
-                        autoPlay loop muted playsInline disablePictureInPicture
-                        onLoadedData={(e) => { 
-                            e.target.muted = true; 
-                            e.target.play().catch(() => {}); 
-                            setAssetLoaded(true);
-                        }}
-                        onError={() => setAssetError(true)}
-                        onCanPlay={(e) => { e.target.muted = true; e.target.play().catch(() => {}); }}
-                        style={{
-                            filter: 'brightness(1.2) contrast(1.1)',
-                            transform: 'translateZ(0)',
-                            opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
-                        }}
-                        className="w-full h-full object-cover"
-                    />
-                </div>
-            ) : (
-                <div 
-                    className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
-                    style={{ 
-                        backgroundImage: activeBackground ? `url(${activeBackground})` : 'none',
-                        opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
-                    }} 
-                />
-            )}
+            {isDataReady && (
+                <>
+                    {/* FIX #7: Remote Background — supports both image and video */}
+                    {activeBackground && isVideo(activeBackground) ? (
+                        <div className="absolute inset-0 z-0 overflow-hidden">
+                            <video
+                                ref={videoRef}
+                                src={activeBackground}
+                                autoPlay loop muted playsInline disablePictureInPicture
+                                onLoadedData={(e) => { 
+                                    e.target.muted = true; 
+                                    e.target.play().catch(() => {}); 
+                                    setAssetLoaded(true);
+                                }}
+                                onError={() => setAssetError(true)}
+                                onCanPlay={(e) => { e.target.muted = true; e.target.play().catch(() => {}); }}
+                                style={{
+                                    filter: 'brightness(1.2) contrast(1.1)',
+                                    transform: 'translateZ(0)',
+                                    opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
+                                }}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    ) : (
+                        <div 
+                            className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+                            style={{ 
+                                backgroundImage: activeBackground ? `url(${activeBackground})` : 'none',
+                                opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
+                            }} 
+                        />
+                    )}
 
-            {/* Remote Content (wrapped identically to App.jsx to ensure perfect horizontal alignment) */}
-            <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pb-0 relative z-10 pointer-events-none">
-                <div className="flex flex-col items-center w-full max-w-full relative pointer-events-auto">
-                    {/* Profile Header — sits in the top area, outside of the centered timer flow */}
-                    <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max">
-                        <Avatar userData={remoteProfile} size="lg" />
-                        <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile.display_name}</span>
-                    </div>
-
-                    {/* --- MODE SWITCHER (Non-interactive replica of App.jsx) --- */}
-                    <div className="flex items-center justify-center mb-2 h-10 w-full max-w-xl text-sm">
-                    {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }, { id: 'stopwatch', label: 'Stopwatch' }].map((m) => {
-                        const isCurrent = remoteState.mode === m.id;
-                        const isActive = remoteState.isActive;
-                        
-                        const totalSeconds = remoteState.totalDuration || (remoteState.mode === 'focus' ? 1500 : 300);
-                        const progress = m.id === 'stopwatch' ? 100 : (totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0);
-
-                        let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
-
-                        if (isActive) {
-                            if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
-                            else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
-                        } else {
-                            containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
-                            if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
-                            else { containerClass += "bg-transparent text-white/50 border border-transparent cursor-default "; }
-                        }
-
-                        return (
-                            <div key={m.id} className={containerClass}>
-                                {/* Progress Bar Background */}
-                                <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
-
-                                <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
-                                    <span className="whitespace-nowrap">{m.label}</span>
-                                </span>
+                    {/* Remote Content (wrapped identically to App.jsx to ensure perfect horizontal alignment) */}
+                    <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pb-0 relative z-10 pointer-events-none">
+                        <div className="flex flex-col items-center w-full max-w-full relative pointer-events-auto">
+                            {/* Profile Header — sits in the top area, outside of the centered timer flow */}
+                            <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max">
+                                <Avatar userData={remoteProfile} size="lg" />
+                                <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile.display_name}</span>
                             </div>
-                        );
-                    })}
-                </div>
 
-                {/* Dummy Tally Indicator Spacer for alignment */}
-                <div className="relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 min-w-[100px]" />
+                            {/* --- MODE SWITCHER (Non-interactive replica of App.jsx) --- */}
+                            <div className="flex items-center justify-center mb-2 h-10 w-full max-w-xl text-sm">
+                            {[{ id: 'focus', label: 'Focus' }, { id: 'shortBreak', label: 'Short Break' }, { id: 'longBreak', label: 'Long Break' }, { id: 'stopwatch', label: 'Stopwatch' }].map((m) => {
+                                const isCurrent = remoteState.mode === m.id;
+                                const isActive = remoteState.isActive;
+                                
+                                const totalSeconds = remoteState.totalDuration || (remoteState.mode === 'focus' ? 1500 : 300);
+                                const progress = m.id === 'stopwatch' ? 100 : (totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0);
 
-                {/* --- TIMER (Matches App.jsx classes and dynamic sizing/fonts) --- */}
-                <div
-                    className={`
-                        leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
+                                let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
+
+                                if (isActive) {
+                                    if (isCurrent) { containerClass += "flex-[100] bg-white/10 mx-0 cursor-default border border-transparent duration-1000 ease-in-out"; }
+                                    else { containerClass += "flex-[0.001] px-0 mx-0 opacity-0 border border-transparent duration-1000 ease-in-out"; }
+                                } else {
+                                    containerClass += "flex-1 mx-1 md:mx-1.5 duration-300 ease-out ";
+                                    if (isCurrent) { containerClass += "bg-white text-black font-medium border border-white cursor-default group "; }
+                                    else { containerClass += "bg-transparent text-white/50 border border-transparent cursor-default "; }
+                                }
+
+                                return (
+                                    <div key={m.id} className={containerClass}>
+                                        {/* Progress Bar Background */}
+                                        <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
+
+                                        <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
+                                            <span className="whitespace-nowrap">{m.label}</span>
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Dummy Tally Indicator Spacer for alignment */}
+                        <div className="relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 min-w-[100px]" />
+
+                        {/* --- TIMER (Matches App.jsx classes and dynamic sizing/fonts) --- */}
+                        <div
+                            className={`
+                                leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
+                                
+                                ${(remoteState.clockType || 'default') === 'default' ? 'font-clock' : ''}
+                                ${remoteState.clockType === 'sans' ? 'font-clock-sans' : ''}
+                                ${remoteState.clockType === 'serif' ? 'font-clock-serif' : ''}
+                                ${remoteState.clockType === 'mono' ? 'font-clock-mono' : ''}
+                                ${remoteState.clockType === 'display' ? 'font-clock-display' : ''}
+                                ${remoteState.clockType === 'digital' ? 'font-clock-digital' : ''}
+                                ${remoteState.clockType === 'pixel' ? 'font-clock-pixel' : ''}
+                                ${remoteState.clockType === 'cyber' ? 'font-clock-cyber' : ''}
+                                ${remoteState.clockType === 'hand' ? 'font-clock-hand' : ''}
+                                ${remoteState.clockType === 'block' ? 'font-clock-block' : ''}
+                                ${remoteState.clockType === 'elegant' ? 'font-clock-elegant' : ''}
+                                ${remoteState.clockType === 'neon' ? 'font-clock-neon' : ''}
+                                ${remoteState.clockType === 'round' ? 'font-clock-round' : ''}
+                                
+                                ${({
+                                    'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                                    'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                                    'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
+                                }[remoteState.timerSize || 'medium']) || 'text-[18vw] md:text-[8rem] lg:text-[10rem]'}
+                                
+                                ${!remoteState.isActive ? 'text-white' : 'text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
+                            `}
+                        >
+                            <CountdownTimer timeLeft={timeLeft} disableAnimation={true} clockType={remoteState.clockType || 'default'} />
+                        </div>
                         
-                        ${(remoteState.clockType || 'default') === 'default' ? 'font-clock' : ''}
-                        ${remoteState.clockType === 'sans' ? 'font-clock-sans' : ''}
-                        ${remoteState.clockType === 'serif' ? 'font-clock-serif' : ''}
-                        ${remoteState.clockType === 'mono' ? 'font-clock-mono' : ''}
-                        ${remoteState.clockType === 'display' ? 'font-clock-display' : ''}
-                        ${remoteState.clockType === 'digital' ? 'font-clock-digital' : ''}
-                        ${remoteState.clockType === 'pixel' ? 'font-clock-pixel' : ''}
-                        ${remoteState.clockType === 'cyber' ? 'font-clock-cyber' : ''}
-                        ${remoteState.clockType === 'hand' ? 'font-clock-hand' : ''}
-                        ${remoteState.clockType === 'block' ? 'font-clock-block' : ''}
-                        ${remoteState.clockType === 'elegant' ? 'font-clock-elegant' : ''}
-                        ${remoteState.clockType === 'neon' ? 'font-clock-neon' : ''}
-                        ${remoteState.clockType === 'round' ? 'font-clock-round' : ''}
-                        
-                        ${({
-                            'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                            'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                            'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                        }[remoteState.timerSize || 'medium']) || 'text-[18vw] md:text-[8rem] lg:text-[10rem]'}
-                        
-                        ${!remoteState.isActive ? 'text-white' : 'text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
-                    `}
-                >
-                    <CountdownTimer timeLeft={timeLeft} disableAnimation={true} clockType={remoteState.clockType || 'default'} />
-                </div>
-                
-                {/* Dummy Controls Spacer for alignment */}
-                <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center h-20" />
-                </div>
-            </main>
+                        {/* Dummy Controls Spacer for alignment */}
+                        <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center h-20" />
+                        </div>
+                    </main>
+                </>
+            )}
 
             {/* Asset Preload Overlay — Skeleton stays on top until background image/video is ready */}
             <AnimatePresence>
@@ -348,7 +342,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                         initial={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.6, ease: "easeInOut" }}
-                        className="absolute inset-0 z-50"
+                        className="absolute inset-0 z-50 pointer-events-none"
                     >
                         <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center">
                             <SkeletonContent localClockType={localClockType} />
