@@ -2840,17 +2840,22 @@ function MainApp() {
   const pausedTimeLeft = isActive ? null : timeLeftRef.current;
   const localTimerState = React.useMemo(() => {
     if (!activeRoomId) return null; // FIX #5: Gate behind roomId
+    
+    // FIX: Always send the correct base duration so the remote progress bar calculates correctly
+    const defaultDuration = mode === 'focus' ? settings.focus * 60 : (mode === 'shortBreak' ? settings.shortBreak * 60 : settings.longBreak * 60);
+    const actualTotalDuration = currentSessionTotalDuration || defaultDuration;
+
     return {
       isActive,
       remainingDuration: (isActive ? timeLeftRef.current : pausedTimeLeft) * 1000,
-      totalDuration: currentSessionTotalDuration,
+      totalDuration: actualTotalDuration,
       serverEndTime: isActive ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) : null,
       mode,
       background: settings.background,
       backgroundOpacity: settings.backgroundOpacity,
       clockType: settings.clockType
     };
-  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, currentSessionTotalDuration]);
+  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration]);
 
   useRoomSync(activeRoomId, isRoomHost, localTimerState);
 
