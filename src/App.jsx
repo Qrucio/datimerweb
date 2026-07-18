@@ -6123,7 +6123,7 @@ function MainApp() {
                         </div>
 
                         {/* Inner Pane (Contains background, blur, clipped edges) */}
-                        <div className={`absolute inset-0 rounded-l-[40px] border-l overflow-hidden z-[2] pointer-events-auto transition-all duration-1000 ${isSeamlessPanorama ? 'border-transparent shadow-none backdrop-blur-none bg-transparent' : 'border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-black/20'}`}>
+                        <div className={`absolute inset-0 rounded-l-[40px] border-l overflow-hidden z-[2] pointer-events-auto transition-all duration-1000 ${isSeamlessPanorama ? 'border-white/10 shadow-[-12px_0_30px_-12px_rgba(0,0,0,0.5)] bg-gradient-to-r from-white/[0.03] to-transparent backdrop-blur-none' : 'border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-black/20'}`}>
                             <RemoteTimerPane 
                                 roomId={isDevSplit ? 'dev-room' : activeRoomId} 
                                 isHost={isRoomHost} 
