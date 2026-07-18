@@ -9,7 +9,7 @@ import { supabase } from '../../lib/supabase';
  * Replaces the ugly `window.confirm()` with a premium glassmorphism toast
  * that slides in from the top when a friend invites the user to a room.
  */
-const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
+const RoomInviteToast = ({ invite, onAccept, onDecline, onDismiss }) => {
     const [senderProfile, setSenderProfile] = useState(null);
 
     useEffect(() => {
@@ -74,7 +74,13 @@ const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
                             initial={{ scaleX: 1 }}
                             animate={{ scaleX: 0 }}
                             transition={{ duration: 30, ease: 'linear' }}
-                            onAnimationComplete={onDecline}
+                            onAnimationComplete={() => {
+                                if (onDismiss) {
+                                    onDismiss();
+                                } else {
+                                    onDecline();
+                                }
+                            }}
                             className="absolute bottom-0 left-0 h-0.5 bg-white/30 rounded-full origin-left w-full"
                         />
                     </div>

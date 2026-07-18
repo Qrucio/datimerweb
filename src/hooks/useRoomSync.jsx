@@ -172,13 +172,17 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
             return;
         }
 
-        let timeUntilWatchdogFires = 15 * 60 * 1000; // 15 mins by default (if both are paused)
+        // Differentiate between an active room and a pending invite
+        const isPendingInvite = !remoteTimerState || Object.keys(remoteTimerState).length === 0;
+        const baseGracePeriod = isPendingInvite ? (5 * 60 * 1000) : (15 * 60 * 1000); // 5 mins for pending, 15 mins for active
+
+        let timeUntilWatchdogFires = baseGracePeriod;
 
         if (maxExpiration !== -Infinity) {
             // Someone is running a countdown timer!
-            // The watchdog should fire 15 minutes AFTER the timer ends.
+            // The watchdog should fire baseGracePeriod AFTER the timer ends.
             const now = RoomsService.getSyncedTime();
-            timeUntilWatchdogFires = (maxExpiration - now) + (15 * 60 * 1000);
+            timeUntilWatchdogFires = (maxExpiration - now) + baseGracePeriod;
         }
 
         // If it should have fired in the past, cap it to 0 (execute immediately in setTimeout)
@@ -187,7 +191,7 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         console.log(`[Watchdog] Scheduled to evaluate room death in ${Math.round(timeUntilWatchdogFires/1000)}s`);
 
         const timeout = setTimeout(() => {
-            console.log("[Watchdog] 15 minutes of zero activity elapsed (timers naturally expired or paused). Abandoning room.");
+            console.log(`[Watchdog] ${baseGracePeriod / 60000} minutes of zero activity elapsed (timers naturally expired or paused). Abandoning room.`);
             RoomsService.leaveRoom(roomId);
             if (onRoomClosed) onRoomClosed();
         }, timeUntilWatchdogFires);
