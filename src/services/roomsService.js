@@ -55,7 +55,19 @@ export const RoomsService = {
         try {
             const { data: existing } = await supabase.from('rooms').select('*').eq('host_id', hostId).eq('participant_id', targetUserId).limit(1).single();
             if (existing) {
-                return { success: true, room: existing };
+                // 1. Is it an active room? (Participant has joined)
+                if (existing.participant_timer_state) {
+                    return { success: true, room: existing };
+                }
+
+                // 2. Is it a fresh invite? (Less than 60 seconds old)
+                const ageMs = Date.now() - new Date(existing.created_at).getTime();
+                if (ageMs < 60000) {
+                    return { success: true, room: existing };
+                }
+
+                // 3. It's stale. Safely delete it so we can create a fresh one.
+                await supabase.from('rooms').delete().eq('id', existing.id);
             }
 
             const { data, error } = await supabase
