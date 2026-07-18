@@ -1,7 +1,9 @@
 import { supabase } from '../lib/supabase';
+import { Storage } from '../utils/storage';
 
 // In-memory clock offset (Server Time - Local Time)
 let serverTimeOffset = 0;
+const declinedInvites = new Set();
 
 export const RoomsService = {
     /**
@@ -97,6 +99,8 @@ export const RoomsService = {
             const { data, error } = await query.single();
             
             if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+            if (data && declinedInvites.has(data.id)) return { success: true, invite: null };
+            
             return { success: true, invite: data || null };
         } catch(e) {
             console.error("[RoomsService] Get pending invite failed", e);
@@ -127,6 +131,31 @@ export const RoomsService = {
             return { success: true };
         } catch (error) {
             console.error("[RoomsService] Leave room failed", error);
+            return { success: false, error };
+        }
+    },
+
+    /**
+     * Decline an incoming invite
+     * Broadcasts to host and marks locally to avoid RLS limitations
+     */
+    declineInvite: async (roomId) => {
+        try {
+            declinedInvites.add(roomId);
+            
+            const channel = supabase.channel(`room_accept:${roomId}`);
+            await channel.send({
+                type: 'broadcast',
+                event: 'room_declined',
+                payload: { roomId }
+            }).catch(console.error);
+
+            // Attempt to delete it anyway (fails if RLS blocks, but we tried)
+            await supabase.from('rooms').delete().eq('id', roomId);
+            
+            return { success: true };
+        } catch (error) {
+            console.error("[RoomsService] Decline invite failed", error);
             return { success: false, error };
         }
     },

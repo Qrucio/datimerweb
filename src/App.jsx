@@ -2999,6 +2999,12 @@ function MainApp() {
               supabase.removeChannel(acceptChannel);
             }
           })
+          .on('broadcast', { event: 'room_declined' }, async () => {
+            console.log("[Rooms] Invite was declined by participant");
+            // They declined. We (the host) should delete the DB row safely
+            await RoomsService.leaveRoom(pendingRoomId);
+            supabase.removeChannel(acceptChannel);
+          })
           .subscribe();
         
         // Store cleanup in case component unmounts
@@ -5741,7 +5747,7 @@ function MainApp() {
                           setIncomingRoomInvite(null);
                       }}
                       onDecline={() => {
-                          RoomsService.leaveRoom(incomingRoomInvite.id);
+                          RoomsService.declineInvite(incomingRoomInvite.id);
                           setIncomingRoomInvite(null);
                       }}
                   />
