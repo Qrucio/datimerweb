@@ -3028,12 +3028,9 @@ function MainApp() {
     // instead of unreliable ephemeral broadcasts.
     const channel = supabase.channel(`invites:${user.uid}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms', filter: `participant_id=eq.${user.uid}` }, (payload) => {
-        console.log("[App] Incoming room invite RECEIVED via realtime:", payload.new);
         setIncomingRoomInvite(payload.new);
       })
-      .subscribe((status) => {
-        console.log("[App] Invites channel subscription status:", status);
-      });
+      .subscribe();
 
     // Catch-up sync: Fetch any invites missed while offline
     const fetchPendingInvites = async () => {

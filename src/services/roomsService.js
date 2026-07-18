@@ -53,7 +53,6 @@ export const RoomsService = {
      */
     createRoom: async (hostId, targetUserId) => {
         try {
-            console.log("[RoomsService] Attempting to create room for", { hostId, targetUserId });
             const { data: existing } = await supabase.from('rooms').select('*').eq('host_id', hostId).eq('participant_id', targetUserId).limit(1).single();
             if (existing) {
                 // 1. Is it an active room? (Participant has joined)
@@ -62,40 +61,26 @@ export const RoomsService = {
                 const isActiveSession = pState && typeof pState === 'object' && Object.keys(pState).length > 0;
                 
                 if (isActiveSession) {
-                    console.log("[RoomsService] Found active room, returning it.");
                     return { success: true, room: existing };
                 }
 
                 // 2. Is it a fresh invite? (Less than 60 seconds old)
                 const ageMs = Date.now() - new Date(existing.created_at).getTime();
                 if (ageMs < 60000) {
-                    console.log(`[RoomsService] Found fresh pending room (${ageMs}ms old). Returning it.`);
                     return { success: true, room: existing };
                 }
 
                 // 3. It's stale. Safely delete it so we can create a fresh one.
-                console.log("[RoomsService] Found stale room. Attempting delete...", existing.id);
-                const { error: delErr } = await supabase.from('rooms').delete().eq('id', existing.id);
-                if (delErr) {
-                    console.error("[RoomsService] Failed to delete stale room:", delErr);
-                } else {
-                    console.log("[RoomsService] Stale room deleted successfully.");
-                }
+                await supabase.from('rooms').delete().eq('id', existing.id);
             }
 
-            console.log("[RoomsService] Inserting new room for host", hostId, "and target", targetUserId);
             const { data, error } = await supabase
                 .from('rooms')
                 .insert({ host_id: hostId, participant_id: targetUserId })
                 .select()
                 .single();
             
-            if (error) {
-                console.error("[RoomsService] Insert failed:", error);
-                throw error;
-            }
-            
-            console.log("[RoomsService] Successfully created new room:", data);
+            if (error) throw error;
             return { success: true, room: data };
         } catch (error) {
             console.error("[RoomsService] createRoom failed", error);
