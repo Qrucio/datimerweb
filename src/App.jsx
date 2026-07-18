@@ -5740,7 +5740,10 @@ function MainApp() {
                           setRemoteRoomUserId(incomingRoomInvite.host_id);
                           setIncomingRoomInvite(null);
                       }}
-                      onDecline={() => setIncomingRoomInvite(null)}
+                      onDecline={() => {
+                          RoomsService.leaveRoom(incomingRoomInvite.id);
+                          setIncomingRoomInvite(null);
+                      }}
                   />
                 )}
                 <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
