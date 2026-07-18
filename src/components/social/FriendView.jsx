@@ -8,12 +8,14 @@ import { getIconById } from '../../utils/iconOptions';
 
 import LiquidButton from '../ui/LiquidButton';
 import { RoomsService } from '../../services/roomsService';
+import { useToast } from '../../hooks/useToast';
 
 const FriendView = ({
     user, friends, friendRequests, onSendRequest, onAcceptRequest, onDeclineRequest,
     onBlockUser, onUnblockUser, checkOutgoingRequest, onRemoveFriend, onTogglePin,
-    onViewStats, onSearchUsers, blockedUsers, onClose, onServerJoined
+    onViewStats, onSearchUsers, blockedUsers, onClose, onServerJoined, activeRoomId
 }) => {
+    const { toast } = useToast();
     const [view, setView] = useState('list');
     const [searchText, setSearchText] = useState("");
     const [isSearching, setIsSearching] = useState(false);
@@ -23,6 +25,7 @@ const FriendView = ({
     const [errorMsg, setErrorMsg] = useState(null);
     const [acceptingIds, setAcceptingIds] = useState({});
     const [serverInvites, setServerInvites] = useState([]);
+    const [invitingState, setInvitingState] = useState({});
 
     // FETCH INVITES (Manual Join for robustness)
     const fetchInvites = async () => {
@@ -155,14 +158,30 @@ const FriendView = ({
     };
 
     const handleInviteToRoom = async (friend) => {
+        setInvitingState(prev => ({ ...prev, [friend.uid]: 'loading' }));
         const res = await RoomsService.createRoom(user.uid, friend.uid);
         if (res.success) {
             window.dispatchEvent(new CustomEvent('join_room', { 
                 detail: { roomId: res.room.id, isHost: true, remoteUserId: friend.uid }
             }));
-            if (onClose) onClose();
+            setInvitingState(prev => ({ ...prev, [friend.uid]: 'success' }));
+            setTimeout(() => {
+                setInvitingState(prev => {
+                    const next = { ...prev };
+                    delete next[friend.uid];
+                    return next;
+                });
+            }, 3000);
         } else {
+            setInvitingState(prev => ({ ...prev, [friend.uid]: 'error' }));
             setErrorMsg("Failed to create room.");
+            setTimeout(() => {
+                 setInvitingState(prev => {
+                    const next = { ...prev };
+                    delete next[friend.uid];
+                    return next;
+                });
+            }, 3000);
         }
     };
 
@@ -252,7 +271,7 @@ const FriendView = ({
 
                                     {friendRequests.map(req => (
                                         <div key={req.uid} className="bg-white/10 border border-white/20 rounded-xl p-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3"> <Avatar userData={req} size="md" /> <div className="flex flex-col md:flex-row md:items-baseline md:gap-2"> <span className="text-sm font-bold text-white">{req.displayName}</span> <span className="text-xs text-white/50 font-medium">{req.handle}</span> </div> </div>
+                                            <div className="flex items-center gap-3"> <Avatar userData={req} size="md" /> <div className="flex flex-col md:flex-row md:items-baseline md:gap-2"> <span className="text-sm font-bold text-white">{req.displayName || 'Unknown'}</span> <span className="text-xs text-white/50 font-medium">{req.handle || '@unknown'}</span> </div> </div>
                                             <div className="flex gap-3 pr-2 items-center"> <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(req)} /> <LiquidButton icon={X} label="Deny?" variant="danger" onConfirm={() => onDeclineRequest(req.uid)} /> <button onClick={() => handleAcceptClick(req)} disabled={acceptingIds[req.uid]} className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center hover:bg-green-400 hover:scale-110 transition-all shadow-md z-20 disabled:opacity-50 disabled:cursor-not-allowed">{acceptingIds[req.uid] ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} strokeWidth={3} />}</button> </div>
                                         </div>
                                     ))} </div>
@@ -269,7 +288,7 @@ const FriendView = ({
                                     const isSent = requestStatuses[result.uid] === 'sent';
                                     return (
                                         <div key={result.uid} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3"> <Avatar userData={result} size="md" /> <div className="flex items-baseline gap-2"> <span className="text-sm font-bold text-white leading-tight">{result.displayName}</span> <span className="text-xs text-white/50">{result.handle}</span> </div> </div>
+                                            <div className="flex items-center gap-3"> <Avatar userData={result} size="md" /> <div className="flex items-baseline gap-2"> <span className="text-sm font-bold text-white leading-tight">{result.displayName || 'Unknown'}</span> <span className="text-xs text-white/50">{result.handle || '@unknown'}</span> </div> </div>
                                             <div className="flex items-center gap-2"> <LiquidButton icon={Ban} label="Block?" variant="danger" onConfirm={() => handleBlock(result)} /> {isSent ? <button disabled className="w-8 h-8 rounded-full flex items-center justify-center bg-green-500 text-black shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all scale-100 cursor-default"> <Check size={16} strokeWidth={3} /> </button> : <button onClick={() => handleSendRequest(result)} className="w-8 h-8 rounded-full flex items-center justify-center bg-white text-black hover:bg-gray-200 transition-all shadow-md active:scale-95"> <UserPlus size={16} strokeWidth={2.5} /> </button>} </div>
                                         </div>
                                     );
@@ -281,8 +300,8 @@ const FriendView = ({
                                         <Avatar userData={friend} size="md" />
                                         <div className="flex flex-col justify-center min-w-0">
                                             <div className="flex items-baseline gap-2 mb-1 min-w-0">
-                                                <span className="text-sm font-medium text-white leading-none truncate">{friend.displayName}</span>
-                                                <span className="text-xs text-white/50 truncate hidden sm:inline">{friend.handle}</span>
+                                                <span className="text-sm font-bold text-white truncate max-w-[120px] sm:max-w-none">{friend.displayName || 'Unknown'}</span>
+                                                <span className="text-xs text-white/50 truncate hidden sm:inline">{friend.handle || '@unknown'}</span>
                                             </div>
                                             <div className="text-[10px] text-white/50 flex items-center gap-1.5 truncate">
                                                 <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${friend.isOnline ? (friend.isActive ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-yellow-500') : 'bg-gray-600'}`}></span>
@@ -292,7 +311,21 @@ const FriendView = ({
                                     </div>
                                     <div className="flex gap-2 items-center shrink-0 ml-2 z-10" onClick={(e) => e.stopPropagation()}>
                                         <button onClick={() => onTogglePin(friend.uid, friend.isPinned)} className={`p-2 rounded-lg transition-colors ${friend.isPinned ? 'text-white' : 'text-white/20 hover:text-white hover:bg-white/10'}`}><Pin size={16} className={friend.isPinned ? "fill-white" : ""} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleInviteToRoom(friend); }} className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors" title="Invite to Coworking Room"><PlaySquare size={16} /></button>
+                                        <button 
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                if (activeRoomId) {
+                                                    toast("You're already in a room", { description: "Leave your current room before starting a new one.", type: 'error' });
+                                                    return;
+                                                }
+                                                if(invitingState[friend.uid] !== 'loading') handleInviteToRoom(friend); 
+                                            }} 
+                                            className={`p-2 rounded-lg transition-colors ${activeRoomId ? 'text-white/20 cursor-not-allowed' : (invitingState[friend.uid] === 'success' ? 'text-green-400 bg-green-500/10' : 'text-white/50 hover:text-white hover:bg-white/10')}`} 
+                                            title={activeRoomId ? "Leave current room first" : "Invite to Coworking Room"}
+                                            disabled={invitingState[friend.uid] === 'loading' || invitingState[friend.uid] === 'success'}
+                                        >
+                                            {invitingState[friend.uid] === 'loading' ? <Loader2 size={16} className="animate-spin" /> : invitingState[friend.uid] === 'success' ? <Check size={16} /> : <PlaySquare size={16} />}
+                                        </button>
                                         <LiquidButton icon={UserMinus} label="Remove" variant="danger" onConfirm={() => onRemoveFriend(friend.uid)} />
                                     </div>
                                 </div>

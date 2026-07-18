@@ -25,30 +25,30 @@ const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
         <AnimatePresence>
             {invite && (
                 <motion.div
-                    initial={{ opacity: 0, y: -80, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -80, scale: 0.9 }}
+                    initial={{ opacity: 0, x: -50, scale: 0.95 }}
+                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -50, scale: 0.95 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] w-[90vw] max-w-md"
+                    className="relative w-[320px] mb-3 pointer-events-auto"
                 >
-                    <div className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+                    <div className="bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl p-3 shadow-2xl overflow-hidden">
                         <div className="flex items-center gap-3">
                             {/* Sender Avatar */}
                             <div className="shrink-0">
                                 {senderProfile ? (
-                                    <Avatar userData={senderProfile} size="lg" />
+                                    <Avatar userData={senderProfile} size="md" />
                                 ) : (
-                                    <div className="w-12 h-12 rounded-full bg-white/10 animate-pulse" />
+                                    <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
                                 )}
                             </div>
 
                             {/* Text */}
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-white truncate">
-                                    {senderProfile?.display_name || 'A friend'} invited you
+                                <p className="text-sm font-medium text-white truncate">
+                                    {senderProfile?.display_name || 'A friend'}
                                 </p>
                                 <p className="text-xs text-white/50 flex items-center gap-1 mt-0.5">
-                                    <Users size={12} /> Coworking Room
+                                    <Users size={12} /> Coworking Invite
                                 </p>
                             </div>
 
@@ -56,15 +56,15 @@ const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
                             <div className="flex items-center gap-2 shrink-0">
                                 <button
                                     onClick={onDecline}
-                                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-red-500/20 border border-white/10 hover:border-red-500/30 text-white/50 hover:text-red-400 flex items-center justify-center transition-all active:scale-90"
+                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 text-white/50 hover:text-white flex items-center justify-center transition-all active:scale-90"
                                 >
-                                    <X size={16} />
+                                    <X size={14} />
                                 </button>
                                 <button
                                     onClick={onAccept}
-                                    className="w-9 h-9 rounded-full bg-white hover:bg-green-400 text-black flex items-center justify-center transition-all hover:scale-110 active:scale-90 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
+                                    className="w-8 h-8 rounded-full bg-white text-black flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-[0_0_10px_rgba(255,255,255,0.2)]"
                                 >
-                                    <Check size={16} strokeWidth={3} />
+                                    <Check size={14} strokeWidth={3} />
                                 </button>
                             </div>
                         </div>
@@ -75,7 +75,7 @@ const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
                             animate={{ scaleX: 0 }}
                             transition={{ duration: 30, ease: 'linear' }}
                             onAnimationComplete={onDecline}
-                            className="h-0.5 bg-white/20 rounded-full mt-3 origin-left"
+                            className="absolute bottom-0 left-0 h-0.5 bg-white/30 rounded-full origin-left w-full"
                         />
                     </div>
                 </motion.div>

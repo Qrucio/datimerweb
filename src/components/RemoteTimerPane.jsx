@@ -4,7 +4,7 @@ import CountdownTimer from './CountdownTimer';
 import { supabase } from '../lib/supabase';
 import { RoomsService } from '../services/roomsService';
 import Avatar from './Avatar';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, LogOut } from 'lucide-react';
 
 // FIX #7: Support video backgrounds (same check as App.jsx)
 const isVideo = (url) => {
@@ -22,7 +22,7 @@ const calculateTimeLeft = (state) => {
 };
 
 // --- SKELETON VIEW (defined OUTSIDE to avoid remount/animation reset) ---
-const SkeletonContent = ({ localClockType }) => (
+const SkeletonContent = ({ localClockType, timerSize }) => (
     <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pb-0 relative z-10 pointer-events-none">
         <div className="flex flex-col items-center w-full max-w-full relative pointer-events-auto">
             
@@ -85,7 +85,13 @@ const SkeletonContent = ({ localClockType }) => (
                     ${localClockType === 'elegant' ? 'font-clock-elegant' : ''}
                     ${localClockType === 'neon' ? 'font-clock-neon' : ''}
                     ${localClockType === 'round' ? 'font-clock-round' : ''}
-                    text-[18vw] md:text-[8rem] lg:text-[10rem]
+                    
+                    ${({
+                        'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
+                        'medium': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                        'giant': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                        'mammoth': 'text-[20vw] md:text-[10rem] lg:text-[12rem]'
+                    }[timerSize || 'medium']) || 'text-[15vw] md:text-[6rem] lg:text-[8rem]'}
                 `}
             >
                 00:00
@@ -97,7 +103,7 @@ const SkeletonContent = ({ localClockType }) => (
     </main>
 );
 
-const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity, localBackground, localClockType, onSyncClick, isDevMock }) => {
+const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity, localBackground, localClockType, onSyncClick, isDevMock, onLeaveRoom, onBackgroundMatch }) => {
     const [remoteState, setRemoteState] = useState(null);
     const [remoteProfile, setRemoteProfile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(0);
@@ -187,9 +193,17 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
 
     // Use their profile background if available, else fallback
     const activeBackground = remoteState?.background || remoteProfile?.timer_state?.background || null;
+    
+    const isSameBackground = Boolean(localBackground && activeBackground && localBackground === activeBackground);
+
+    useEffect(() => {
+        if (onBackgroundMatch) {
+            onBackgroundMatch(isSameBackground);
+        }
+    }, [isSameBackground, onBackgroundMatch]);
 
     const isDataReady = remoteState !== null && remoteProfile !== null && remoteState.mode !== undefined;
-    const isFullyReady = isDataReady && (!activeBackground || assetLoaded || assetError);
+    const isFullyReady = isDataReady && (isSameBackground || !activeBackground || assetLoaded || assetError);
 
     // Asset preloading effect
     useEffect(() => {
@@ -217,39 +231,41 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
     }, [isDataReady, activeBackground]);
 
     return (
-        <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center bg-black">
+        <div className={`w-full h-full relative overflow-hidden flex flex-col justify-center items-center transition-colors duration-1000 ${isSameBackground ? 'bg-transparent' : 'bg-black'}`}>
             {isDataReady && (
                 <>
                     {/* FIX #7: Remote Background — supports both image and video */}
-                    {activeBackground && isVideo(activeBackground) ? (
-                        <div className="absolute inset-0 z-0 overflow-hidden">
-                            <video
-                                ref={videoRef}
-                                src={activeBackground}
-                                autoPlay loop muted playsInline disablePictureInPicture
-                                onLoadedData={(e) => { 
-                                    e.target.muted = true; 
-                                    e.target.play().catch(() => {}); 
-                                    setAssetLoaded(true);
-                                }}
-                                onError={() => setAssetError(true)}
-                                onCanPlay={(e) => { e.target.muted = true; e.target.play().catch(() => {}); }}
-                                style={{
-                                    filter: 'brightness(1.2) contrast(1.1)',
-                                    transform: 'translateZ(0)',
+                    {!isSameBackground && activeBackground && (
+                        isVideo(activeBackground) ? (
+                            <div className="absolute inset-0 z-0 overflow-hidden">
+                                <video
+                                    ref={videoRef}
+                                    src={activeBackground}
+                                    autoPlay loop muted playsInline disablePictureInPicture
+                                    onLoadedData={(e) => { 
+                                        e.target.muted = true; 
+                                        e.target.play().catch(() => {}); 
+                                        setAssetLoaded(true);
+                                    }}
+                                    onError={() => setAssetError(true)}
+                                    onCanPlay={(e) => { e.target.muted = true; e.target.play().catch(() => {}); }}
+                                    style={{
+                                        filter: 'brightness(1.2) contrast(1.1)',
+                                        transform: 'translateZ(0)',
+                                        opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
+                                    }}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        ) : (
+                            <div 
+                                className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+                                style={{ 
+                                    backgroundImage: `url(${activeBackground})`,
                                     opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
-                                }}
-                                className="w-full h-full object-cover"
+                                }} 
                             />
-                        </div>
-                    ) : (
-                        <div 
-                            className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
-                            style={{ 
-                                backgroundImage: activeBackground ? `url(${activeBackground})` : 'none',
-                                opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
-                            }} 
-                        />
+                        )
                     )}
 
                     {/* Remote Content (wrapped identically to App.jsx to ensure perfect horizontal alignment) */}
@@ -258,7 +274,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                             {/* Profile Header — sits in the top area, outside of the centered timer flow */}
                             <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max">
                                 <Avatar userData={remoteProfile} size="lg" />
-                                <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile.display_name}</span>
+                                <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile?.display_name || 'Unknown'}</span>
                             </div>
 
                             {/* --- MODE SWITCHER (Non-interactive replica of App.jsx) --- */}
@@ -294,8 +310,16 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                             })}
                         </div>
 
-                        {/* Dummy Tally Indicator Spacer for alignment */}
-                        <div className="relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 min-w-[100px]" />
+                        {/* --- CYCLE TALLY INDICATOR (Read-only replica of remote user's session progress) --- */}
+                        <div className={`relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 cursor-default min-w-[100px] transition-opacity duration-300 ${remoteState.mode === 'stopwatch' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                            {Array.from({ length: remoteState.pomosBeforeLongBreak || 4 }).map((_, i) => {
+                                const isCompleted = i < (remoteState.pomoCount || 0);
+                                const isCurrent = i === (remoteState.pomoCount || 0);
+                                return (
+                                    <div key={i} className={`rounded-full transition-all duration-500 ease-smooth ${(isCompleted || isCurrent) ? 'w-2 h-2 bg-white' : 'w-1.5 h-1.5 bg-white/20'}`} />
+                                );
+                            })}
+                        </div>
 
                         {/* --- TIMER (Matches App.jsx classes and dynamic sizing/fonts) --- */}
                         <div
@@ -317,10 +341,11 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                                 ${remoteState.clockType === 'round' ? 'font-clock-round' : ''}
                                 
                                 ${({
-                                    'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                                    'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                                    'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                                }[remoteState.timerSize || 'medium']) || 'text-[18vw] md:text-[8rem] lg:text-[10rem]'}
+                                    'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
+                                    'medium': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                                    'giant': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                                    'mammoth': 'text-[20vw] md:text-[10rem] lg:text-[12rem]'
+                                }[remoteState.timerSize || 'medium']) || 'text-[15vw] md:text-[6rem] lg:text-[8rem]'}
                                 
                                 ${!remoteState.isActive ? 'text-white' : 'text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                             `}
@@ -328,8 +353,10 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                             <CountdownTimer timeLeft={timeLeft} disableAnimation={true} clockType={remoteState.clockType || 'default'} />
                         </div>
                         
-                        {/* Dummy Controls Spacer for alignment */}
-                        <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center h-20" />
+                        {/* Room Controls Spacer for alignment */}
+                        <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center h-20 pointer-events-none">
+                            {/* The Leave Room button was moved to a Pull Tab on the outer pane edge in App.jsx */}
+                        </div>
                         </div>
                     </main>
                 </>
@@ -342,10 +369,10 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                         initial={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.6, ease: "easeInOut" }}
-                        className="absolute inset-0 z-50 pointer-events-none"
+                        className="absolute inset-0 z-50 pointer-events-none bg-black/90"
                     >
                         <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center">
-                            <SkeletonContent localClockType={localClockType} />
+                            <SkeletonContent localClockType={localClockType} timerSize={remoteState?.timerSize} />
                         </div>
                     </motion.div>
                 )}

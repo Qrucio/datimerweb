@@ -11,11 +11,8 @@ const KEYS = {
     PRO_CLAIM: 'zen_pro_claim',     // Offline Pro License
     TASKS: 'zen_cache_tasks',
     HABITS: 'zen_cache_habits',
-    SUBSCRIPTION: 'zen_cache_subscription',
     QUICKLINKS: 'zen_quicklinks',
-    REMOVE_ADS: 'zen_remove_ads',   // Purchase flag to hide ads
     VOLUME: 'zen_volume',           // Global Volume
-    SPOTIFY_PROMO_DISMISSED: 'zen_spotify_promo_dismissed',
     VERSION_SEEN: 'zen_version_seen',
 };
 
@@ -169,16 +166,7 @@ export const Storage = {
     },
 
     // --- 2. THE SYNC WORKER ---
-    // In Supabase, we don't strictly *need* complex offline queuing because 
-    // the client handles retries well, but we'll leave the hooks for now.
-    hasPendingData: () => false,
-    syncPendingData: async () => true,
-
-    // --- 2.5 SYNC DOWN (Fetch History) ---
-    mergeHistory: (remoteHistory) => {
-        // ... (kept for compat if needed, but easier to just trust DB)
-        return remoteHistory;
-    },
+    // Removed sync worker methods since piggyback sync is used.
 
     getFullHistory: () => {
         try {
@@ -497,13 +485,6 @@ export const Storage = {
         localStorage.setItem(KEYS.VOLUME, vol.toString());
     },
 
-    getSpotifyPromoDismissed: () => {
-        return localStorage.getItem(KEYS.SPOTIFY_PROMO_DISMISSED) === 'true';
-    },
-    setSpotifyPromoDismissed: (dismissed) => {
-        localStorage.setItem(KEYS.SPOTIFY_PROMO_DISMISSED, dismissed.toString());
-    },
-
     // --- 15. VERSION TRACKING ---
     getLastSeenVersion: () => {
         try {
@@ -527,7 +508,5 @@ export const Storage = {
         localStorage.removeItem('pomodoro_user_name');
         localStorage.removeItem('zen_user_handle');
         localStorage.removeItem('zen_intention_task');
-        localStorage.removeItem('zen_holo_note');
-        localStorage.removeItem('zen_bmc_disabled');
     }
 };

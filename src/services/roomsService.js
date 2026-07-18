@@ -87,10 +87,19 @@ export const RoomsService = {
      */
     leaveRoom: async (roomId) => {
         try {
+            // Broadcast over the existing channel to notify peer instantly
+            const channel = supabase.channel(`room_sync:${roomId}`);
+            await channel.send({
+                type: 'broadcast',
+                event: 'room_left',
+                payload: { roomId }
+            }).catch(console.error); // Fire and forget if it fails
+
             const { error } = await supabase
                 .from('rooms')
                 .delete()
                 .eq('id', roomId);
+                
             if (error) throw error;
             return { success: true };
         } catch (error) {

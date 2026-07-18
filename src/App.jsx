@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, CloudRain, CloudLightning, Wind, Waves, Tent, Trees, Train, Keyboard, Headphones, Radio, Gamepad2, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Coins } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Gamepad2, CloudRain } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { SocialService } from './services/socialService';
 import { UserService } from './services/userService';
@@ -110,8 +110,6 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// --- FIREBASE CONFIGURATION ---
-// --- FIREBASE CONFIG REMOVED ---
 // App now uses Supabase (initialized in ./lib/supabase.js)
 
 const isVideo = (url) => {
@@ -2423,7 +2421,7 @@ const NoteSystemModals = ({
                           <div className="relative z-10 flex flex-col h-full pointer-events-none">
                             {note.title && <h4 className="font-bold text-sm md:text-base mb-2 line-clamp-1 select-none">{note.title}</h4>}
                             <div className="flex-1 overflow-y-auto no-scrollbar pointer-events-auto">
-                              {/* WalletIndicator removed */}
+
                               <RichTextRenderer
                                 text={note.text}
                                 className="text-xs md:text-sm"
@@ -2811,19 +2809,133 @@ function MainApp() {
 
 
   // --- ROOM SYNC STATE ---
-  const [activeRoomId, setActiveRoomId] = useState(null);
-  const [isRoomHost, setIsRoomHost] = useState(false);
-  const [remoteRoomUserId, setRemoteRoomUserId] = useState(null);
+  const [activeRoomId, setActiveRoomId] = useState(() => localStorage.getItem('datimer_activeRoomId') || null);
+  const [isRoomHost, setIsRoomHost] = useState(() => localStorage.getItem('datimer_isRoomHost') === 'true');
+  const [remoteRoomUserId, setRemoteRoomUserId] = useState(() => localStorage.getItem('datimer_remoteRoomUserId') || null);
   const [incomingRoomInvite, setIncomingRoomInvite] = useState(null);
+  const [isSeamlessPanorama, setIsSeamlessPanorama] = useState(false);
+
+  // Sync to localStorage
+  useEffect(() => {
+    if (activeRoomId) {
+      localStorage.setItem('datimer_activeRoomId', activeRoomId);
+      localStorage.setItem('datimer_isRoomHost', isRoomHost);
+      if (remoteRoomUserId) localStorage.setItem('datimer_remoteRoomUserId', remoteRoomUserId);
+    } else {
+      localStorage.removeItem('datimer_activeRoomId');
+      localStorage.removeItem('datimer_isRoomHost');
+      localStorage.removeItem('datimer_remoteRoomUserId');
+    }
+  }, [activeRoomId, isRoomHost, remoteRoomUserId]);
+
+  // On-Mount Validation
+  useEffect(() => {
+    const validateRoom = async () => {
+      const storedRoomId = localStorage.getItem('datimer_activeRoomId');
+      if (!storedRoomId) return;
+
+      const { success, room, error } = await RoomsService.getRoom(storedRoomId);
+      
+      if (!success) {
+        console.warn("[Room] Network error during validation. Preserving state.", error);
+        return; 
+      }
+      
+      if (!room) {
+        setActiveRoomId(null);
+        return;
+      }
+
+      const getExpirationTime = (state) => {
+          if (!state || !state.isActive) return null;
+          if (state.mode === 'stopwatch') return Infinity;
+          return state.serverEndTime || Infinity;
+      };
+
+      const hostExp = getExpirationTime(room.host_timer_state);
+      const guestExp = getExpirationTime(room.participant_timer_state);
+      
+      const hostIsPaused = !room.host_timer_state?.isActive;
+      const guestIsPaused = !room.participant_timer_state?.isActive;
+
+      let maxExpiration = -Infinity;
+      if (!hostIsPaused && hostExp !== null) maxExpiration = Math.max(maxExpiration, hostExp);
+      if (!guestIsPaused && guestExp !== null) maxExpiration = Math.max(maxExpiration, guestExp);
+
+      const now = RoomsService.getSyncedTime();
+      let shouldDelete = false;
+
+      if (maxExpiration === -Infinity) {
+          // Both paused. Check if updated_at is > 15 mins old
+          const lastUpdate = new Date(room.updated_at).getTime();
+          if (now - lastUpdate > 15 * 60 * 1000) {
+              shouldDelete = true;
+          }
+      } else if (maxExpiration !== Infinity) {
+          // Someone was running a countdown. Has it been 15 mins since it naturally expired?
+          if (now > maxExpiration + 15 * 60 * 1000) {
+              shouldDelete = true;
+          }
+      }
+
+      if (shouldDelete) {
+        console.log("[Room] Abandoned/Expired room detected on mount. Cleaning up.");
+        RoomsService.leaveRoom(storedRoomId);
+        setActiveRoomId(null);
+      }
+    };
+    validateRoom();
+  }, []);
 
   // --- DEV TOOLS ---
   const [isDevSplit, setIsDevSplit] = useState(false);
   const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const isSplitScreen = !!activeRoomId || isDevSplit;
 
-  // NTP Clock Sync
+  // Pull Tab hover-to-reveal state
+  const [showPullTab, setShowPullTab] = useState(false);
+  const [isLeavingRoom, setIsLeavingRoom] = useState(false);
+  const [isPaneAnimating, setIsPaneAnimating] = useState(false);
+  const [tabLinger, setTabLinger] = useState(false);
+
   useEffect(() => {
-    RoomsService.syncClock();
+    let timeout;
+    if (isPaneAnimating) {
+      setTabLinger(true);
+    } else {
+      timeout = setTimeout(() => {
+        setTabLinger(false);
+      }, 2500); // Keep tab visible for 2.5s after animation finishes
+    }
+    return () => clearTimeout(timeout);
+  }, [isPaneAnimating]);
+
+  useEffect(() => {
+    if (!isSplitScreen) {
+      setShowPullTab(false);
+      return;
+    }
+    const handleMouseMove = (e) => {
+      // The tab is at exactly (window.innerWidth / 2, window.innerHeight / 2).
+      // Calculate radial distance to create a circular "safe zone" around the tab itself.
+      const tabX = window.innerWidth / 2;
+      const tabY = window.innerHeight / 2;
+      const distance = Math.sqrt(Math.pow(e.clientX - tabX, 2) + Math.pow(e.clientY - tabY, 2));
+      
+      // Reveal if cursor is within 180px of the center
+      const shouldShow = distance < 180;
+      setShowPullTab(prev => (prev !== shouldShow ? shouldShow : prev));
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [isSplitScreen]);
+
+  // NTP Clock Sync
+  const [serverClockSynced, setServerClockSynced] = useState(false);
+  useEffect(() => {
+    setServerClockSynced(false);
+    RoomsService.syncClock().then(() => setServerClockSynced(true));
   }, [activeRoomId]); // FIX #10: Re-sync on room join
 
   // Track timeLeft in a ref so we can use it in memo closures without adding it as a dependency
@@ -2831,6 +2943,10 @@ function MainApp() {
   // we always capture the absolute latest time if a broadcast IS triggered by another dependency.
   const timeLeftRef = useRef(timeLeft);
   useEffect(() => { timeLeftRef.current = timeLeft; }, [timeLeft]);
+
+  // Ref + state trigger for pomoCount (declared later at line ~3125, but needed in localTimerState memo)
+  const pomoCountRef = useRef(0);
+  const [pomoCountTrigger, setPomoCountTrigger] = useState(0);
 
   // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
   const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
@@ -2853,11 +2969,14 @@ function MainApp() {
       mode,
       background: settings.background,
       backgroundOpacity: settings.backgroundOpacity,
-      clockType: settings.clockType
+      clockType: settings.clockType,
+      pomoCount: pomoCountRef.current,
+      pomosBeforeLongBreak: settings.pomosBeforeLongBreak
     };
-  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration]);
+  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration, serverClockSynced, pomoCountTrigger, settings.pomosBeforeLongBreak]);
 
-  useRoomSync(activeRoomId, isRoomHost, localTimerState);
+  const handleRoomClosed = React.useCallback(() => setActiveRoomId(null), []);
+  useRoomSync(activeRoomId, isRoomHost, localTimerState, handleRoomClosed);
 
   // Room Join & Invite Listeners
   useEffect(() => {
@@ -3009,6 +3128,7 @@ function MainApp() {
   };
 
   const [pomoCount, setPomoCount] = useState(initialState?.pomoCount || 0);
+  useEffect(() => { pomoCountRef.current = pomoCount; setPomoCountTrigger(prev => prev + 1); }, [pomoCount]);
   const [hoveredDockIndex, setHoveredDockIndex] = useState(null);
   // Load Stats from Cache
   const [stats, setStats] = useState(() => {
@@ -3877,7 +3997,7 @@ function MainApp() {
         data: payload.stats
       });
 
-      // 3. User Settings (Wallet/Inventory)
+      // 3. User Settings
       await UserService.upsertSettings({
         user_id: user.uid,
         updated_at: new Date()
@@ -4421,7 +4541,7 @@ function MainApp() {
   useEffect(() => {
     if (!user) return;
 
-    // A. SYNC SETTINGS (Notes, Trash, Wallet, Inventory, App Settings)
+    // A. SYNC SETTINGS (Notes, Trash, App Settings)
     // [LOCAL-FIRST] Listener removed to prevent overwrite loops. 
     // We now trust local state and only fetch once on mount.
 
@@ -5437,17 +5557,6 @@ function MainApp() {
 
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
         <GlobalStyles />
-        <RoomInviteToast 
-            invite={incomingRoomInvite}
-            onAccept={() => {
-                setActiveRoomId(incomingRoomInvite.id);
-                setIsRoomHost(false);
-                setRemoteRoomUserId(incomingRoomInvite.host_id);
-                setIncomingRoomInvite(null);
-            }}
-            onDecline={() => setIncomingRoomInvite(null)}
-        />
-
         {/* 1. BACKGROUND LAYERS (Main Window) */}
         {useIntentionTheme ? (
           // HOLO GRAIN THEME (Replaces Gradient)
@@ -5607,10 +5716,22 @@ function MainApp() {
 
               {/* --- DESKTOP FOOTER LEFT --- */}
               <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-                {dashboardFriends.length > 0 && (
+                {dashboardFriends.length > 0 && !incomingRoomInvite && (
                   <FriendsDock
                     friends={dashboardFriends}
                     onViewFriendStats={handleViewFriendStats}
+                  />
+                )}
+                {incomingRoomInvite && (
+                  <RoomInviteToast 
+                      invite={incomingRoomInvite}
+                      onAccept={() => {
+                          setActiveRoomId(incomingRoomInvite.id);
+                          setIsRoomHost(false);
+                          setRemoteRoomUserId(incomingRoomInvite.host_id);
+                          setIncomingRoomInvite(null);
+                      }}
+                      onDecline={() => setIncomingRoomInvite(null)}
                   />
                 )}
                 <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
@@ -5882,11 +6003,11 @@ function MainApp() {
                     ${settings.clockType === 'round' ? 'font-clock-round' : ''}
                     
                     ${({
-                          'small': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                          'medium': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                          'giant': 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                          'mammoth': 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
-                        })[settings.clockSize] || 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
+                          'small': isSplitScreen ? 'text-[13vw] md:text-[5rem] lg:text-[6rem]' : 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
+                          'medium': isSplitScreen ? 'text-[15vw] md:text-[6rem] lg:text-[8rem]' : 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
+                          'giant': isSplitScreen ? 'text-[18vw] md:text-[8rem] lg:text-[10rem]' : 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
+                          'mammoth': isSplitScreen ? 'text-[20vw] md:text-[10rem] lg:text-[12rem]' : 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
+                        })[settings.clockSize] || (isSplitScreen ? 'text-[18vw] md:text-[8rem] lg:text-[10rem]' : 'text-[20vw] md:text-[10rem] lg:text-[12rem]')}
 
                     ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
                     ${'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
@@ -5962,27 +6083,64 @@ function MainApp() {
                 {/* --- REMOTE USER PANE (Right Half) --- */}
                 <AnimatePresence>
                   {isSplitScreen && (
-                    <motion.div 
-                      initial={{ x: '100%' }}
+                    <motion.div
+                      key="remote-pane" 
+                      initial={{ x: 'calc(100% + 80px)' }}
                       animate={{ x: 0 }}
-                      exit={{ x: '100%' }}
+                      exit={{ x: 'calc(100% + 80px)' }}
                       transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                      className="hidden md:flex absolute inset-y-0 right-0 w-1/2 z-[2] pointer-events-auto rounded-l-[40px] border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden backdrop-blur-3xl bg-black/20"
+                      onAnimationStart={() => setIsPaneAnimating(true)}
+                      onAnimationComplete={() => setIsPaneAnimating(false)}
+                      className="hidden md:flex absolute inset-y-0 right-0 w-1/2 z-[30] pointer-events-none"
                     >
-                        <RemoteTimerPane 
-                            roomId={isDevSplit ? 'dev-room' : activeRoomId} 
-                            isHost={isRoomHost} 
-                            remoteUserId={isDevSplit ? 'dev-user' : remoteRoomUserId}
-                            localBackgroundOpacity={settings.backgroundOpacity}
-                            localBackground={activeBackground}
-                            localClockType={settings.clockType}
-                            isDevMock={isDevSplit}
-                            onSyncClick={(remoteState, remoteTimeLeft) => {
-                               setIsActive(remoteState.isActive);
-                               setTimeLeft(remoteTimeLeft);
-                               if (remoteState.mode) handleModeChange(remoteState.mode);
-                            }}
-                        />
+                        {/* Pull Tab Container — expanded to prevent shadow/blur clipping, hides button when it slides right */}
+                        <div className="absolute left-[-76px] w-[76px] top-1/2 -translate-y-1/2 h-[160px] overflow-hidden z-[1] pointer-events-none flex items-center justify-end">
+                            <motion.button
+                                initial={{ x: 80 }}
+                                animate={{ x: (showPullTab || tabLinger) ? 0 : 80 }}
+                                exit={{ x: 80 }}
+                                transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                                onClick={async () => {
+                                    setIsLeavingRoom(true);
+                                    if (isDevSplit) {
+                                        setIsDevSplit(false);
+                                    } else {
+                                        await RoomsService.leaveRoom(activeRoomId);
+                                        handleRoomClosed();
+                                    }
+                                    setIsLeavingRoom(false);
+                                }}
+                                disabled={isLeavingRoom}
+                                className="pointer-events-auto w-[46px] h-[100px] bg-black/60 backdrop-blur-3xl border-y border-l border-white/10 rounded-l-2xl flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-black/80 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Leave Room"
+                            >
+                                {isLeavingRoom ? (
+                                    <Loader2 size={18} className="animate-spin text-white/60" />
+                                ) : (
+                                    <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+                                )}
+                            </motion.button>
+                        </div>
+
+                        {/* Inner Pane (Contains background, blur, clipped edges) */}
+                        <div className={`absolute inset-0 rounded-l-[40px] border-l overflow-hidden z-[2] pointer-events-auto transition-all duration-1000 ${isSeamlessPanorama ? 'border-transparent shadow-none backdrop-blur-none bg-transparent' : 'border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-black/20'}`}>
+                            <RemoteTimerPane 
+                                roomId={isDevSplit ? 'dev-room' : activeRoomId} 
+                                isHost={isRoomHost} 
+                                remoteUserId={isDevSplit ? 'dev-user' : remoteRoomUserId}
+                                localBackgroundOpacity={settings.backgroundOpacity}
+                                localBackground={activeBackground}
+                                localClockType={settings.clockType}
+                                isDevMock={isDevSplit}
+                                onLeaveRoom={handleRoomClosed}
+                                onBackgroundMatch={setIsSeamlessPanorama}
+                                onSyncClick={(remoteState, remoteTimeLeft) => {
+                                   setIsActive(remoteState.isActive);
+                                   setTimeLeft(remoteTimeLeft);
+                                   if (remoteState.mode) handleModeChange(remoteState.mode);
+                                }}
+                            />
+                        </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -6104,6 +6262,7 @@ function MainApp() {
 
         <Suspense fallback={null}>
           <SocialModal
+            activeRoomId={activeRoomId}
             isOpen={showFriends}
             onClose={() => {
               setShowFriends(false);
@@ -6238,6 +6397,23 @@ function MainApp() {
           >
             Dev Split
           </button>
+        )}
+
+        {/* DEV ONLY: Simulate Incoming Invite Button */}
+        {import.meta.env.DEV && !incomingRoomInvite && !activeRoomId && (
+            <button 
+                onClick={() => {
+                    setIncomingRoomInvite({
+                        id: 'dev-mock-room-id',
+                        host_id: 'dev-mock-host-id',
+                        server: null,
+                        sender: { display_name: 'Dev Mock User' }
+                    });
+                }}
+                className="fixed bottom-20 left-6 z-50 bg-indigo-500/80 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-lg hover:bg-indigo-500 transition-colors pointer-events-auto"
+            >
+                [DEV] Simulate Invite
+            </button>
         )}
 
       </div>
