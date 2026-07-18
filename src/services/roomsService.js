@@ -81,6 +81,29 @@ export const RoomsService = {
         }
     },
 
+    getPendingInvite: async (userId, excludeRoomId = null) => {
+        try {
+            let query = supabase
+                .from('rooms')
+                .select('*')
+                .eq('participant_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (excludeRoomId) {
+                query = query.neq('id', excludeRoomId);
+            }
+
+            const { data, error } = await query.single();
+            
+            if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+            return { success: true, invite: data || null };
+        } catch(e) {
+            console.error("[RoomsService] Get pending invite failed", e);
+            return { success: false, error: e };
+        }
+    },
+
     /**
      * Leave / close a room.
      * FIX #4: Proper cleanup — deletes the room row from the DB.

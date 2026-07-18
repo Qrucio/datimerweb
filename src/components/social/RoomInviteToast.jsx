@@ -23,7 +23,7 @@ const RoomInviteToast = ({ invite, onAccept, onDecline }) => {
 
     return (
         <AnimatePresence>
-            {invite && (
+            {invite && senderProfile && (
                 <motion.div
                     initial={{ opacity: 0, x: -50, scale: 0.95 }}
                     animate={{ opacity: 1, x: 0, scale: 1 }}

@@ -3020,6 +3020,15 @@ function MainApp() {
       })
       .subscribe();
 
+    // Catch-up sync: Fetch any invites missed while offline
+    const fetchPendingInvites = async () => {
+      const { success, invite } = await RoomsService.getPendingInvite(user.uid, activeRoomId);
+      if (success && invite) {
+        setIncomingRoomInvite(invite);
+      }
+    };
+    fetchPendingInvites();
+
     return () => {
       window.removeEventListener('join_room', handleJoinRoom);
       supabase.removeChannel(channel);
