@@ -2837,6 +2837,12 @@ function MainApp() {
       const { success, room, error } = await RoomsService.getRoom(storedRoomId);
       
       if (!success) {
+        if (error?.code === 'PGRST116') {
+          console.warn("[Room] Room deleted. Clearing state.", error);
+          setActiveRoomId(null);
+          handleRoomClosed(storedRoomId);
+          return;
+        }
         console.warn("[Room] Network error during validation. Preserving state.", error);
         return; 
       }
@@ -5741,6 +5747,9 @@ function MainApp() {
                   <RoomInviteToast 
                       invite={incomingRoomInvite}
                       onAccept={() => {
+                          if (activeRoomId) {
+                              RoomsService.leaveRoom(activeRoomId);
+                          }
                           setActiveRoomId(incomingRoomInvite.id);
                           setIsRoomHost(false);
                           setRemoteRoomUserId(incomingRoomInvite.host_id);

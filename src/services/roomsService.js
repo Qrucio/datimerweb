@@ -3,7 +3,7 @@ import { Storage } from '../utils/storage';
 
 // In-memory clock offset (Server Time - Local Time)
 let serverTimeOffset = 0;
-const declinedInvites = new Set();
+const getDeclinedIds = () => new Set(JSON.parse(localStorage.getItem('datimer_declined_invites') || '[]'));
 
 export const RoomsService = {
     /**
@@ -53,6 +53,11 @@ export const RoomsService = {
      */
     createRoom: async (hostId, targetUserId) => {
         try {
+            const { data: existing } = await supabase.from('rooms').select('*').eq('host_id', hostId).eq('participant_id', targetUserId).limit(1).single();
+            if (existing) {
+                return { success: true, room: existing };
+            }
+
             const { data, error } = await supabase
                 .from('rooms')
                 .insert({ host_id: hostId, participant_id: targetUserId })
@@ -99,7 +104,7 @@ export const RoomsService = {
             const { data, error } = await query.single();
             
             if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
-            if (data && declinedInvites.has(data.id)) return { success: true, invite: null };
+            if (data && getDeclinedIds().has(data.id)) return { success: true, invite: null };
             
             return { success: true, invite: data || null };
         } catch(e) {
@@ -141,7 +146,9 @@ export const RoomsService = {
      */
     declineInvite: async (roomId) => {
         try {
-            declinedInvites.add(roomId);
+            const set = getDeclinedIds();
+            set.add(roomId);
+            localStorage.setItem('datimer_declined_invites', JSON.stringify(Array.from(set)));
             
             const channel = supabase.channel(`room_accept:${roomId}`);
             await channel.send({

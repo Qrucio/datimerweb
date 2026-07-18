@@ -111,12 +111,18 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         if (!roomId) return;
         setIsReady(false);
 
+        let hasReceivedRealtimeUpdate = false;
+
+        const processRoomState = (room) => {
+            setStateVersion(room.state_version);
+            setRemoteTimerState(isHost ? room.participant_timer_state : room.host_timer_state);
+        };
+
         // Fetch initial version on mount
         const fetchInitial = async () => {
             const { room } = await RoomsService.getRoom(roomId);
-            if (room) {
-                setStateVersion(room.state_version);
-                setRemoteTimerState(isHost ? room.participant_timer_state : room.host_timer_state);
+            if (room && !hasReceivedRealtimeUpdate) {
+                processRoomState(room);
             }
             setIsReady(true);
         };
@@ -124,8 +130,8 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
 
         const channel = supabase.channel(`room_sync:${roomId}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, (payload) => {
-                setStateVersion(payload.new.state_version);
-                setRemoteTimerState(isHost ? payload.new.participant_timer_state : payload.new.host_timer_state);
+                hasReceivedRealtimeUpdate = true;
+                processRoomState(payload.new);
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, () => {
                 console.log("[Room] Room was deleted by the host or watchdog. Closing.");
