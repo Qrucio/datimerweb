@@ -138,7 +138,7 @@ const SmartIntervention = ({
                                     onClick={onClose}
                                     className="pointer-events-auto group flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white hover:border-white transition-all duration-300 shadow-lg"
                                 >
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-black transition-colors">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-white/60 group-hover:text-black transition-colors">
                                         Resume Focus
                                     </span>
                                     <div className="w-5 h-5 rounded-full bg-white/10 group-hover:bg-black text-white group-hover:text-white flex items-center justify-center transition-colors">
@@ -158,7 +158,7 @@ const SmartIntervention = ({
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: 10 }}
-                                            transition={{ duration: 0.25, ease: "easeOut" }}
+                                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                                             className="space-y-8"
                                         >
                                             <h3 className="text-3xl sm:text-4xl font-normal text-white leading-tight tracking-tight font-sans">
@@ -221,7 +221,7 @@ const SmartIntervention = ({
                                             initial={{ opacity: 0, x: -10 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             exit={{ opacity: 0, x: 10 }}
-                                            transition={{ duration: 0.25, ease: "easeOut" }}
+                                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                                             className="space-y-10 text-center"
                                         >
                                             <div className="space-y-2">
@@ -306,7 +306,7 @@ const SmartIntervention = ({
                                                     className="group w-full py-4 rounded-xl bg-purple-500/20 text-purple-200 border border-purple-500/30 hover:bg-purple-500/30 transition-all shadow-[0_0_20px_rgba(168,85,247,0.15)] hover:shadow-[0_0_30px_rgba(168,85,247,0.25)] active:scale-[0.99] flex items-center justify-center gap-3"
                                                 >
                                                     <Zap size={18} className="fill-purple-200 group-hover:scale-110 transition-transform duration-300" />
-                                                    <span className="font-bold uppercase tracking-widest text-xs">
+                                                    <span className="font-semibold uppercase tracking-wider text-xs">
                                                         {actionCommand}
                                                     </span>
                                                 </button>

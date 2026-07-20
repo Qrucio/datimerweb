@@ -17,14 +17,14 @@ export default function AboutPage() {
         className="relative z-10 w-full max-w-2xl"
       >
         <header className="mb-16 border-b border-white/5 pb-8">
-          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 tracking-tight">
             About DaTimer
           </h1>
         </header>
 
         <div className="space-y-12 leading-relaxed text-lg font-light text-white/70">
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Mission</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif">The Mission</h2>
             <p className="mb-4">
               We live in an economy of distraction. Every app, notification, and algorithm is fighting for a slice of your attention.
             </p>
@@ -36,7 +36,7 @@ export default function AboutPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">Indie Built</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif">Indie Built</h2>
             <p className="mb-4">
               DaTimer is not a venture-backed startup with a board of directors. It is a passion project built by a single developer
               who needed a better way to work.
@@ -48,7 +48,7 @@ export default function AboutPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4 font-serif-display">The Stack</h2>
+            <h2 className="text-xl font-bold text-white mb-4 font-serif">The Stack</h2>
             <p>
               For the curious: DaTimer is built with <span className="text-white/90 font-medium">React</span> and <span className="text-white/90 font-medium">Vite</span> for speed.
               It uses <span className="text-white/90 font-medium">Tailwind CSS</span> for styling and <span className="text-white/90 font-medium">Framer Motion</span> for those buttery smooth animations.
@@ -58,7 +58,7 @@ export default function AboutPage() {
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
-          <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+          <a href="/" className="text-xs font-semibold uppercase tracking-wider text-white/30 hover:text-white transition-colors">
             Return to DaTimer
           </a>
         </footer>

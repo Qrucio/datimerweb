@@ -202,7 +202,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
     };
 
     const modalVariants = {
-        hidden: { opacity: 0, scale: 0.9, y: 30 },
+        hidden: { opacity: 0, scale: 0.95, y: 30 },
         visible: {
             opacity: 1, scale: 1, y: 0,
             transition: { type: "spring", stiffness: 350, damping: 25 }
@@ -535,7 +535,7 @@ const SmartNoteEditor = ({ isOpen, onClose, initialDate, initialData, notes = []
                             <div className="p-6 pt-0 flex gap-4 items-center">
                                 <button
                                     onClick={handleSave}
-                                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-bold uppercase tracking-widest text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
+                                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl font-semibold uppercase tracking-wider text-sm transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-lg"
                                     style={{ backgroundColor: color, color: '#000' }}
                                 >
                                     <Check size={18} />

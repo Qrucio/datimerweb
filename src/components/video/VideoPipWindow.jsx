@@ -22,9 +22,9 @@ const VideoPipWindow = ({ isSocialModalOpen, onExpand }) => {
         <AnimatePresence>
             {shouldShow && (
                 <motion.div
-                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                    initial={{ opacity: 0, y: 50, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                    exit={{ opacity: 0, y: 50, scale: 0.95 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     className="fixed bottom-24 left-6 z-[9999] w-80 aspect-video bg-black/40 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 group hover:shadow-[0_8px_32px_rgba(255,255,255,0.1)] transition-shadow duration-500"
                 >

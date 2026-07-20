@@ -12,6 +12,22 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+        fontFamily: {
+            sans: ['var(--font-sans)'],
+            serif: ['var(--font-serif)'],
+            mono: ['var(--font-mono)'],
+            'timer-cyber': ['var(--font-timer-cyber)'],
+            'timer-pixel': ['var(--font-timer-pixel)'],
+            'timer-digital': ['var(--font-timer-digital)'],
+            'timer-hand': ['var(--font-timer-hand)'],
+            'timer-block': ['var(--font-timer-block)'],
+            'timer-elegant': ['var(--font-timer-elegant)'],
+            'timer-neon': ['var(--font-timer-neon)'],
+            'timer-round': ['var(--font-timer-round)'],
+            'timer-display': ['var(--font-timer-display)'],
+            'timer-clock': ['var(--font-timer-clock)'],
+            'logo': ['var(--font-logo)'],
+        },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',

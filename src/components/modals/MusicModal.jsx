@@ -143,15 +143,15 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
     const handleConfirmSelection = () => { const selectedIds = Object.keys(ambienceState); if (onSaveAmbienceSelection) onSaveAmbienceSelection(selectedIds); };
     const showMasterVolume = activeTab !== 'ambience' || (activeTab === 'ambience' && (isPlaying || isLofiPlaying));
     const selectedCount = isSelectionMode ? Object.keys(ambienceState).length : 0;
-    const tabTransition = { enter: { duration: 0.25, ease: "easeOut" }, exit: { duration: 0.08, ease: "linear" } };
+    const tabTransition = { enter: { duration: 0.25, ease: [0.23, 1, 0.32, 1] }, exit: { duration: 0.08, ease: "linear" } };
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md md:p-4" onClick={onClose}>
-                    <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} transition={{ duration: 0.2, ease: "easeOut" }} className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform" onClick={(e) => e.stopPropagation()}>
+                    <motion.div initial={{ opacity: 0, transform: "translateY(10px) scale(0.95)" }} animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }} exit={{ opacity: 0, transform: "translateY(10px) scale(0.95)" }} transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }} className="w-full h-full md:h-[650px] md:max-w-4xl md:max-h-[90vh] bg-[#0F0F0F] md:border border-white/10 md:rounded-[32px] shadow-2xl flex flex-col overflow-hidden relative will-change-transform" onClick={(e) => e.stopPropagation()}>
                         <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" /> <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
-                        <div className="flex items-center justify-between p-6 md:p-8 pb-4 z-20 shrink-0 mt-8 md:mt-0"> <div> <h2 className="text-2xl md:text-3xl font-serif-display text-white tracking-tight">Soundscapes</h2> <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p> </div> <CloseButton onClick={onClose} /> </div>
+                        <div className="flex items-center justify-between p-6 md:p-8 pb-4 z-20 shrink-0 mt-8 md:mt-0"> <div> <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-white">Soundscapes</h2> <p className="text-white/40 text-xs md:text-sm mt-1 font-medium">Design your sonic environment.</p> </div> <CloseButton onClick={onClose} /> </div>
                         <div className="px-6 md:px-8 mb-2 z-20 shrink-0 overflow-x-auto no-scrollbar flex justify-center items-center">
                             <div className="inline-flex p-1 bg-white/5 rounded-full border border-white/5 backdrop-blur-xl whitespace-nowrap">
                                 {[{ id: 'ambience', label: 'Ambience', icon: CloudRain }, { id: 'library', label: 'Music', icon: Music }, { id: 'lofi', label: 'Lofi', icon: Radio }, { id: 'spotify', label: 'Spotify', icon: SpotifyIcon }].map((tab) => {
@@ -167,7 +167,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
                                     return (
                                         <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative px-3 md:px-6 py-2 rounded-full text-xs md:text-sm font-medium transition-all duration-200 flex items-center gap-2 z-0 ${isActive ? activeClass : inactiveClass}`}>
-                                            {isActive && <motion.div layoutId="activeTabBg" className={`absolute inset-0 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1] ${bgClass}`} transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
+                                            {isActive && <motion.div layoutId="activeTabBg" className={`absolute inset-0 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] z-[-1] ${bgClass}`} transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
                                             <Icon size={14} className={isActive ? (isSpotify ? "text-black" : "text-black") : ""} strokeWidth={2} {...iconProps} />
                                             <span>{tab.label}</span>
                                         </button>
@@ -179,7 +179,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                             {isSelectionMode && activeTab === 'ambience' && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 md:px-8 pb-2 z-20">
                                     <div className="bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 rounded-xl p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-3"> <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400"><Sparkles size={16} /></div> <div> <h4 className="text-white font-bold text-sm">Play to Select (Free Plan)</h4> <p className="text-white/50 text-xs">Chosen sounds will be yours forever. Others will lock.</p> </div> </div> <div className="flex items-center gap-3"> <span className="text-cyan-400 font-mono font-bold text-sm">{selectedCount} / 3</span> {selectedCount > 0 && (<button onClick={handleConfirmSelection} className="px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-xs font-bold uppercase tracking-widest rounded-lg hover:from-cyan-300 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/20">Confirm</button>)} </div>
+                                        <div className="flex items-center gap-3"> <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400"><Sparkles size={16} /></div> <div> <h4 className="text-white font-bold text-sm">Play to Select (Free Plan)</h4> <p className="text-white/50 text-xs">Chosen sounds will be yours forever. Others will lock.</p> </div> </div> <div className="flex items-center gap-3"> <span className="text-cyan-400 font-mono font-bold text-sm">{selectedCount} / 3</span> {selectedCount > 0 && (<button onClick={handleConfirmSelection} className="px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-xs font-semibold uppercase tracking-wider rounded-lg hover:from-cyan-300 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/20">Confirm</button>)} </div>
                                     </div>
                                 </motion.div>
                             )}
@@ -187,7 +187,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                         <div className="flex-1 overflow-hidden relative z-10">
                             <AnimatePresence mode="wait">
                                 {activeTab === 'ambience' && (
-                                    <motion.div key="ambience" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: tabTransition.enter }} exit={{ opacity: 0, x: -10, transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
+                                    <motion.div key="ambience" initial={{ opacity: 0, transform: "translateX(10px)" }} animate={{ opacity: 1, transform: "translateX(0px)", transition: tabTransition.enter }} exit={{ opacity: 0, transform: "translateX(-10px)", transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
                                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
                                             {AMBIENT_SOUNDS.map((track) => {
                                                 const trackState = ambienceState[track.id]; const isActive = !!trackState; const Icon = track.icon; const isUnlocked = isPro || unlockedAmbiences.includes(track.id);
@@ -203,7 +203,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                                         initial={{ height: 0, opacity: 0 }}
                                                                         animate={{ height: 28, opacity: 1 }}
                                                                         exit={{ height: 0, opacity: 0 }}
-                                                                        transition={{ duration: 0.25, ease: "easeOut" }}
+                                                                        transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                                                                         onClick={(e) => e.stopPropagation()}
                                                                         className="overflow-hidden"
                                                                     >
@@ -221,13 +221,13 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                     </motion.div>
                                 )}
                                 {activeTab === 'library' && (
-                                    <motion.div key="library" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: tabTransition.enter }} exit={{ opacity: 0, x: -10, transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
+                                    <motion.div key="library" initial={{ opacity: 0, transform: "translateX(10px)" }} animate={{ opacity: 1, transform: "translateX(0px)", transition: tabTransition.enter }} exit={{ opacity: 0, transform: "translateX(-10px)", transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
                                         <div className="flex flex-col gap-3">
                                             {MUSIC_TRACKS.map((track, i) => {
                                                 const isCurrent = currentTrack?.id === track.id && !isLofiPlaying; const isPlayingState = isCurrent && isPlaying;
                                                 return (
-                                                    <motion.div key={track.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} onClick={() => { if (isPro) { isCurrent && isPlaying ? onPause() : onPlay(track); } else { onOpenPro('music'); } }} className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group relative overflow-hidden ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}>
-                                                        {!isPro && <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"> <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-cyan-500/30 text-cyan-400"> <Lock size={12} /><span className="text-[10px] font-bold uppercase tracking-widest">Flow</span> </div> </div>}
+                                                    <motion.div key={track.id} initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} transition={{ delay: i * 0.05 }} onClick={() => { if (isPro) { isCurrent && isPlaying ? onPause() : onPlay(track); } else { onOpenPro('music'); } }} className={`flex items-center gap-4 p-3 md:p-4 rounded-2xl md:rounded-3xl cursor-pointer border group relative overflow-hidden ${isCurrent ? 'bg-white/10 border-white/20' : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}`}>
+                                                        {!isPro && <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"> <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/80 border border-cyan-500/30 text-cyan-400"> <Lock size={12} /><span className="text-[11px] font-semibold uppercase tracking-wider">Flow</span> </div> </div>}
                                                         <div className="relative w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl overflow-hidden bg-black/20 flex-shrink-0 shadow-lg"> {track.cover ? <img src={track.cover} alt="art" className={`w-full h-full object-cover transition-opacity ${!isPro ? 'grayscale opacity-50' : 'opacity-80 group-hover:opacity-100'}`} /> : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-black"><Music size={20} className="text-white/20" /></div>} {isPro && <div className={`absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 ${isCurrent || 'opacity-0 group-hover:opacity-100'}`}> {isPlayingState ? <Pause size={20} className="text-white fill-white" /> : <Play size={20} className="text-white fill-white ml-1" />} </div>} </div>
                                                         <div className="flex-1 min-w-0"> <h4 className={`text-sm md:text-lg font-medium truncate ${isCurrent ? 'text-white' : 'text-white/70 group-hover:text-white'}`}>{track.title}</h4> <p className="text-xs md:text-sm text-white/30 uppercase tracking-widest font-medium mt-0.5 md:mt-1">{isCurrent && isPlaying ? 'Now Playing' : 'Focus Track'}</p> </div>
                                                         {isCurrent && (<div className="flex gap-1 h-3 md:h-4 items-end px-2 md:px-4">{[1, 2, 3, 4].map(n => (<motion.div key={n} animate={isPlaying ? { height: [4, 16, 8, 12, 4] } : { height: 4 }} transition={{ repeat: Infinity, duration: 1, delay: n * 0.1 }} className="w-1 bg-green-400 rounded-full" />))}</div>)}
@@ -238,7 +238,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                     </motion.div>
                                 )}
                                 {activeTab === 'spotify' && (
-                                    <motion.div key="spotify" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0, transition: tabTransition.enter }} exit={{ opacity: 0, x: -10, transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
+                                    <motion.div key="spotify" initial={{ opacity: 0, transform: "translateX(10px)" }} animate={{ opacity: 1, transform: "translateX(0px)", transition: tabTransition.enter }} exit={{ opacity: 0, transform: "translateX(-10px)", transition: tabTransition.exit }} className="h-full overflow-y-auto custom-scrollbar px-6 md:px-10 pt-4 pb-32">
                                         {isValidatingToken ? (
                                             <div className="h-full flex flex-col items-center justify-center text-center">
                                                 <div className="w-20 h-20 bg-[#1DB954]/20 rounded-full flex items-center justify-center mb-6">
@@ -323,9 +323,9 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                                 <>
                                                                     <div className="fixed inset-0 z-40" onClick={() => setModals(prev => ({ ...prev, showProfileMenu: false }))} />
                                                                     <motion.div
-                                                                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                                                        initial={{ opacity: 0, transform: "translateY(10px) scale(0.95)" }}
+                                                                        animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
+                                                                        exit={{ opacity: 0, transform: "translateY(10px) scale(0.95)" }}
                                                                         className="absolute right-0 top-full mt-2 w-64 bg-[#181818] border border-white/10 rounded-2xl shadow-2xl p-4 z-50 overflow-hidden"
                                                                     >
                                                                         <div className="flex flex-col gap-4">
@@ -381,7 +381,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                 {/* Search Results */}
                                                 {searchResults.length > 0 && searchQuery.length > 2 ? (
                                                     <div className="mb-8">
-                                                        <h3 className="text-white/50 text-xs font-bold uppercase tracking-widest mb-4">Search Results</h3>
+                                                        <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">Search Results</h3>
                                                         <div className="flex flex-col gap-2">
                                                             {searchResults.map(track => (
                                                                 <div
@@ -413,7 +413,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                                         <div className="mb-8">
                                                             <div className="flex items-center gap-2 mb-4">
                                                                 <Sparkles size={14} className="text-purple-400" />
-                                                                <h3 className="text-white/80 text-sm font-bold uppercase tracking-widest">Focus Essentials</h3>
+                                                                <h3 className="text-white/80 text-sm font-medium uppercase tracking-wider">Focus Essentials</h3>
                                                             </div>
                                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                                                 {focusPlaylists.length > 0 ? focusPlaylists.map((p) => (
@@ -441,7 +441,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
 
                                                         {/* User's Library Section */}
                                                         <div>
-                                                            <h3 className="text-white/50 text-xs font-bold uppercase tracking-widest mb-4">Your Library</h3>
+                                                            <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">Your Library</h3>
                                                             {isSpotifyLoading ? (
                                                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                                                     {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
@@ -483,7 +483,7 @@ const MusicModal = ({ isOpen, onClose, currentTrack, isPlaying, onPlay, onPause,
                                     <motion.div key="lofi" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1, transition: tabTransition.enter }} exit={{ opacity: 0, scale: 1.05, transition: tabTransition.exit }} className="h-full flex flex-col items-center justify-center pb-32 px-6 md:px-8">
                                         <div className="bg-white/5 border border-white/10 p-6 md:p-8 rounded-[32px] md:rounded-[40px] flex flex-col items-center text-center max-w-sm w-full shadow-2xl backdrop-blur-sm">
                                             <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden mb-4 md:mb-6 border-4 border-white/10 shadow-2xl relative"> <img src="https://i.pinimg.com/originals/4a/65/ab/4a65abeead3a8d113bccfee5d5d239f4.gif" className="w-full h-full object-cover" /> {isLofiPlaying && <div className="absolute inset-0 bg-red-500/20 animate-pulse"></div>} </div>
-                                            <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2">Lofi Girl Radio</h3> <p className="text-white/40 text-xs md:text-sm mb-6 md:mb-8">beats to relax/study to. All hail Lofi Girl!</p>
+                                            <h3 className="text-lg md:text-xl font-semibold tracking-tight text-white mb-2">Lofi Girl Radio</h3> <p className="text-white/40 text-xs md:text-sm mb-6 md:mb-8">beats to relax/study to. All hail Lofi Girl!</p>
                                             <button onClick={onToggleLofi} className={`w-full py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-3 ${isLofiPlaying ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' : 'bg-white text-black hover:bg-gray-200 shadow-white/10'}`}> {isLofiPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />} {isLofiPlaying ? 'Pause Radio' : 'Start Radio'} </button>
                                         </div>
                                     </motion.div>

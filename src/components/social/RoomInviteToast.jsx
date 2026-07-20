@@ -22,42 +22,44 @@ const RoomInviteToast = ({ invite, onAccept, onDecline, onDismiss }) => {
     }, [invite?.host_id]);
 
     return (
-        <AnimatePresence>
-            {invite && senderProfile && (
-                <motion.div
-                    initial={{ opacity: 0, x: -50, scale: 0.95 }}
-                    animate={{ opacity: 1, x: 0, scale: 1 }}
-                    exit={{ opacity: 0, x: -50, scale: 0.95 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                    className="relative w-[320px] mb-3 pointer-events-auto"
-                >
-                    <div className="bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl p-3 shadow-2xl overflow-hidden">
-                        <div className="flex items-center gap-3">
-                            {/* Sender Avatar */}
-                            <div className="shrink-0">
-                                {senderProfile ? (
-                                    <Avatar userData={senderProfile} size="md" />
-                                ) : (
-                                    <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
-                                )}
-                            </div>
+        <div className="relative w-[320px] mb-3 pointer-events-auto">
+            <div className="bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl p-3 shadow-2xl overflow-hidden">
+                <div className="flex items-center gap-3">
+                    {/* Sender Avatar */}
+                    <div className="shrink-0">
+                        {senderProfile ? (
+                            <Avatar userData={senderProfile} size="md" />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-white/5 animate-pulse" />
+                        )}
+                    </div>
 
-                            {/* Text */}
-                            <div className="flex-1 min-w-0">
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                        {senderProfile ? (
+                            <>
                                 <p className="text-sm font-medium text-white truncate">
-                                    {senderProfile?.display_name || 'A friend'}
+                                    {senderProfile.display_name || 'A friend'}
                                 </p>
                                 <p className="text-xs text-white/50 flex items-center gap-1 mt-0.5">
                                     <Users size={12} /> Coworking Invite
                                 </p>
+                            </>
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
+                                <div className="h-3 w-16 bg-white/5 rounded animate-pulse" />
                             </div>
+                        )}
+                    </div>
 
-                            {/* Actions */}
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    onClick={onDecline}
-                                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 text-white/50 hover:text-white flex items-center justify-center transition-all active:scale-90"
-                                >
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={onDecline}
+                            disabled={!senderProfile}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${!senderProfile ? 'opacity-50 cursor-not-allowed bg-white/5 text-white/20' : 'bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 text-white/50 hover:text-white active:scale-90'}`}
+                        >
                                     <X size={14} />
                                 </button>
                                 <button
@@ -83,10 +85,8 @@ const RoomInviteToast = ({ invite, onAccept, onDecline, onDismiss }) => {
                             }}
                             className="absolute bottom-0 left-0 h-0.5 bg-white/30 rounded-full origin-left w-full"
                         />
-                    </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
+            </div>
+        </div>
     );
 };
 

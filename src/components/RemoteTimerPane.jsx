@@ -30,17 +30,17 @@ const SkeletonContent = ({ localClockType, timerSize }) => (
             <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max">
                 <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden relative">
                     <motion.div 
-                        initial={{ x: '-150%', opacity: 0 }}
-                        animate={{ x: '150%', opacity: 0.6 }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", repeatDelay: 1 }}
+                        initial={{ transform: 'translateX(-150%)', opacity: 0 }}
+                        animate={{ transform: 'translateX(150%)', opacity: 0.6 }}
+                        transition={{ repeat: Infinity, duration: 1.5, ease: [0.77, 0, 0.175, 1], repeatDelay: 1 }}
                         className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 pointer-events-none" 
                     />
                 </div>
                 <div className="w-24 h-4 rounded-full bg-white/10 overflow-hidden relative mt-1">
                     <motion.div 
-                        initial={{ x: '-150%', opacity: 0 }}
-                        animate={{ x: '150%', opacity: 0.6 }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", repeatDelay: 1 }}
+                        initial={{ transform: 'translateX(-150%)', opacity: 0 }}
+                        animate={{ transform: 'translateX(150%)', opacity: 0.6 }}
+                        transition={{ repeat: Infinity, duration: 1.5, ease: [0.77, 0, 0.175, 1], repeatDelay: 1 }}
                         className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 pointer-events-none" 
                     />
                 </div>
@@ -51,9 +51,9 @@ const SkeletonContent = ({ localClockType, timerSize }) => (
                 {[1, 2, 3, 4].map((i) => (
                     <div key={i} className="flex-1 h-full rounded-full border border-white/10 bg-white/5 overflow-hidden relative mx-1 md:mx-1.5">
                         <motion.div 
-                            initial={{ x: '-150%', opacity: 0 }}
-                            animate={{ x: '150%', opacity: 0.5 }}
-                            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut", repeatDelay: 1 }}
+                            initial={{ transform: 'translateX(-150%)', opacity: 0 }}
+                            animate={{ transform: 'translateX(150%)', opacity: 0.5 }}
+                            transition={{ repeat: Infinity, duration: 2, ease: [0.77, 0, 0.175, 1], repeatDelay: 1 }}
                             className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white to-transparent -skew-x-12 pointer-events-none" 
                         />
                     </div>
@@ -67,24 +67,24 @@ const SkeletonContent = ({ localClockType, timerSize }) => (
             <motion.div 
                 initial={{ backgroundPosition: '200% 0' }}
                 animate={{ backgroundPosition: '-200% 0' }}
-                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut", repeatDelay: 1 }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: [0.77, 0, 0.175, 1], repeatDelay: 1 }}
                 style={{ backgroundSize: '200% auto' }}
                 className={`
                     leading-none tracking-normal select-none tabular-nums
                     bg-clip-text text-transparent bg-[linear-gradient(102deg,rgba(255,255,255,0.05)_40%,rgba(255,255,255,0.5)_50%,rgba(255,255,255,0.05)_60%)]
-                    ${(localClockType || 'default') === 'default' ? 'font-clock' : ''}
-                    ${localClockType === 'sans' ? 'font-clock-sans' : ''}
-                    ${localClockType === 'serif' ? 'font-clock-serif' : ''}
-                    ${localClockType === 'mono' ? 'font-clock-mono' : ''}
-                    ${localClockType === 'display' ? 'font-clock-display' : ''}
-                    ${localClockType === 'digital' ? 'font-clock-digital' : ''}
-                    ${localClockType === 'pixel' ? 'font-clock-pixel' : ''}
-                    ${localClockType === 'cyber' ? 'font-clock-cyber' : ''}
-                    ${localClockType === 'hand' ? 'font-clock-hand' : ''}
-                    ${localClockType === 'block' ? 'font-clock-block' : ''}
-                    ${localClockType === 'elegant' ? 'font-clock-elegant' : ''}
-                    ${localClockType === 'neon' ? 'font-clock-neon' : ''}
-                    ${localClockType === 'round' ? 'font-clock-round' : ''}
+                    ${(localClockType || 'default') === 'default' ? 'font-timer-clock' : ''}
+                    ${localClockType === 'sans' ? 'font-sans' : ''}
+                    ${localClockType === 'serif' ? 'font-serif' : ''}
+                    ${localClockType === 'mono' ? 'font-mono' : ''}
+                    ${localClockType === 'display' ? 'font-timer-display' : ''}
+                    ${localClockType === 'digital' ? 'font-timer-digital' : ''}
+                    ${localClockType === 'pixel' ? 'font-timer-pixel' : ''}
+                    ${localClockType === 'cyber' ? 'font-timer-cyber' : ''}
+                    ${localClockType === 'hand' ? 'font-timer-hand' : ''}
+                    ${localClockType === 'block' ? 'font-timer-block' : ''}
+                    ${localClockType === 'elegant' ? 'font-timer-elegant' : ''}
+                    ${localClockType === 'neon' ? 'font-timer-neon' : ''}
+                    ${localClockType === 'round' ? 'font-timer-round' : ''}
                     
                     ${({
                         'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
@@ -326,19 +326,19 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                             className={`
                                 leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                                 
-                                ${(remoteState.clockType || 'default') === 'default' ? 'font-clock' : ''}
-                                ${remoteState.clockType === 'sans' ? 'font-clock-sans' : ''}
-                                ${remoteState.clockType === 'serif' ? 'font-clock-serif' : ''}
-                                ${remoteState.clockType === 'mono' ? 'font-clock-mono' : ''}
-                                ${remoteState.clockType === 'display' ? 'font-clock-display' : ''}
-                                ${remoteState.clockType === 'digital' ? 'font-clock-digital' : ''}
-                                ${remoteState.clockType === 'pixel' ? 'font-clock-pixel' : ''}
-                                ${remoteState.clockType === 'cyber' ? 'font-clock-cyber' : ''}
-                                ${remoteState.clockType === 'hand' ? 'font-clock-hand' : ''}
-                                ${remoteState.clockType === 'block' ? 'font-clock-block' : ''}
-                                ${remoteState.clockType === 'elegant' ? 'font-clock-elegant' : ''}
-                                ${remoteState.clockType === 'neon' ? 'font-clock-neon' : ''}
-                                ${remoteState.clockType === 'round' ? 'font-clock-round' : ''}
+                                ${(remoteState.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
+                                ${remoteState.clockType === 'sans' ? 'font-sans' : ''}
+                                ${remoteState.clockType === 'serif' ? 'font-serif' : ''}
+                                ${remoteState.clockType === 'mono' ? 'font-mono' : ''}
+                                ${remoteState.clockType === 'display' ? 'font-timer-display' : ''}
+                                ${remoteState.clockType === 'digital' ? 'font-timer-digital' : ''}
+                                ${remoteState.clockType === 'pixel' ? 'font-timer-pixel' : ''}
+                                ${remoteState.clockType === 'cyber' ? 'font-timer-cyber' : ''}
+                                ${remoteState.clockType === 'hand' ? 'font-timer-hand' : ''}
+                                ${remoteState.clockType === 'block' ? 'font-timer-block' : ''}
+                                ${remoteState.clockType === 'elegant' ? 'font-timer-elegant' : ''}
+                                ${remoteState.clockType === 'neon' ? 'font-timer-neon' : ''}
+                                ${remoteState.clockType === 'round' ? 'font-timer-round' : ''}
                                 
                                 ${({
                                     'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
@@ -368,7 +368,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                     <motion.div 
                         initial={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        transition={{ duration: 0.6, ease: "easeInOut" }}
+                        transition={{ duration: 0.6, ease: [0.77, 0, 0.175, 1] }}
                         className="absolute inset-0 z-50 pointer-events-none bg-black/90"
                     >
                         <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center">

@@ -20,7 +20,7 @@ DaTimer is a comprehensive productivity application built with **React** and **V
 
 ## Project Structure
 ```text
-C:\Users\divya\Documents\Divyansh\codingfiles\apps\altimer\
+c:\Users\divya\Documents\Divyansh\codingfiles\apps\datimer\
 ├── src/
 │   ├── components/         # Feature-specific UI components
 │   │   ├── chat/           # Chat interface components

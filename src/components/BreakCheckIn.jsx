@@ -57,16 +57,16 @@ const BreakCheckIn = ({
 
                     {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[90%] max-w-[500px] bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
                     >
                         {/* Header with Live Timer */}
                         <div className="p-6 pb-2 flex justify-center border-b border-white/5 bg-white/5">
                             <div className="flex flex-col items-center">
                                 <span className="text-xs text-white/50 uppercase tracking-widest font-bold mb-1">Break in Progress</span>
-                                <div className="font-clock text-4xl text-white animate-pulse">
+                                <div className="font-timer-clock text-4xl text-white animate-pulse">
                                     {formatTime(timeLeft)}
                                 </div>
                             </div>
@@ -84,7 +84,7 @@ const BreakCheckIn = ({
                                         exit={{ opacity: 0, x: -20 }}
                                         className="flex flex-col gap-4"
                                     >
-                                        <h2 className="text-2xl font-serif-display text-white text-center mb-2">
+                                        <h2 className="text-xl font-semibold tracking-tight text-white text-center mb-2">
                                             Checking In
                                         </h2>
                                         <p className="text-white/60 text-center mb-6">
@@ -117,7 +117,7 @@ const BreakCheckIn = ({
                                         animate={{ opacity: 1, x: 0 }}
                                         exit={{ opacity: 0, x: -20 }}
                                     >
-                                        <h2 className="text-xl font-serif-display text-white mb-4">
+                                        <h2 className="text-lg font-medium text-white mb-4">
                                             Speak to the Ether
                                         </h2>
                                         <textarea

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useUnreadMessages } from './hooks/useUnreadMessages';
 
-import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Gamepad2, CloudRain } from 'lucide-react';
+import { Play, Pause, RotateCcw, Settings, X, Plus, Music, SkipForward, SkipBack, Check, Trash2, BarChart2, Zap, Coffee, Flame, CheckSquare, Clock, Sparkles, Loader2, RotateCw, GripVertical, ArrowRight, ArrowDown, Pencil, LogIn, Image as ImageIcon, Upload, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Users, UserPlus, Circle, Pin, UserMinus, Maximize, Minimize, AlertTriangle, ShieldAlert, Lock, Unlock, Volume2, Bold, Italic, List, StickyNote as StickyNoteIcon, VolumeX, LogOut, GripHorizontal, ChevronUp, ChevronDown, Ban, Bell, Download, Brain, Video, CheckCircle2, Crown, TrendingUp, Gamepad2, CloudRain, Keyboard } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { SocialService } from './services/socialService';
 import { UserService } from './services/userService';
@@ -93,10 +93,10 @@ class ErrorBoundary extends React.Component {
           {/* Ensure fonts are loaded even in error state */}
           <style>{`
             @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
-            .font-serif-display { font-family: 'Playfair Display', serif; }
+            .font-serif { font-family: 'Playfair Display', serif; }
           `}</style>
 
-          <h1 className="font-serif-display text-4xl md:text-6xl text-white tracking-tight">
+          <h1 className="font-semibold tracking-tight text-3xl md:text-6xl text-white tracking-tight">
             Under Maintenance
           </h1>
           <p className="mt-4 text-white/30 text-sm font-sans">
@@ -158,163 +158,6 @@ const formatDateId = (date) => {
 };
 
 // Helper to format seconds into readable string (e.g., "1h 30m 10s")
-const GlobalStyles = () => (
-  <style>{`
-    @import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Anton&family=Bungee+Shade&family=Inter:wght@300;400;500;600&family=Montserrat:wght@700&family=Orbitron:wght@400;700&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Press+Start+2P&family=Rajdhani:wght@700&family=Righteous&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
-    @import url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css');
-    
-    body { 
-      background-color: #000000; 
-      color: #ffffff; 
-      font-family: 'Inter', sans-serif; 
-      margin: 0; 
-      overflow-x: hidden; 
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      -webkit-tap-highlight-color: transparent;
-    }
-    @media (min-width: 768px) { body { overflow: hidden; } }
-    
-    @media (max-width: 767px) {
-      * {
-        -webkit-tap-highlight-color: transparent;
-      }
-      button, a, input, textarea, select {
-        -webkit-tap-highlight-color: transparent;
-        touch-action: manipulation;
-      }
-      input, textarea {
-        font-size: 16px; /* Prevents zoom on iOS */
-      }
-    }
-    
-    .font-serif-display { font-family: 'Playfair Display', serif; }
-    .font-clock { font-family: 'Montserrat', sans-serif; font-weight: 700; }
-    .font-clock-sans { font-family: 'Inter', sans-serif; }
-    .font-clock-serif { font-family: 'Playfair Display', serif; }
-    .font-clock-mono { font-family: 'Space Mono', monospace; }
-    .font-clock-display { font-family: 'Syne', sans-serif; }
-    
-    /* NEW CLOCK FONTS */
-    .font-clock-digital { font-family: 'DSEG7 Classic', monospace; } /* Already imported via CDN */
-    .font-clock-pixel { font-family: 'Press Start 2P', cursive; }
-    .font-clock-cyber { font-family: 'Orbitron', sans-serif; }
-    .font-clock-hand { font-family: 'Permanent Marker', cursive; }
-    .font-clock-block { font-family: 'Anton', sans-serif; }
-    .font-clock-elegant { font-family: 'Abril Fatface', serif; }
-    .font-clock-neon { font-family: 'Bungee Shade', cursive; }
-    .font-clock-round { font-family: 'Righteous', cursive; }
-    
-    .font-logo { font-family: 'Rajdhani', sans-serif; font-weight: 700; }
-    
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 2px; }
-
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    
-    .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.2, 0.0, 0.2, 1) forwards; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.2, 0.0, 0.2, 1) forwards; }
-    @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    @keyframes wordRise { 0% { opacity: 0; transform: translateY(20px); filter: blur(4px); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
-    .word-animate { opacity: 0; display: inline-block; animation: wordRise 0.8s cubic-bezier(0.2, 0.0, 0.2, 1) forwards; }
-
-    .strike-text { 
-      position: relative;
-      background-image: linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.6) 100%); 
-      background-repeat: no-repeat; 
-      background-position: 0 50%; 
-      background-size: 0% 1.5px; 
-      transition: background-size 0.5s cubic-bezier(0.25, 1, 0.5, 1), color 0.5s cubic-bezier(0.25, 1, 0.5, 1); 
-      display: inline; 
-      box-decoration-break: clone; 
-      -webkit-box-decoration-break: clone; 
-    }
-    .completed .strike-text { 
-      background-size: 100% 1.5px; 
-      color: rgba(255, 255, 255, 0.35); 
-    }
-
-    .blur-enter { animation: blurIn 0.8s ease-out forwards; }
-    .blur-exit { animation: blurOut 0.5s ease-in forwards; }
-    @keyframes blurIn { from { opacity: 0; filter: blur(8px); transform: scale(0.98); } to { opacity: 1; filter: blur(0); transform: scale(1); } }
-    @keyframes blurOut { from { opacity: 1; filter: blur(0); transform: scale(1); } to { opacity: 0; filter: blur(8px); transform: scale(1.02); } }
-
-    .cursor-blink { animation: blink 1s step-end infinite; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-
-    .toggle-checkbox:checked {
-      right: 0;
-      border-color: #68D391;
-    }
-    .toggle-checkbox:checked + .toggle-label {
-      background-color: #fff;
-    }
-    
-    .toggle-switch {
-        position: relative;
-        width: 44px;
-        height: 26px;
-        background-color: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 9999px;
-        transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-        cursor: pointer;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-    .toggle-switch.on {
-        background-color: rgba(52, 199, 89, 0.3);
-        border-color: rgba(52, 199, 89, 0.4);
-        box-shadow: 0 0 15px rgba(52, 199, 89, 0.2), inset 0 0 10px rgba(52, 199, 89, 0.1);
-    }
-    .toggle-knob {
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 18px;
-        height: 18px;
-        background: linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.8) 100%);
-        border-radius: 50%;
-        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-    .toggle-switch.on .toggle-knob {
-        transform: translateX(18px);
-        background: #ffffff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-    }
-
-    @keyframes logo-spin {
-      0% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-5px) rotate(-180deg); }
-      100% { transform: translateY(0) rotate(-360deg); }
-    }
-    
-    .logo-spin-active {
-      animation: logo-spin 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-    
-    .text-shimmer {
-      background: linear-gradient(135deg, #ffffff 0%, #5E5E5E 50%, #ffffff 100%);
-      background-clip: text;
-      -webkit-background-clip: text;
-      color: transparent;
-      background-size: 200% 100%;
-      animation: shimmer 5s linear infinite;
-    }
-  `}</style>
-);
 
 // Replaces SpinningLogo
 const RevealLogo = ({ src, className, disableReveal = false }) => {
@@ -397,7 +240,7 @@ const StatCard = ({ label, value, icon: Icon }) => (
       <span className="text-[10px] md:text-xs font-medium text-white/50 uppercase tracking-wider">{label}</span>
       {Icon && <Icon size={14} className="text-white/30" />}
     </div>
-    <div className="text-lg md:text-xl font-light text-white tracking-wide font-clock">{value}</div>
+    <div className="text-lg md:text-xl font-light text-white tracking-wide font-timer-clock">{value}</div>
   </div>
 );
 
@@ -460,6 +303,9 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
+
+  const popupRef = useRef(null);
+  const editButtonRef = useRef(null);
 
   // Helper to format time strings (e.g., "10:30 AM")
   const formatTime = (dateObj) => {
@@ -536,6 +382,33 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
     setIsEditing(prev => !prev);
   };
 
+  useEffect(() => {
+    if (!isEditing) return;
+    
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsEditing(false);
+      }
+    };
+
+    const handleClickOutside = (e) => {
+      if (
+        popupRef.current && !popupRef.current.contains(e.target) &&
+        editButtonRef.current && !editButtonRef.current.contains(e.target)
+      ) {
+        setIsEditing(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside, true);
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEditing]);
+
   const handleTimeChange = (newTimeStr) => {
     // newTimeStr is "HH:MM" (24h)
     setEditValue(newTimeStr);
@@ -546,11 +419,6 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
     <div
       className={`flex justify-center transition-opacity duration-700 ease-in-out ${isVisible ? 'opacity-100' : 'opacity-0'} relative ${isEditing ? 'z-[100]' : 'z-50'}`}
     >
-      {/* Backdrop for Editing */}
-      {isEditing && (
-        <div className="fixed inset-0 z-40" onClick={() => setIsEditing(false)} />
-      )}
-
       <motion.div
         layoutId={layoutId}
         layout
@@ -569,7 +437,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
             key={key + '-shimmer'}
             initial={{ x: '-100%', opacity: 0 }}
             animate={{ x: '150%', opacity: 0.4 }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
+            transition={{ duration: 0.8, ease: [0.77, 0, 0.175, 1] }}
             className={`absolute inset-0 w-full h-full bg-gradient-to-r from-transparent ${overrideMessage ? 'via-purple-500' : 'via-white'} to-transparent -skew-x-12 pointer-events-none z-0`}
           />
         </div>
@@ -586,7 +454,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
                 bounce: 0,
                 duration: 0.5
               }}
-              className={`text-sm font-medium tracking-wide text-center block font-clock 
+              className={`text-sm font-medium tracking-wide text-center block font-timer-clock 
                 ${overrideMessage && overrideMessage.startsWith("I will work on") ? 'text-purple-200 whitespace-normal leading-tight max-w-[80vw] md:max-w-md' : 'text-white whitespace-nowrap'} 
                 ${overrideMessage && !overrideMessage.startsWith("I will work on") ? 'text-purple-200' : ''}
                 `}
@@ -599,6 +467,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
           {/* Edit Pencil Icon (Only show if not overriding and time is valid AND TIMER IS PAUSED) */}
           {!overrideMessage && !isActive && mode !== 'stopwatch' && (
             <motion.button
+              ref={editButtonRef}
               initial={{ opacity: 0, scale: 0.5, width: 0 }}
               animate={{ opacity: 1, scale: 1, width: 'auto' }}
               exit={{ opacity: 0, scale: 0.5, width: 0 }}
@@ -615,6 +484,7 @@ const SmartMessage = ({ isActive, targetEndTime, mode, isUserActive, focusMode, 
         <AnimatePresence>
           {isEditing && (
             <motion.div
+              ref={popupRef}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -827,7 +697,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
               <Icon size={32} />
             </div>
 
-            <h2 className="relative z-10 text-2xl font-serif-display text-white mb-2">{currentContent.title}</h2>
+            <h2 className="relative z-10 text-xl font-semibold tracking-tight text-white mb-2">{currentContent.title}</h2>
             <div className="relative z-10 text-white/60 text-sm mb-8 leading-relaxed px-1">
               {currentContent.description}
             </div>
@@ -853,7 +723,7 @@ const StrictConfirmationModal = ({ isOpen, onClose, onConfirm }) => (
   <AnimatePresence>
     {isOpen && (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 mx-auto">
             <Lock size={24} className="text-white" />
           </div>
@@ -884,12 +754,12 @@ const StrictWarningModal = ({ isOpen, onResume, onDisable }) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black text-center p-6">
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center max-w-md">
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center max-w-md">
             <div className="w-24 h-24 rounded-full bg-red-500/10 flex items-center justify-center mb-6 animate-pulse">
               <ShieldAlert size={48} className="text-red-500" />
             </div>
 
-            <h2 className="text-3xl md:text-4xl font-serif-display text-white mb-4">Strict Mode Active</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-4">Strict Mode Active</h2>
             <p className="text-white/50 mb-8 leading-relaxed">
               Focus is paused. Return to your session to resume.
             </p>
@@ -909,7 +779,7 @@ const StrictDisableModal = ({ isOpen, onClose, onConfirm }) => (
   <AnimatePresence>
     {isOpen && (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
+        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#111] border border-white/10 p-6 rounded-3xl w-full max-w-sm shadow-2xl mx-4" onClick={e => e.stopPropagation()}>
           <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-4 mx-auto">
             <Unlock size={24} className="text-white" />
           </div>
@@ -1657,7 +1527,7 @@ const PersonalityCard = ({ p, activeId, onClick }) => {
       <div className={`relative flex-1 p-6 md:p-8 flex flex-col ${p.isEmpty ? 'opacity-50' : ''}`}>
 
         {/* Title */}
-        <h3 className={`text-2xl md:text-3xl font-serif-display mb-3 ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'} transition-colors`}>
+        <h3 className={`text-xl md:text-2xl font-semibold tracking-tight mb-3 ${isActive ? 'text-white' : 'text-white/80 group-hover:text-white'} transition-colors`}>
           {p.title}
         </h3>
 
@@ -1748,7 +1618,7 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
               key="mode-pill"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="relative"
             >
               <motion.button
@@ -1807,7 +1677,7 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
                     <motion.h2
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-5xl md:text-7xl font-serif-display text-white tracking-tight"
+                      className="text-5xl md:text-7xl font-serif text-white tracking-tight"
                     >
                       Select <br />
                       <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-white/40">Timer Mode.</span>
@@ -1835,7 +1705,7 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
                         key={m.id}
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + (i * 0.1), duration: 0.5, ease: "easeOut" }}
+                        transition={{ delay: 0.1 + (i * 0.1), duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
                         className="h-full"
                       >
                         <button
@@ -1860,8 +1730,8 @@ const TimerModeSelector = ({ mode, opacityClass, isIntentionMode, onToggleMode, 
                                 <div className={`p-4 rounded-2xl ${isActive ? 'bg-white/10' : 'bg-white/5'} ${isIntentional ? 'text-purple-300' : 'text-white'}`}>
                                   <Icon size={32} className={isActive ? 'text-white' : 'text-white/50'} />
                                 </div>
-                                {isActive && <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-1"><Check size={12} /> Active</div>}
-                                {m.isDisabled && <div className="bg-white/10 text-white/40 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Coming Soon</div>}
+                                {isActive && <div className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center gap-1"><Check size={12} /> Active</div>}
+                                {m.isDisabled && <div className="bg-white/10 text-white/40 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">Coming Soon</div>}
                               </div>
 
                               <h3 className={`text-3xl font-bold mb-3 ${isActive ? 'text-white' : 'text-white/70'}`}>{m.title}</h3>
@@ -1899,9 +1769,9 @@ const ExtraTimePopup = ({ minutes, visible }) => (
   <AnimatePresence>
     {visible && (
       <motion.div
-        initial={{ opacity: 0, y: -50, scale: 0.9 }}
+        initial={{ opacity: 0, y: -50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -20, scale: 0.9 }}
+        exit={{ opacity: 0, y: -20, scale: 0.95 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-black/80 backdrop-blur-md border border-white/20 px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4"
       >
@@ -2267,7 +2137,7 @@ const NoteSystemModals = ({
           animate={{ opacity: 1, backdropFilter: "blur(40px)" }}
           exit={{ opacity: 0, backdropFilter: "blur(0px)" }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-2xl"
+          className="fixed inset-0 z-[60] flex flex-col bg-black/70 backdrop-blur-md md:backdrop-blur-2xl transform-gpu will-change-transform"
           onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
         >
           <div 
@@ -2285,7 +2155,7 @@ const NoteSystemModals = ({
                   className="w-full flex items-center justify-center pt-10 md:pt-12 pb-8 relative"
                   onMouseDown={(e) => { if (e.target === e.currentTarget) closeLibrary() }}
                 >
-                  <h2 className="text-3xl md:text-4xl text-white font-serif-display tracking-wide pointer-events-none mt-1">Notes</h2>
+                  <h2 className="text-3xl md:text-4xl text-white font-serif tracking-wide pointer-events-none mt-1">Notes</h2>
                   <div className="absolute right-6 md:right-10 flex items-center h-full pt-10 md:pt-12 pb-8 top-0">
                     <CloseButton onClick={closeLibrary} />
                   </div>
@@ -2319,7 +2189,7 @@ const NoteSystemModals = ({
                     {/* ADD BUTTON or LOCKED BUTTON */}
                     {isLimitReached ? (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className="relative aspect-square bg-white/5 border-2 border-dashed border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-colors rounded-sm flex items-center justify-center group cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] overflow-hidden"
                         onClick={(e) => {
@@ -2336,7 +2206,7 @@ const NoteSystemModals = ({
                       </motion.div>
                     ) : (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onMouseMove={handleGlowMove}
                         className="relative aspect-square bg-white/5 border-2 border-dashed border-white/20 hover:border-white/50 transition-colors rounded-sm flex items-center justify-center group !cursor-default w-[calc(50%-12px)] md:w-[calc(33.33%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] overflow-hidden"
@@ -2403,7 +2273,7 @@ const NoteSystemModals = ({
 
                           // --- EXIT ANIMATION ---
                           exit={{
-                            scale: 0,
+                            scale: 0.95,
                             opacity: 0,
                             transition: {
                               duration: 0.35,
@@ -2466,7 +2336,7 @@ const NoteSystemModals = ({
           <motion.div
             initial={{ scale: 0.8, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
@@ -2532,7 +2402,7 @@ const NoteSystemModals = ({
 
             <div className="relative z-20 flex justify-between items-center pt-4 mt-2 border-t border-black/10">
               <div className="flex gap-2">{NOTE_COLORS.map(color => (<button key={color} onClick={() => setEditorColor(color)} className={`w-6 h-6 rounded-full border border-black/10 transition-transform hover:scale-110 ${editorColor === color ? 'ring-2 ring-black/50 scale-110' : ''}`} style={{ backgroundColor: color }} />))}</div>
-              <button onClick={handleSave} className="px-6 py-2 bg-black text-white font-bold uppercase tracking-widest text-xs rounded-xl hover:scale-105 transition-transform shadow-lg">Done</button>
+              <button onClick={handleSave} className="px-6 py-2 bg-black text-white font-semibold uppercase tracking-wider text-xs rounded-xl hover:scale-105 transition-transform shadow-lg">Done</button>
             </div>
           </motion.div>
         </motion.div>
@@ -2570,7 +2440,7 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
               key="game-pill"
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               className="relative"
             >
               <motion.button
@@ -2609,7 +2479,7 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }} // Optimized transition
+                  transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }} // Optimized transition
                   className="w-full h-full max-w-5xl max-h-[90vh] bg-[#111] rounded-[40px] border border-white/10 shadow-2xl overflow-hidden relative"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -2627,14 +2497,14 @@ const GameCenter = ({ mode, timeLeft, background, isPro, onOpenPro }) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }} // Optimized transition
+                  transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }} // Optimized transition
                   className="w-full max-w-5xl flex flex-col items-center max-h-full overflow-y-auto custom-scrollbar"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {/* ... (Existing Menu Content - No changes needed inside) ... */}
                   <div className="w-full flex justify-between items-center mb-12 px-4 shrink-0">
                     <div className="flex flex-col">
-                      <h2 className="text-4xl md:text-5xl font-serif-display text-white mb-2">Arcade</h2>
+                      <h2 className="text-4xl md:text-5xl font-serif text-white mb-2">Arcade</h2>
                       <p className="text-white/40 text-sm">Non-distracting games that help you recharge without getting bored.</p>
                     </div>
                     <CloseButton onClick={() => setIsOpen(false)} />
@@ -2696,9 +2566,9 @@ const MiniLofiPlayer = ({ isPlaying, onToggle, volume }) => {
     <AnimatePresence>
       {isPlaying && (
         <motion.div
-          initial={{ y: 100, opacity: 0, scale: 0.9 }}
+          initial={{ y: 100, opacity: 0, scale: 0.95 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 100, opacity: 0, scale: 0.9 }}
+          exit={{ y: 100, opacity: 0, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           className="fixed bottom-6 right-24 z-50 hidden md:block"
         >
@@ -3045,7 +2915,7 @@ function MainApp() {
       window.removeEventListener('join_room', handleJoinRoom);
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.uid]);
 
 
   // --- INTENTION MODE STATE ---
@@ -3587,7 +3457,7 @@ function MainApp() {
       audio.removeEventListener('playing', onCanPlay);
       audio.removeEventListener('canplay', onCanPlay);
     };
-  }, [onboardingStep]);
+  }, []);
   // --- SOCIAL STATE ---
   const [showFriends, setShowFriends] = useState(false);
   const [socialInitialServerId, setSocialInitialServerId] = useState(null);
@@ -3830,8 +3700,8 @@ function MainApp() {
       // --- ESCAPE KEY LOGIC (High Priority) ---
       if (e.key === 'Escape') {
         // A. Close Modals (LIFO - Last In First Out logic)
-      
-        if (showSettings) { setShowSettings(false); return; }
+        if (isStrictMenuOpen) { setIsStrictMenuOpen(false); return; }
+        if (isUnifiedModalOpen) { setIsUnifiedModalOpen(false); return; }
         if (showAccount) { setShowAccount(false); return; }
         if (showStats) { setShowStats(false); return; }
         if (showFriends) { setShowFriends(false); return; }
@@ -3921,6 +3791,7 @@ function MainApp() {
     showAccount, showMusic, showStats, viewingFriendStats,
     showStrictConfirm, showStrictWarning, showStrictDisableConfirm,
     isNoteLibraryOpen, editingNote,
+    isUnifiedModalOpen, isStrictMenuOpen,
     // Music
     isMusicPlaying, currentTrack, volume,
     // Inputs
@@ -4709,7 +4580,7 @@ function MainApp() {
     return () => {
       // Channels removed in local-first refactor
     };
-  }, [user]);
+  }, [user?.uid]);
 
 
   // --- REAL-TIME TIMER SYNC (RECEIVER + RESPONDER) ---
@@ -4748,7 +4619,7 @@ function MainApp() {
       const handler = setTimeout(saveData, 2000);
       return () => clearTimeout(handler);
     }
-  }, [notes, settings, user, dataLoaded]);
+  }, [notes, settings, user?.uid, dataLoaded]);
 
 
   // --- FOCUS MODE LOGIC ---
@@ -4762,31 +4633,7 @@ function MainApp() {
     return () => clearTimeout(timeout);
   }, [isActive, mode]);
 
-  useEffect(() => {
-    const audio = musicAudioRef.current;
 
-    const updateProgress = () => setMusicProgress(audio.currentTime);
-    const updateDuration = () => setMusicDuration(audio.duration);
-    const handleEnded = () => setIsMusicPlaying(false);
-    const handleWaiting = () => setMusicLoading(true);
-    const handleCanPlay = () => setMusicLoading(false);
-
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('loadedmetadata', updateDuration);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('playing', handleCanPlay);
-    audio.addEventListener('canplay', handleCanPlay);
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('loadedmetadata', updateDuration);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('playing', handleCanPlay);
-      audio.removeEventListener('canplay', handleCanPlay);
-    };
-  }, [onboardingStep]);
 
   // --- HANDLER: PLAY MUSIC (Mutually Exclusive with Lofi) ---
   const handlePlayMusic = (track) => {
@@ -5101,7 +4948,7 @@ function MainApp() {
           // CRITICAL FIX: Force useEffect to re-run even if mode/isActive are unchanged
           setTimerResetKey(prev => prev + 1);
         }
-      }, 100); // 100ms resolution is fine for checking updates
+      }, 1000); // 1s resolution prevents mobile CPU/battery drain
     } else {
       endTimeRef.current = null;
     }
@@ -5577,7 +5424,7 @@ function MainApp() {
     <VideoManager user={user}>
 
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
-        <GlobalStyles />
+
         {/* 1. BACKGROUND LAYERS (Main Window) */}
         {useIntentionTheme ? (
           // HOLO GRAIN THEME (Replaces Gradient)
@@ -5709,74 +5556,69 @@ function MainApp() {
             <div key="dashboard" className={`h-full w-full flex flex-col md:block transition-all duration-1500 ease-out ${onboardingStep === 3 ? 'opacity-100 delay-200' : 'opacity-0'}`}>
 
               {/* --- MOBILE HEADER --- */}
-              <div className={`md:hidden flex justify-between items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
+              <div className={`md:hidden flex justify-center items-center w-full p-6 z-20 flex-shrink-0 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
                 <div className="flex items-center gap-2">
-                  <RevealLogo src="/logo/logo-mark-light.svg" className="w-10 h-10" />
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setShowMusic(true)} className={`p-2 rounded-full hover:bg-white/10 transition-colors ${isMusicPlaying ? 'text-white animate-pulse' : 'text-white'}`}>
-                    <Music size={22} />
-                  </button>
-                  <button onClick={() => { if (checkGuestAccess()) setShowFriends(true); }} className="p-2 rounded-full hover:bg-white/10 transition-colors text-white">
-                    <Users size={22} />
-                  </button>
-                  <button onClick={() => setIsUnifiedModalOpen(true)} className="relative ml-2 w-8 h-8">
-                    <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
-                  </button>
+                  <RevealLogo src="/logo/logo-mark-light.svg" className="w-14 h-14" />
                 </div>
               </div>
 
-              {/* --- DESKTOP HEADER --- */}
-              <div className={`hidden md:flex flex-col items-end absolute top-8 right-12 z-20 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsUnifiedModalOpen(true)} className="relative group w-9 h-9 transition-transform hover:scale-105 active:scale-95">
-                    <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
-                  </button>
-                </div>
-              </div>
-
-              {/* --- DESKTOP FOOTER LEFT --- */}
-              <div className={`hidden md:flex flex-col items-start absolute bottom-8 left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
-                {dashboardFriends.length > 0 && !incomingRoomInvite && (
-                  <FriendsDock
-                    friends={dashboardFriends}
-                    onViewFriendStats={handleViewFriendStats}
-                  />
-                )}
+              {/* --- GLOBAL ROOM INVITE TOAST --- */}
+              <AnimatePresence>
                 {incomingRoomInvite && (
-                  <RoomInviteToast 
-                      invite={incomingRoomInvite}
-                      onAccept={() => {
-                          if (activeRoomId) {
-                              RoomsService.leaveRoom(activeRoomId);
-                          }
-                          setActiveRoomId(incomingRoomInvite.id);
-                          setIsRoomHost(false);
-                          setRemoteRoomUserId(incomingRoomInvite.host_id);
-                          setIncomingRoomInvite(null);
-                      }}
-                      onDecline={() => {
-                          RoomsService.declineInvite(incomingRoomInvite.id);
-                          setIncomingRoomInvite(null);
-                      }}
-                      onDismiss={() => {
-                          setIncomingRoomInvite(null);
-                      }}
-                  />
+                  <div className="fixed z-[60] left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)+80px)] md:bottom-24 md:left-auto md:right-12 flex justify-center pointer-events-none">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 50 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 50 }}
+                      className="pointer-events-auto"
+                    >
+                      <RoomInviteToast 
+                          invite={incomingRoomInvite}
+                        onAccept={() => {
+                            if (activeRoomId) {
+                                RoomsService.leaveRoom(activeRoomId);
+                            }
+                            setActiveRoomId(incomingRoomInvite.id);
+                            setIsRoomHost(false);
+                            setRemoteRoomUserId(incomingRoomInvite.host_id);
+                            setIncomingRoomInvite(null);
+                        }}
+                        onDecline={() => {
+                            RoomsService.declineInvite(incomingRoomInvite.id);
+                            setIncomingRoomInvite(null);
+                        }}
+                        onDismiss={() => {
+                            setIncomingRoomInvite(null);
+                        }}
+                    />
+                  </motion.div>
+                  </div>
                 )}
-                <motion.div layout onMouseLeave={() => setHoveredDockIndex(null)} transition={{ type: "spring", stiffness: 400, damping: 30 }} className="flex items-center gap-0 p-1.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full shadow-2xl">
-                  <motion.button layout onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
+              </AnimatePresence>
+
+              {/* --- UNIFIED FOOTER DOCK (Mobile & Desktop) --- */}
+              <div className={`flex flex-col items-center md:items-start absolute bottom-0 w-full md:w-auto md:bottom-8 left-0 md:left-12 z-50 transition-opacity duration-700 ease-in-out ${uiOpacityClass}`}>
+                {dashboardFriends.length > 0 && !incomingRoomInvite && (
+                  <div className="hidden md:block">
+                    <FriendsDock
+                      friends={dashboardFriends}
+                      onViewFriendStats={handleViewFriendStats}
+                    />
+                  </div>
+                )}
+                <div onMouseLeave={() => setHoveredDockIndex(null)} className="flex items-center md:gap-0 gap-4 md:p-1.5 p-3 md:bg-black/40 bg-black/60 md:backdrop-blur-xl backdrop-blur-md md:border border-t border-white/10 md:rounded-full rounded-t-3xl shadow-2xl w-full md:w-auto justify-around md:justify-start pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-1.5">
+                  <button onMouseEnter={() => setHoveredDockIndex(0)} onClick={() => { if (checkGuestAccess()) { setShowFriends(true); } }} className="relative p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white group flex items-center cursor-default">
                     <div className="relative">
 
                       <Users size={20} className={((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "text-white" : ""} />
                       {((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') && <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#1a0c00] ${totalMentions > 0 ? 'bg-blue-500' : 'bg-red-500'}`} />}
                     </div>
-                    <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2"}`}>
+                    <span className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${((unreadCount > 0 || totalMentions > 0) && mode !== 'focus') ? "max-w-[150px] opacity-100 ml-2 text-white" : "max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2 hidden md:block"}`}>
                       {(totalMentions > 0 && mode !== 'focus') ? `${totalMentions} Mention${totalMentions > 1 ? 's' : ''}` : (unreadCount > 0 && mode !== 'focus') ? "New Message" : "Friends"}
-                    </motion.span>
-                  </motion.button>
+                    </span>
+                  </button>
                   <BendingDivider activeSide={hoveredDockIndex === 0 ? 'left' : hoveredDockIndex === 1 ? 'right' : null} isDimmed={isMusicPlaying} />
-                  <motion.div layout role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                  <div role="button" onMouseEnter={() => setHoveredDockIndex(1)} onClick={() => { setShowMusic(true); }} className={`relative p-2 rounded-full transition-colors group flex items-center cursor-default ${isMusicPlaying ? 'text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
 
                     {/* Wrapper for Icon + Popup to ensure centering works on the ICON ONLY */}
                     <div className="relative flex items-center justify-center">
@@ -5785,19 +5627,26 @@ function MainApp() {
                       <Music size={20} className={`relative z-10 ${isMusicPlaying ? 'animate-[spin_3s_linear_infinite]' : ''}`} />
                     </div>
 
-                    <motion.div layout className="flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
+                    <div className="hidden md:flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
                       {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
-                    </motion.div>
-                  </motion.div>
+                    </div>
+                  </div>
                   <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
-                  <LiquidStrictBtn isStrict={strictMode} onEnable={enableStrictMode} onDisable={handleStrictDisable} onMouseEnter={() => setHoveredDockIndex(2)} isLocked={isStrictLocked} mode={mode} onMenuChange={setIsStrictMenuOpen} />
+                  <div onMouseEnter={() => setHoveredDockIndex(2)} onClick={() => setIsUnifiedModalOpen(true)} className="relative p-2 rounded-full transition-colors group flex items-center cursor-default text-white/70 hover:text-white hover:bg-white/10">
+                    <div className="relative flex items-center justify-center w-6 h-6">
+                      <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
+                    </div>
+                    <div className="hidden md:flex items-center overflow-hidden whitespace-nowrap max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 transition-all duration-500 ease-smooth">
+                      <span className="text-sm font-medium ml-2">Settings</span>
+                    </div>
+                  </div>
                   {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
                   <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
                   <motion.span layout className={`text-sm font-medium overflow-hidden whitespace-nowrap transition-all duration-500 ease-smooth ${showCaffeine ? 'max-w-[100px] opacity-100 ml-2' : 'max-w-0 opacity-0 group-hover:max-w-[100px] group-hover:opacity-100 group-hover:ml-2'}`}>Caffeine</motion.span>
                 </motion.button> */}
-                </motion.div>
+                </div>
               </div>
 
               {/* --- DESKTOP LOGO --- */}
@@ -5807,7 +5656,7 @@ function MainApp() {
 
               {/* --- TIMER SECTION (Main) --- */}
               <PiPPortal>
-                <main className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-40 md:pb-0 relative md:absolute z-10 md:pointer-events-none transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] md:inset-0 ${isSplitScreen ? 'md:-translate-x-1/4' : 'translate-x-0'}`}>
+                <main className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-20 md:pb-0 relative md:absolute z-10 md:pointer-events-none transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] md:inset-0 ${isSplitScreen ? 'md:-translate-x-1/4 -translate-y-[25%] md:translate-y-0' : 'translate-x-0 translate-y-0'}`}>
                   <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
                     {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
@@ -5926,7 +5775,7 @@ function MainApp() {
                             {/* CONTENT: Either Input or Label */}
                             {isEditing ? (
                               <motion.div
-                                initial={{ opacity: 0, scale: 0.9 }}
+                                initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 className="relative z-20 flex items-center justify-center w-full h-full"
                               >
@@ -5964,7 +5813,7 @@ function MainApp() {
 
                     {/* --- CYCLE TALLY INDICATOR (Updated with Double-Tap Edit) --- */}
                     <div
-                      className={`relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 cursor-default min-w-[100px] transition-opacity duration-300 ${mode === 'stopwatch' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                      className={`relative z-50 flex items-center justify-center gap-3 mb-2 h-8 cursor-default min-w-[100px] transition-opacity duration-300 ${mode === 'stopwatch' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                       onMouseEnter={() => setIsTallyHovered(true)}
                       onMouseLeave={() => setIsTallyHovered(false)}
                       onDoubleClick={() => {
@@ -5977,7 +5826,7 @@ function MainApp() {
                     >
                       {isEditingSessions ? (
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.9 }}
+                          initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
                           className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full border border-white/20 backdrop-blur-md"
                         >
@@ -6018,19 +5867,19 @@ function MainApp() {
                     leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                     
                     ${/* FONT TYPE LOGIC */ ''}
-                    ${(settings.clockType || 'default') === 'default' ? 'font-clock' : ''}
-                    ${settings.clockType === 'sans' ? 'font-clock-sans' : ''}
-                    ${settings.clockType === 'serif' ? 'font-clock-serif' : ''}
-                    ${settings.clockType === 'mono' ? 'font-clock-mono' : ''}
-                    ${settings.clockType === 'display' ? 'font-clock-display' : ''}
-                    ${settings.clockType === 'digital' ? 'font-clock-digital' : ''}
-                    ${settings.clockType === 'pixel' ? 'font-clock-pixel' : ''}
-                    ${settings.clockType === 'cyber' ? 'font-clock-cyber' : ''}
-                    ${settings.clockType === 'hand' ? 'font-clock-hand' : ''}
-                    ${settings.clockType === 'block' ? 'font-clock-block' : ''}
-                    ${settings.clockType === 'elegant' ? 'font-clock-elegant' : ''}
-                    ${settings.clockType === 'neon' ? 'font-clock-neon' : ''}
-                    ${settings.clockType === 'round' ? 'font-clock-round' : ''}
+                    ${(settings.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
+                    ${settings.clockType === 'sans' ? 'font-sans' : ''}
+                    ${settings.clockType === 'serif' ? 'font-serif' : ''}
+                    ${settings.clockType === 'mono' ? 'font-mono' : ''}
+                    ${settings.clockType === 'display' ? 'font-timer-display' : ''}
+                    ${settings.clockType === 'digital' ? 'font-timer-digital' : ''}
+                    ${settings.clockType === 'pixel' ? 'font-timer-pixel' : ''}
+                    ${settings.clockType === 'cyber' ? 'font-timer-cyber' : ''}
+                    ${settings.clockType === 'hand' ? 'font-timer-hand' : ''}
+                    ${settings.clockType === 'block' ? 'font-timer-block' : ''}
+                    ${settings.clockType === 'elegant' ? 'font-timer-elegant' : ''}
+                    ${settings.clockType === 'neon' ? 'font-timer-neon' : ''}
+                    ${settings.clockType === 'round' ? 'font-timer-round' : ''}
                     
                     ${({
                           'small': isSplitScreen ? 'text-[13vw] md:text-[5rem] lg:text-[6rem]' : 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
@@ -6110,21 +5959,21 @@ function MainApp() {
                   </div>
                 </main>
 
-                {/* --- REMOTE USER PANE (Right Half) --- */}
+                {/* --- REMOTE USER PANE (Right Half on Desktop, Bottom Half on Mobile) --- */}
                 <AnimatePresence>
                   {isSplitScreen && (
                     <motion.div
                       key="remote-pane" 
-                      initial={{ x: 'calc(100% + 80px)' }}
-                      animate={{ x: 0 }}
-                      exit={{ x: 'calc(100% + 80px)' }}
+                      initial={{ opacity: 0, x: window.innerWidth >= 768 ? 'calc(100% + 80px)' : 0 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: window.innerWidth >= 768 ? 'calc(100% + 80px)' : 0 }}
                       transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
                       onAnimationStart={() => setIsPaneAnimating(true)}
                       onAnimationComplete={() => setIsPaneAnimating(false)}
-                      className="hidden md:flex absolute inset-y-0 right-0 w-1/2 z-[30] pointer-events-none"
+                      className="flex flex-col md:flex-row absolute bottom-0 md:inset-y-0 md:right-0 w-full h-1/2 md:w-1/2 md:h-full z-[30] pointer-events-none"
                     >
-                        {/* Pull Tab Container — expanded to prevent shadow/blur clipping, hides button when it slides right */}
-                        <div className="absolute left-[-76px] w-[76px] top-1/2 -translate-y-1/2 h-[160px] overflow-hidden z-[1] pointer-events-none flex items-center justify-end">
+                        {/* Pull Tab Container (Desktop) */}
+                        <div className="hidden absolute left-[-76px] w-[76px] top-1/2 -translate-y-1/2 h-[160px] overflow-hidden z-[1] pointer-events-none md:flex items-center justify-end">
                             <motion.button
                                 initial={{ x: 80 }}
                                 animate={{ x: (showPullTab || tabLinger) ? 0 : 80 }}
@@ -6141,7 +5990,7 @@ function MainApp() {
                                     setIsLeavingRoom(false);
                                 }}
                                 disabled={isLeavingRoom}
-                                className="pointer-events-auto w-[46px] h-[100px] bg-black/60 backdrop-blur-3xl border-y border-l border-white/10 rounded-l-2xl flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-black/80 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="pointer-events-auto w-[46px] h-[100px] bg-black/60 backdrop-blur-md md:backdrop-blur-3xl transform-gpu will-change-transform border-y border-l border-white/10 rounded-l-2xl flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-black/80 transition-colors group cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                 title="Leave Room"
                             >
                                 {isLeavingRoom ? (
@@ -6151,9 +6000,25 @@ function MainApp() {
                                 )}
                             </motion.button>
                         </div>
+                        
+                        {/* Leave Room Button (Mobile) */}
+                        <div className="md:hidden absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-[5] pointer-events-none flex flex-col justify-end items-center pb-[calc(env(safe-area-inset-bottom)+100px)]">
+                             <button
+                                onClick={async () => {
+                                    setIsLeavingRoom(true);
+                                    if (isDevSplit) setIsDevSplit(false);
+                                    else { await RoomsService.leaveRoom(activeRoomId); handleRoomClosed(); }
+                                    setIsLeavingRoom(false);
+                                }}
+                                disabled={isLeavingRoom}
+                                className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white/80 hover:text-red-400 hover:bg-black/80 transition-colors cursor-pointer disabled:opacity-50 shadow-xl"
+                             >
+                                {isLeavingRoom ? <Loader2 size={18} className="animate-spin" /> : <><LogOut size={18} /> <span className="text-sm font-medium">Leave Room</span></>}
+                             </button>
+                        </div>
 
                         {/* Inner Pane (Contains background, blur, clipped edges) */}
-                        <div className={`absolute inset-0 rounded-l-[40px] border-l overflow-hidden z-[2] pointer-events-auto transition-all duration-1000 ${isSeamlessPanorama ? 'border-white/10 shadow-[-12px_0_30px_-12px_rgba(0,0,0,0.5)] bg-gradient-to-r from-white/[0.03] to-transparent backdrop-blur-none' : 'border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-3xl bg-black/20'}`}>
+                        <div className={`absolute inset-0 rounded-t-[40px] md:rounded-t-none md:rounded-l-[40px] border-t md:border-t-0 md:border-l overflow-hidden z-[2] pointer-events-auto transition-all duration-1000 ${isSeamlessPanorama ? 'border-white/10 shadow-[-12px_0_30px_-12px_rgba(0,0,0,0.5)] bg-gradient-to-r from-white/[0.03] to-transparent backdrop-blur-none' : 'border-white/10 shadow-xl md:shadow-[0_0_50px_rgba(0,0,0,0.5)] backdrop-blur-md md:backdrop-blur-3xl transform-gpu will-change-transform bg-black/20'}`}>
                             <RemoteTimerPane 
                                 roomId={isDevSplit ? 'dev-room' : activeRoomId} 
                                 isHost={isRoomHost} 
@@ -6346,13 +6211,6 @@ function MainApp() {
           />
         </Suspense>
 
-        <Suspense fallback={null}>
-          <WindowsPromoModal
-            isOpen={showWindowsPromo}
-            onClose={handleDismissWindowsPromo}
-          />
-        </Suspense>
-
         <NoteSystemModals
           notes={notes}
           tasks={tasks}
@@ -6420,31 +6278,7 @@ function MainApp() {
           )
         }
 
-        {isLocalDev && (
-          <button
-            onClick={() => setIsDevSplit(!isDevSplit)}
-            className="fixed bottom-4 right-4 z-[9999] bg-purple-500/80 hover:bg-purple-500 text-white text-xs px-3 py-1.5 rounded-full font-bold shadow-lg backdrop-blur-md"
-          >
-            Dev Split
-          </button>
-        )}
 
-        {/* DEV ONLY: Simulate Incoming Invite Button */}
-        {import.meta.env.DEV && !incomingRoomInvite && !activeRoomId && (
-            <button 
-                onClick={() => {
-                    setIncomingRoomInvite({
-                        id: 'dev-mock-room-id',
-                        host_id: 'dev-mock-host-id',
-                        server: null,
-                        sender: { display_name: 'Dev Mock User' }
-                    });
-                }}
-                className="fixed bottom-20 left-6 z-50 bg-indigo-500/80 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-lg hover:bg-indigo-500 transition-colors pointer-events-auto"
-            >
-                [DEV] Simulate Invite
-            </button>
-        )}
 
       </div>
     </VideoManager>

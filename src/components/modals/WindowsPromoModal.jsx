@@ -15,11 +15,11 @@ const WindowsPromoModal = ({ isOpen, onClose }) => {
 
     const modalVariants = isMobile ? {
         hidden: { opacity: 0, y: '100%' },
-        visible: { opacity: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 300 } },
+        visible: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 } },
         exit: { opacity: 0, y: '100%' }
     } : {
         hidden: { opacity: 0, scale: 0.95, y: 10 },
-        visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 300 } },
+        visible: { opacity: 1, scale: 1, y: 0, transition: { type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 } },
         exit: { opacity: 0, scale: 0.95, y: 10 }
     };
 

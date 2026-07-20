@@ -13,7 +13,7 @@ export default function ContactPage() {
         className="relative z-10 w-full max-w-2xl"
       >
         <header className="mb-16 border-b border-white/5 pb-8">
-          <h1 className="text-4xl md:text-5xl font-serif-display font-bold text-white mb-4 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4 tracking-tight">
             Get in Touch
           </h1>
           <p className="text-lg font-light text-white/50">
@@ -30,7 +30,7 @@ export default function ContactPage() {
                 <div className="p-3 rounded-full bg-white/5 text-white/60 group-hover:text-white transition-colors">
                   <Mail size={24} />
                 </div>
-                <h2 className="text-xl font-bold text-white font-serif-display">Email Support</h2>
+                <h2 className="text-xl font-bold text-white font-serif">Email Support</h2>
               </div>
               <p className="text-white/60 font-light mb-6">
                 For detailed feedback or account issues. I try to reply to every human email.
@@ -44,7 +44,7 @@ export default function ContactPage() {
         </div>
 
         <footer className="mt-20 pt-10 border-t border-white/10 text-center">
-           <a href="/" className="text-xs font-bold uppercase tracking-widest text-white/30 hover:text-white transition-colors">
+           <a href="/" className="text-xs font-semibold uppercase tracking-wider text-white/30 hover:text-white transition-colors">
              Return to DaTimer
            </a>
         </footer>

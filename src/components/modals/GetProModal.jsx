@@ -91,7 +91,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+                        transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }}
                         className="relative w-full max-w-4xl bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh] md:max-h-[600px]"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -121,7 +121,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
                                     <Sparkles size={12} className="text-cyan-400 fill-cyan-400" />
                                     <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-widest">Premium Feature</span>
                                 </div>
-                                <h3 className="text-3xl md:text-4xl font-serif-display text-white mb-2 leading-tight">
+                                <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-2 leading-tight">
                                     {primaryFeature.title}
                                 </h3>
                             </div>
@@ -135,7 +135,7 @@ const GetProModal = ({ isOpen, onClose, onUpgrade, source = 'notes' }) => {
                             </div>
 
                             <div className="mb-6 md:mb-8">
-                                <h4 className="text-cyan-400 text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <h4 className="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
                                     <Zap size={14} className="fill-current" />
                                     Unlock Limitless Potential
                                 </h4>

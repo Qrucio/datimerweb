@@ -70,7 +70,7 @@ const ExpandableCalendar = ({
                     <motion.div key="expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                         <div className="flex justify-between items-center mb-6">
                             <div className="flex items-center gap-3">
-                                <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-lg font-serif-display text-white hover:text-white/80 transition-colors flex items-center gap-2">
+                                <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-base font-semibold text-white hover:text-white/80 transition-colors flex items-center gap-2">
                                     {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                                 </button>
                                 {!isTodaySelected && (
@@ -148,7 +148,7 @@ const ExpandableCalendar = ({
                             <div>
                                 <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p>
                                 <div className="flex items-center gap-2">
-                                    <h4 className="text-lg font-serif-display text-white">
+                                    <h4 className="text-base font-semibold text-white">
                                         {selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
                                     </h4>
                                     {!isTodaySelected && (

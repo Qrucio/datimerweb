@@ -29,7 +29,7 @@ const GradientBackground = ({ isActive }) => {
                 duration: 4,
                 repeat: Infinity,
                 repeatType: "reverse",
-                ease: "easeInOut"
+                ease: [0.77, 0, 0.175, 1]
             }
         }
     };

@@ -249,14 +249,13 @@ const SocialModal = ({
     };
 
     // --- ANIMATIONS ---
-    const modalVariants = { hidden: { opacity: 0, scale: 0.95, y: 10 }, visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } }, exit: { opacity: 0, scale: 0.98, y: 10, transition: { duration: 0.15, ease: "easeOut" } } };
+    const modalVariants = { hidden: { opacity: 0, transform: "translateY(10px) scale(0.95)" }, visible: { opacity: 1, transform: "translateY(0px) scale(1)", transition: { type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 } }, exit: { opacity: 0, transform: "translateY(10px) scale(0.98)", transition: { duration: 0.15, ease: [0.23, 1, 0.32, 1] } } };
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
                     <motion.div
-                        layout
                         variants={modalVariants} initial="hidden" animate="visible" exit="exit"
                         className="bg-[#111] border border-white/10 rounded-3xl w-[95vw] md:w-[800px] shadow-2xl overflow-hidden mx-2 md:mx-0 flex h-[85vh] md:h-[600px] relative"
                         onClick={e => e.stopPropagation()}

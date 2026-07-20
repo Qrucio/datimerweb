@@ -255,7 +255,7 @@ export default function DownloadsPage() {
           background: #000;
         }
         
-        .font-serif-display {
+        .font-serif {
           font-family: 'Playfair Display', serif;
         }
       `}</style>
@@ -284,7 +284,7 @@ export default function DownloadsPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="text-5xl md:text-7xl lg:text-8xl font-serif-display font-medium tracking-tight mb-6"
+              className="text-5xl md:text-7xl lg:text-8xl font-serif font-medium tracking-tight mb-6"
             >
               <span className="text-white">Focus</span>
               <br />

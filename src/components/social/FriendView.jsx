@@ -188,7 +188,7 @@ const FriendView = ({
     const sortedFriends = [...friends].sort((a, b) => { if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1; if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1; return 0; });
 
     // Framer Motion Variants
-    const slideVariants = { enter: { opacity: 0, x: 20 }, center: { opacity: 1, x: 0 }, exit: { opacity: 0, x: -20 } };
+    const slideVariants = { enter: { opacity: 0, transform: "translateX(20px)" }, center: { opacity: 1, transform: "translateX(0px)" }, exit: { opacity: 0, transform: "translateX(-20px)" } };
 
     return (
         <div className="flex flex-col h-full w-full">

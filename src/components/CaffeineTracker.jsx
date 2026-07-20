@@ -356,9 +356,9 @@ const Dashboard = ({ onClose, logs, currentLevel, bedtimeStr, now, getRemainingM
                 {/* STATS */}
                 <div className="flex flex-col md:flex-row gap-6">
                     <div className="flex-1">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-1 block">Caffeine Level</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-500 mb-1 block">Caffeine Level</span>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-6xl font-clock font-bold tracking-tighter text-white">
+                            <span className="text-6xl font-timer-clock font-bold tracking-tighter text-white">
                                 {Math.round(currentLevel)}
                             </span>
                             <span className="text-xl text-white/40 font-medium">mg</span>
@@ -381,7 +381,7 @@ const Dashboard = ({ onClose, logs, currentLevel, bedtimeStr, now, getRemainingM
                 {logs.length > 0 && (
                     <div className="pt-4 border-t border-white/5">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-white/60 text-xs font-bold uppercase tracking-widest">Intake History</h3>
+                            <h3 className="text-white/60 text-xs font-semibold uppercase tracking-wider">Intake History</h3>
                         </div>
                         <div className="space-y-2">
                             {logs.map(log => {
@@ -578,7 +578,7 @@ const InteractiveGraph = ({ logs, now, bedtimeStr, getRemainingMg, sleepThreshol
                     className="absolute bottom-8 left-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-40 flex flex-col items-start opacity-0"
                 >
                     <span ref={cursorTimeRef} className="text-[10px] text-white/70 font-bold uppercase">--:--</span>
-                    <span ref={cursorValueRef} className="text-sm text-white font-bold font-clock">--mg</span>
+                    <span ref={cursorValueRef} className="text-sm text-white font-bold font-timer-clock">--mg</span>
                 </div>
             </div>
 
@@ -669,7 +669,7 @@ const CustomTimePicker = ({ value, onChange }) => {
         <div className="flex items-center justify-center gap-4">
             <div className="flex flex-col items-center">
                 <button onClick={() => update((hour + 1) % 24, minute)} className="p-1 hover:text-amber-500 text-white/50 transition-colors"><ChevronUp size={24} /></button>
-                <div className="text-4xl font-clock font-bold text-white w-16 text-center tabular-nums my-2 bg-black/40 rounded-lg py-1 border border-white/5">
+                <div className="text-4xl font-timer-clock font-bold text-white w-16 text-center tabular-nums my-2 bg-black/40 rounded-lg py-1 border border-white/5">
                     {hour.toString().padStart(2, '0')}
                 </div>
                 <button onClick={() => update((hour - 1 + 24) % 24, minute)} className="p-1 hover:text-amber-500 text-white/50 transition-colors"><ChevronDown size={24} /></button>
@@ -677,7 +677,7 @@ const CustomTimePicker = ({ value, onChange }) => {
             <div className="text-2xl font-bold text-white/30 pb-2">:</div>
             <div className="flex flex-col items-center">
                 <button onClick={() => update(hour, (minute + 5) % 60)} className="p-1 hover:text-amber-500 text-white/50 transition-colors"><ChevronUp size={24} /></button>
-                <div className="text-4xl font-clock font-bold text-white w-16 text-center tabular-nums my-2 bg-black/40 rounded-lg py-1 border border-white/5">
+                <div className="text-4xl font-timer-clock font-bold text-white w-16 text-center tabular-nums my-2 bg-black/40 rounded-lg py-1 border border-white/5">
                     {minute.toString().padStart(2, '0')}
                 </div>
                 <button onClick={() => update(hour, (minute - 5 + 60) % 60)} className="p-1 hover:text-amber-500 text-white/50 transition-colors"><ChevronDown size={24} /></button>

@@ -35,7 +35,7 @@ const ChatArea = ({ serverId, user, isFocusing = false, userRole, lastReadTime, 
                 <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.1)]">
                     <Lock size={32} className="text-red-500" />
                 </div>
-                <h2 className="text-2xl font-serif-display text-white mb-2">Focus Mode Active</h2>
+                <h2 className="text-xl font-semibold tracking-tight text-white mb-2">Focus Mode Active</h2>
                 <p className="text-white/40 max-w-xs text-sm leading-relaxed">
                     Chat is locked to help you stay in the zone. Finish your session to reconnect with your team.
                 </p>

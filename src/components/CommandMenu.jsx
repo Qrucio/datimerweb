@@ -466,12 +466,7 @@ export function CommandMenu({
 
     return (
         <>
-            <button
-                onClick={() => setOpen((prev) => !prev)}
-                className="fixed bottom-8 right-8 z-[50] p-3 bg-white/10 text-white backdrop-blur-md border border-white/20 rounded-full shadow-2xl hover:bg-white/20 hover:scale-110 hover:shadow-[0_0_25px_rgba(255,255,255,0.4)] active:scale-95 transition-all duration-300 group"
-            >
-                <CommandIcon size={20} className="group-hover:rotate-12 transition-transform" />
-            </button>
+
 
             <CommandDialog 
                 open={open} 

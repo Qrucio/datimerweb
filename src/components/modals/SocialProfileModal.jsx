@@ -60,7 +60,7 @@ const FriendStreakCard = ({ streak }) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+        transition={{ delay: 0.1, type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }}
         className="col-span-2 relative overflow-hidden rounded-2xl p-6 border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40 group"
     >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.15),transparent_50%)]" />
@@ -69,13 +69,13 @@ const FriendStreakCard = ({ streak }) => (
                 <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold text-orange-400/80 uppercase tracking-widest">Current Streak</span>
                 </div>
-                <div className="text-4xl font-serif-display text-white flex items-baseline gap-1">
+                <div className="text-3xl font-semibold tracking-tight text-white flex items-baseline gap-1">
                     {streak} <span className="text-sm font-sans text-white/40 font-medium">days</span>
                 </div>
             </div>
             <motion.div
                 animate={{ scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 2, repeat: Infinity, ease: [0.77, 0, 0.175, 1] }}
                 className="text-orange-500"
             >
                 <Flame size={48} fill="currentColor" fillOpacity={0.2} strokeWidth={1.5} />
@@ -119,7 +119,7 @@ const FriendHistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, sel
                 {isExpanded ? (
                     <motion.div key="expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                         <div className="flex justify-between items-center mb-6">
-                            <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-lg font-serif-display text-white hover:text-white/80 transition-colors flex items-center gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-base font-semibold text-white hover:text-white/80 transition-colors flex items-center gap-2">
                                 {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                             </button>
                             <div className="flex gap-1">
@@ -174,7 +174,7 @@ const FriendHistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, sel
                     <motion.div key="collapsed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="p-2 bg-white/10 rounded-full text-white"><CalendarIcon size={18} /></div>
-                            <div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-lg font-serif-display text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div>
+                            <div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-base font-semibold text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div>
                         </div>
                         <div className="flex items-center gap-1">
                             <button onClick={handlePrevDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
@@ -361,12 +361,12 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
                                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                                transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                                transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }}
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-full max-w-6xl h-auto md:h-[80vh] flex flex-col md:flex-row gap-6 md:gap-8 overflow-visible md:overflow-hidden relative"
                             >
-                                {/* --- GLOBAL CLOSE BUTTON (Mobile & Desktop) --- */}
-                                <div className="absolute top-4 right-4 z-50 md:top-6 md:right-6">
+                                {/* --- GLOBAL CLOSE BUTTON (Mobile Only) --- */}
+                                <div className="absolute top-4 right-4 z-50 md:hidden">
                                     <CloseButton onClick={onClose} />
                                 </div>
 
@@ -388,31 +388,32 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
 
                                 <div className="flex-1 bg-[#111] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl relative h-auto md:h-full shrink-0">
 
-                                    {/* Header Actions (Close) - MOVED UP */}
-
-                                    {/* Header with Tabs */}
-                                    <div className="px-8 pt-8 pb-6 border-b border-white/5 flex items-center justify-between">
+                                    {/* Header with Tabs and Close Button */}
+                                    <div className="px-6 md:px-8 pt-6 md:pt-8 pb-4 md:pb-6 border-b border-white/5 flex items-start justify-between">
                                         <div>
-                                            <h3 className="text-2xl font-serif-display text-white mb-1">Performance</h3>
+                                            <h3 className="text-xl font-semibold tracking-tight text-white mb-1 leading-normal pt-1">Performance</h3>
                                             <p className="text-sm text-white/40">Focus statistics and history</p>
                                         </div>
-                                        <div className="bg-white/5 rounded-full p-1 flex gap-1 border border-white/5 mr-12">
-                                            {['today', 'history'].map(view => (
-                                                <button
-                                                    key={view}
-                                                    onClick={() => setActiveTab(view)}
-                                                    className={`relative px-5 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
-                                                >
-                                                    {activeTab === view && (
-                                                        <motion.div
-                                                            layoutId="tabPill"
-                                                            className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
-                                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                                        />
-                                                    )}
-                                                    {view}
-                                                </button>
-                                            ))}
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-white/5 rounded-full p-1 flex gap-1 border border-white/5">
+                                                {['today', 'history'].map(view => (
+                                                    <button
+                                                        key={view}
+                                                        onClick={() => setActiveTab(view)}
+                                                        className={`relative px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors z-10 ${activeTab === view ? 'text-black' : 'text-white/40 hover:text-white'}`}
+                                                    >
+                                                        {activeTab === view && (
+                                                            <motion.div
+                                                                layoutId="tabPill"
+                                                                className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]"
+                                                                transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }}
+                                                            />
+                                                        )}
+                                                        {view}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <CloseButton onClick={onClose} className="hidden md:flex" />
                                         </div>
                                     </div>
 
@@ -454,7 +455,7 @@ const SocialProfileModal = ({ isOpen, onClose, user, currentUser, onAddFriend, o
 
                                                     <div className="space-y-4">
                                                         <div className="flex items-center gap-3 border-t border-white/10 pt-6">
-                                                            <h4 className="font-serif-display text-lg text-white">
+                                                            <h4 className="font-medium text-lg text-white">
                                                                 {!isCalendarExpanded ? "Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
                                                             </h4>
                                                         </div>

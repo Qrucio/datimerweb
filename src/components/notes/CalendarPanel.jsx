@@ -341,8 +341,8 @@ const CalendarPanel = ({ tasks, notes, allTags, onAddTask, onUpdateTask, onDelet
     // --- ANIMATION VARIANTS (Improved) ---
     const slideVariants = {
         enter: (dir) => ({ x: dir * 50, opacity: 0 }),
-        center: { x: 0, opacity: 1, transition: { duration: 0.2, ease: "easeOut" } },
-        exit: (dir) => ({ x: dir * -50, opacity: 0, transition: { duration: 0.15, ease: "easeIn" } })
+        center: { x: 0, opacity: 1, transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] } },
+        exit: (dir) => ({ x: dir * -50, opacity: 0, transition: { duration: 0.15, ease: [0.23, 1, 0.32, 1] } })
     };
 
     return (

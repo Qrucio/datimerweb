@@ -1,5 +1,15 @@
 export const releaseNotes = [
   {
+    version: "0.4.3",
+    date: "2026-07-20",
+    changes: [
+      "Fixed global keyboard listeners causing Modals to fail to close on Escape",
+      "Fixed critical infinite loop causing app crashes due to realtime profile syncing",
+      "Overhauled mobile toast notifications to float above the dock and safe areas",
+      "Fixed coworking invite layout bugs where buttons were cut off on mobile"
+    ]
+  },
+  {
     version: "0.4.2",
     date: "2026-06-20",
     changes: [

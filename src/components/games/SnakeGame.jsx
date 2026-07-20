@@ -125,7 +125,7 @@ const SnakeGame = ({ onExit, timeLeft }) => {
             </div>
 
             <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-none">
-                <div className={`text-6xl md:text-7xl font-clock font-bold tracking-tight drop-shadow-2xl transition-colors ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white/90'}`}> {formatTime(timeLeft)} </div>
+                <div className={`text-6xl md:text-7xl font-timer-clock font-bold tracking-tight drop-shadow-2xl transition-colors ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white/90'}`}> {formatTime(timeLeft)} </div>
                 <span className="text-xs font-bold text-white/30 uppercase tracking-[0.2em] mt-2">Break Time</span>
             </div>
 
@@ -147,7 +147,7 @@ const SnakeGame = ({ onExit, timeLeft }) => {
                     <AnimatePresence>
                         {gameOver && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-6 text-center">
-                                <h3 className="text-3xl md:text-4xl font-serif-display text-white mb-2">Game Over</h3>
+                                <h3 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-2">Game Over</h3>
                                 <div className="text-white/50 mb-8 font-mono">Final Score: <span className="text-white font-bold">{score}</span></div>
                                 <div className="flex flex-col gap-3 w-full max-w-[200px]">
                                     <button onClick={resetGame} className="w-full py-3 bg-white text-black font-bold text-sm uppercase tracking-widest rounded-full hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.3)]"> Play Again </button>

@@ -205,7 +205,7 @@ export default function ReleaseNotesPage() {
                         v{release.version}
                       </h2>
                       {index === 0 && (
-                        <span className="px-2 py-0.5 bg-white text-black text-[9px] font-bold uppercase tracking-widest rounded-full translate-y-px">
+                        <span className="px-2 py-0.5 bg-white text-black text-[9px] font-semibold uppercase tracking-wider rounded-full translate-y-px">
                           Latest
                         </span>
                       )}

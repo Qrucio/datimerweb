@@ -55,7 +55,7 @@ const ToastViewport = ({ toasts, removeToast }) => {
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-        <div className="fixed bottom-0 right-0 z-[9999] p-4 md:p-6 flex flex-col gap-3 w-full max-w-[420px] pointer-events-none">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] md:bottom-0 right-0 z-[9999] p-4 md:p-6 flex flex-col gap-3 w-full max-w-[420px] pointer-events-none">
             <AnimatePresence mode="popLayout">
                 {toasts.map((toast) => (
                     <ToastItem key={toast.id} toast={toast} onDismiss={() => removeToast(toast.id)} />
@@ -81,7 +81,7 @@ const ToastItem = ({ toast, onDismiss }) => {
             layout
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
             transition={{ type: "spring", stiffness: 500, damping: 30 }}
             className={cn(
                 "pointer-events-auto relative flex w-full items-center gap-4 overflow-hidden rounded-xl",

@@ -34,9 +34,9 @@ const Digit = React.memo(({ value, animated = true, clockType }) => {
                 <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                         key={value}
-                        initial={{ y: '-100%', filter: 'blur(5px)', opacity: 0 }}
-                        animate={{ y: '0%', filter: 'blur(0px)', opacity: 1 }}
-                        exit={{ y: '100%', filter: 'blur(5px)', opacity: 0 }}
+                        initial={{ transform: 'translateY(-100%)', opacity: 0 }}
+                        animate={{ transform: 'translateY(0%)', opacity: 1 }}
+                        exit={{ transform: 'translateY(100%)', opacity: 0 }}
                         transition={{
                             duration: 0.5,
                             ease: [0.34, 1.56, 0.64, 1] // Spring-ish bezier

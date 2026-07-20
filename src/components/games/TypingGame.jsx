@@ -339,7 +339,7 @@ const TypingGame = ({ onExit, timeLeft: sessionTimeLeft }) => {
 
             <div className="relative z-50 w-full flex justify-center items-start shrink-0 h-20">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
-                    <div className={`text-4xl md:text-5xl font-clock font-bold ${sessionTimeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    <div className={`text-4xl md:text-5xl font-timer-clock font-bold ${sessionTimeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
                         {formatTime(sessionTimeLeft)}
                     </div>
                 </div>
@@ -382,21 +382,21 @@ const TypingGame = ({ onExit, timeLeft: sessionTimeLeft }) => {
                     </div>
 
                     <div className="mt-8 text-center flex flex-col gap-2">
-                        <span className={`text-white/30 text-xs font-bold uppercase tracking-widest transition-opacity duration-500 ${gameState === 'waiting' ? 'opacity-100' : 'opacity-0'}`}> Start typing to begin </span>
+                        <span className={`text-white/30 text-xs font-semibold uppercase tracking-wider transition-opacity duration-500 ${gameState === 'waiting' ? 'opacity-100' : 'opacity-0'}`}> Start typing to begin </span>
                         <div className="flex items-center justify-center gap-2 text-white/20 text-[10px] font-mono uppercase tracking-widest"> <span>Press <span className="border border-white/20 px-1 rounded mx-0.5">Esc</span> to restart</span> </div>
                     </div>
                 </div>
             ) : (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center z-50 relative">
-                    <h2 className="text-white font-serif-display text-4xl mb-12">Session Complete</h2>
+                    <h2 className="text-white font-semibold tracking-tight text-3xl mb-12">Session Complete</h2>
                     <div className="flex gap-16 mb-12">
                         <div className="flex flex-col items-center group relative">
-                            <span className={`text-8xl md:text-9xl font-clock font-bold transition-all cursor-default ${isNewPB ? 'text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'text-white'}`}>{wpm}</span>
+                            <span className={`text-8xl md:text-9xl font-timer-clock font-bold transition-all cursor-default ${isNewPB ? 'text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'text-white'}`}>{wpm}</span>
                             <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">WPM</span>
                         </div>
                         <div className="w-px bg-white/10"></div>
                         <div className="flex flex-col items-center group">
-                            <span className="text-8xl md:text-9xl font-clock font-bold text-white transition-all cursor-default">{accuracy}%</span>
+                            <span className="text-8xl md:text-9xl font-timer-clock font-bold text-white transition-all cursor-default">{accuracy}%</span>
                             <span className="text-white/40 text-sm uppercase tracking-[0.3em] font-bold mt-4">Accuracy</span>
                         </div>
                     </div>
@@ -407,8 +407,8 @@ const TypingGame = ({ onExit, timeLeft: sessionTimeLeft }) => {
 
                     <div className="flex flex-col items-center gap-6">
                         <div className="flex gap-6">
-                            <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="px-10 py-4 bg-white text-black font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-all flex items-center gap-3"> <RotateCcw size={18} strokeWidth={2.5} /> Restart </button>
-                            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="px-10 py-4 bg-transparent border border-white/20 text-white hover:bg-white hover:text-black font-bold uppercase tracking-widest rounded-full transition-all"> Close </button>
+                            <button onClick={(e) => { e.stopPropagation(); resetGame(); }} className="px-10 py-4 bg-white text-black font-semibold uppercase tracking-wider rounded-full hover:scale-105 transition-all flex items-center gap-3"> <RotateCcw size={18} strokeWidth={2.5} /> Restart </button>
+                            <button onClick={(e) => { e.stopPropagation(); onExit(); }} className="px-10 py-4 bg-transparent border border-white/20 text-white hover:bg-white hover:text-black font-semibold uppercase tracking-wider rounded-full transition-all"> Close </button>
                         </div>
                         <div className="text-white/20 text-[10px] font-mono uppercase tracking-widest mt-2"> <span>Press <span className="border border-white/20 px-1 rounded mx-0.5">Esc</span> to restart</span> </div>
                     </div>

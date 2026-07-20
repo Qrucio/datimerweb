@@ -185,7 +185,7 @@ const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
 
 
 const StatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlight = false }) => (
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay, duration: 0.3 }} className={`relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden group ${isHero ? 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10 col-span-2' : 'bg-black/20 border border-white/5 hover:border-white/10 transition-colors'} ${highlight ? 'ring-1 ring-white/20 bg-white/5' : ''}`}>
+  <motion.div initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} transition={{ delay, duration: 0.3 }} className={`relative flex flex-col justify-between p-5 rounded-2xl overflow-hidden group ${isHero ? 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10 col-span-2' : 'bg-black/20 border border-white/5 hover:border-white/10 transition-colors'} ${highlight ? 'ring-1 ring-white/20 bg-white/5' : ''}`}>
     <div className="flex justify-between items-start z-10"><span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{label}</span><div className={`p-1.5 rounded-lg ${isHero ? 'bg-white/10 text-white' : 'bg-white/5 text-white/20 group-hover:text-white/50 transition-colors'}`}><Icon size={isHero ? 18 : 14} /></div></div>
     <div className={`mt-4 font-mono font-light tracking-wide text-white z-10 ${isHero ? 'text-3xl' : 'text-xl'}`}>{value}</div>
     {isHero && <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none" />}
@@ -193,20 +193,20 @@ const StatCard = ({ label, value, icon: Icon, delay = 0, isHero = false, highlig
 );
 
 const StreakCard = ({ streak, active = false }) => (
-  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1, type: "spring", stiffness: 300 }} className={`col-span-2 relative overflow-hidden rounded-2xl p-6 border group ${active ? 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40' : 'border-white/5 bg-gradient-to-br from-white/5 via-[#0A0A0A] to-black/40'}`}>
+  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1, type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} className={`col-span-2 relative overflow-hidden rounded-2xl p-6 border group ${active ? 'border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-[#1a0c00] to-black/40' : 'border-white/5 bg-gradient-to-br from-white/5 via-[#0A0A0A] to-black/40'}`}>
     <div className={`absolute inset-0 bg-[radial-gradient(circle_at_top_right,${active ? 'rgba(249,115,22,0.15)' : 'rgba(255,255,255,0.05)'},transparent_50%)]`} />
     <div className="flex items-center justify-between relative z-10">
       <div>
         <div className="flex items-center gap-2 mb-1">
-          <span className={`text-[10px] font-bold uppercase tracking-widest ${active ? 'text-orange-400/80' : 'text-white/30'}`}>Current Streak</span>
+          <span className={`text-[11px] font-semibold uppercase tracking-wider ${active ? 'text-orange-400/80' : 'text-white/30'}`}>Current Streak</span>
         </div>
-        <div className={`text-4xl font-serif-display flex items-baseline gap-1 ${active ? 'text-white' : 'text-white/50'}`}>
+        <div className={`text-3xl font-semibold tracking-tight flex items-baseline gap-1 ${active ? 'text-white' : 'text-white/50'}`}>
           {streak} <span className="text-sm font-sans text-white/40 font-medium">days</span>
         </div>
       </div>
       <motion.div
         animate={active ? { scale: [1, 1.15, 1], filter: ["drop-shadow(0 0 10px rgba(249,115,22,0.4))", "drop-shadow(0 0 20px rgba(249,115,22,0.7))", "drop-shadow(0 0 10px rgba(249,115,22,0.4))"] } : { scale: 1, filter: "none" }}
-        transition={active ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
+        transition={active ? { duration: 2, repeat: Infinity, ease: [0.77, 0, 0.175, 1] } : {}}
         className={active ? "text-orange-500" : "text-white/10"}
       >
         <Flame size={48} fill="currentColor" fillOpacity={active ? 0.2 : 0} strokeWidth={1.5} />
@@ -317,12 +317,12 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
   const allSlots = [...blanks, ...days];
 
   return (
-    <motion.div layout className={`w-full bg-white/5 border border-white/5 rounded-3xl overflow-hidden relative transition-colors duration-300 ${isExpanded ? 'p-6' : 'p-4 hover:bg-white/10 cursor-pointer'}`} onClick={() => !isExpanded && setIsExpanded(true)} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+    <motion.div layout className={`w-full bg-white/5 border border-white/5 rounded-3xl overflow-hidden relative transition-colors duration-300 ${isExpanded ? 'p-6' : 'p-4 hover:bg-white/10 cursor-pointer'}`} onClick={() => !isExpanded && setIsExpanded(true)} transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }}>
       <AnimatePresence mode="popLayout" initial={false}>
         {isExpanded ? (
           <motion.div key="expanded" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             <div className="flex justify-between items-center mb-6">
-              <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-lg font-serif-display text-white hover:text-white/80 transition-colors flex items-center gap-2">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</button>
+              <button onClick={(e) => { e.stopPropagation(); setViewMode(viewMode === 'days' ? 'months' : 'days'); }} className="text-base font-semibold text-white hover:text-white/80 transition-colors flex items-center gap-2">{monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}</button>
               <div className="flex gap-1">
                 <button onClick={handlePrevMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={18} /></button>
                 <button onClick={handleNextMonth} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronRight size={18} /></button>
@@ -340,7 +340,7 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
           </motion.div>
         ) : (
           <motion.div key="collapsed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex items-center justify-between">
-            <div className="flex items-center gap-4"><div className="p-2 bg-white/10 rounded-full text-white"><Calendar size={18} /></div><div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-lg font-serif-display text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div></div>
+            <div className="flex items-center gap-4"><div className="p-2 bg-white/10 rounded-full text-white"><Calendar size={18} /></div><div><p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Selected Date</p><h4 className="text-base font-semibold text-white">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</h4></div></div>
             <div className="flex items-center gap-1"><button onClick={handlePrevDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Previous Day"><ChevronLeft size={16} /></button><button onClick={handleNextDay} className="p-2 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors" title="Next Day"><ChevronRight size={16} /></button><div className="w-px h-4 bg-white/10 mx-2"></div><button className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs text-white/70 hover:text-white transition-colors"><span>Expand</span><ChevronDown size={14} /></button></div>
           </motion.div>
         )}
@@ -356,7 +356,7 @@ const HistoryCalendar = ({ historyData, currentMonth, setCurrentMonth, selectedD
 const MasterCustomizeView = ({ onNavigate }) => (
   <div className="space-y-4 max-w-2xl animate-fade-in">
     <div>
-      <h3 className="text-2xl font-serif-display text-white mb-1">Customize</h3>
+      <h3 className="text-xl md:text-2xl font-semibold text-white mb-1">Customize</h3>
       <p className="text-white/50 text-sm">Personalize your focus environment.</p>
     </div>
 
@@ -366,7 +366,7 @@ const MasterCustomizeView = ({ onNavigate }) => (
           <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Palette size={20} />
           </div>
-          <h4 className="text-lg font-bold text-white mb-1">Background</h4>
+          <h4 className="text-base font-semibold text-white mb-1">Background</h4>
           <p className="text-xs text-white/50">Choose from curated scenes and gradients.</p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -377,7 +377,7 @@ const MasterCustomizeView = ({ onNavigate }) => (
           <div className="w-10 h-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Clock size={20} />
           </div>
-          <h4 className="text-lg font-bold text-white mb-1">Clock Style</h4>
+          <h4 className="text-base font-semibold text-white mb-1">Clock Style</h4>
           <p className="text-xs text-white/50">Customize typography and layout.</p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -388,7 +388,7 @@ const MasterCustomizeView = ({ onNavigate }) => (
           <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
             <Volume2 size={20} />
           </div>
-          <h4 className="text-lg font-bold text-white mb-1">Timer Sound</h4>
+          <h4 className="text-base font-semibold text-white mb-1">Timer Sound</h4>
           <p className="text-xs text-white/50">Select alarm sounds and volume.</p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -460,8 +460,8 @@ const UnifiedSettingsModal = ({
 
   const contentVariants = {
     hidden: { opacity: 0, y: 5 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: "easeOut" } },
-    exit: { opacity: 0, y: -5, transition: { duration: 0.15, ease: "easeIn" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] } },
+    exit: { opacity: 0, y: -5, transition: { duration: 0.15, ease: [0.23, 1, 0.32, 1] } }
   };
 
   // --- MOBILE DETECTION ---
@@ -473,14 +473,10 @@ const UnifiedSettingsModal = ({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const modalVariants = isMobile ? {
-    hidden: { opacity: 0, y: '100%' },
-    visible: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.3, ease: "easeOut" } },
-    exit: { opacity: 0, y: '100%', transition: { type: "tween", duration: 0.2, ease: "easeIn" } }
-  } : {
-    hidden: { opacity: 0, scale: 0.95, y: 10 },
-    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", bounce: 0, duration: 0.25 } },
-    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.2 } }
+  const modalVariants = {
+    hidden: { opacity: 0, transform: "translateY(10px) scale(0.95)" },
+    visible: { opacity: 1, transform: "translateY(0px) scale(1)", transition: { type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 } },
+    exit: { opacity: 0, transform: "translateY(10px) scale(0.95)", transition: { duration: 0.2 } }
   };
 
   useEffect(() => {
@@ -558,11 +554,11 @@ const UnifiedSettingsModal = ({
               {/* === MOBILE HEADER === */}
               <div className="md:hidden flex flex-col bg-[#0F0F0F] border-b border-white/5 shrink-0 z-20">
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                  <h2 className="text-2xl font-serif-display text-white tracking-tight">Settings</h2>
+                  <h2 className="text-xl font-semibold text-white tracking-tight">Settings</h2>
                   <div className="flex items-center gap-3">
                     {user && (
                       <button onClick={() => setActiveTab('account')} className="relative w-10 h-10 flex items-center justify-center transition-all duration-300">
-                        {activeTab === 'account' && (<motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-full z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />)}
+                        {activeTab === 'account' && (<motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-full z-0 shadow-lg" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />)}
                         <div className="relative z-10 scale-90"><Avatar userData={user} isPro={isPro} size="sm" /></div>
                       </button>
                     )}
@@ -576,8 +572,8 @@ const UnifiedSettingsModal = ({
                     const Icon = tab.icon;
                     return (
                       <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative flex items-center justify-center gap-1.5 py-2.5 rounded-xl transition-all duration-300 ${isActive ? 'text-black' : 'text-white/60 bg-white/5'}`}>
-                        {isActive && <motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-xl z-0 shadow-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
-                        <span className="relative z-10 flex items-center gap-1.5"><Icon size={15} strokeWidth={2.5} /><span className="text-xs font-bold tracking-wide">{tab.label}</span></span>
+                        {isActive && <motion.div layoutId="mobileTabPill" className="absolute inset-0 bg-white rounded-xl z-0 shadow-lg" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
+                        <span className="relative z-10 flex items-center gap-1.5"><Icon size={15} strokeWidth={2.5} /><span className="text-xs font-medium tracking-wide">{tab.label}</span></span>
                       </button>
                     );
                   })}
@@ -585,10 +581,10 @@ const UnifiedSettingsModal = ({
               </div>
 
               {/* === DESKTOP SIDEBAR (COMPACT) === */}
-              <div className="hidden md:flex w-64 bg-[#0F0F0F] border-r border-white/5 p-4 flex-col shrink-0 relative">
-                <div className="flex mb-6 items-center gap-3 px-2">
-                  <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"><Settings size={14} className="text-black" /></div>
-                  <h2 className="text-lg font-serif-display text-white tracking-tight">Settings</h2>
+              <div className="hidden md:flex w-64 bg-[#0F0F0F] border-r border-white/5 p-4 md:p-8 flex-col shrink-0 relative">
+                <div className="flex mb-8 items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"><Settings size={16} className="text-black" /></div>
+                  <h2 className="text-xl font-semibold text-white tracking-tight">Settings</h2>
                 </div>
                 <nav className="flex flex-col gap-1 flex-1 w-full overflow-y-auto custom-scrollbar">
                   {tabs.filter(t => t.id !== 'account').map((tab) => {
@@ -610,10 +606,10 @@ const UnifiedSettingsModal = ({
                               But the parent "Appearance" is also a clickable page.
                               Let's just put the pill on the exact active item.
                           */}
-                          {activeTab === tab.id && <motion.div layoutId="activeTabPill" className={`absolute inset-0 bg-white z-0 rounded-xl ${tab.children ? 'bg-white/10' : ''}`} transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                          {activeTab === tab.id && <motion.div layoutId="activeTabPill" className={`absolute inset-0 bg-white z-0 rounded-xl ${tab.children ? 'bg-white/10' : ''}`} transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
                           <div className="relative z-10 flex items-center gap-3">
                             <Icon size={18} className={activeTab === tab.id && !tab.children ? "text-black" : "group-hover:scale-105 transition-transform"} />
-                            <span className="text-sm font-bold tracking-wide">{tab.label}</span>
+                            <span className="text-sm font-medium tracking-wide">{tab.label}</span>
                           </div>
                           {tab.children && (
                             <ChevronDown size={14} className={`relative z-10 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} ${isSelected ? 'text-white/70' : 'text-white/30'}`} />
@@ -637,7 +633,7 @@ const UnifiedSettingsModal = ({
                                     onClick={() => setActiveTab(child.id)}
                                     className={`relative text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${isChildActive ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
                                   >
-                                    {isChildActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-lg" transition={{ type: "spring", bounce: 0.2, duration: 0.5 }} />}
+                                    {isChildActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-lg" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
                                     <span className="relative z-10">{child.label}</span>
                                   </button>
                                 )
@@ -659,18 +655,18 @@ const UnifiedSettingsModal = ({
                         <div className="w-5 h-5 rounded-full bg-white/10 text-white/50 flex items-center justify-center group-hover:scale-110 group-hover:text-white transition-all">
                           <Download size={12} strokeWidth={2.5} />
                         </div>
-                        <span className="text-white/50 group-hover:text-white text-[10px] font-bold uppercase tracking-widest leading-none transition-colors">Download App</span>
+                        <span className="text-white/60 group-hover:text-white text-xs font-medium tracking-wide transition-colors">Download App</span>
                       </div>
                     </button>
 
                     {!isPro && (
                       <button onClick={onOpenPro} className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-600/10 hover:from-cyan-500/20 hover:to-blue-600/20 border border-cyan-500/30 flex items-center justify-between gap-3 group transition-all">
-                        <div className="flex items-center gap-2.5"><div className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={12} strokeWidth={2.5} /></div><span className="text-cyan-400 text-[10px] font-bold uppercase tracking-widest leading-none">Get Flow</span></div>
+                        <div className="flex items-center gap-2.5"><div className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center group-hover:scale-110 transition-transform"><Crown size={12} strokeWidth={2.5} /></div><span className="text-cyan-400 text-[11px] font-semibold uppercase tracking-wider leading-none">Get Flow</span></div>
                       </button>
                     )}
                     <button onClick={() => setActiveTab('account')} className={`flex items-center gap-3 p-2 rounded-xl border transition-all text-left group w-full ${activeTab === 'account' ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}>
                       <div className="relative"><Avatar userData={user} isPro={isPro} size="xs" /></div>
-                      <div className="overflow-hidden min-w-0 flex-1"><p className={`text-xs font-bold truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p></div>
+                      <div className="overflow-hidden min-w-0 flex-1"><p className={`text-xs font-medium truncate ${activeTab === 'account' ? 'text-white' : 'text-white/80'}`}>{user.displayName || 'User'}</p></div>
                     </button>
                   </div>
                 )}
@@ -678,15 +674,15 @@ const UnifiedSettingsModal = ({
                 {/* Version Info Footer - Moved to About Tab */}
                 {/* <VersionInfo /> */}
               </div>
-              <CloseButton onClick={onClose} className="hidden md:flex absolute top-6 right-6 z-50" />
+              <CloseButton onClick={onClose} className="hidden md:flex absolute top-8 right-8 z-50" />
 
               {/* === CONTENT AREA === */}
-              <div className="flex-1 p-5 md:p-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#0A0A0A]">
+              <div className="flex-1 p-5 md:p-8 md:px-12 md:pb-12 overflow-y-auto overflow-x-hidden custom-scrollbar relative bg-[#0A0A0A]">
                 <AnimatePresence mode="wait">
                   {activeTab === 'preferences' && (
                     <motion.div key="pref" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6 max-w-2xl">
                       <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Timer Configuration</h3>
+                        <h3 className="text-xl font-semibold text-white mb-8 pt-1 leading-normal">Timer Configuration</h3>
 
                         <div className="flex flex-col bg-white/5 border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
                           <SettingInput label="Focus Duration" value={settings.focus} onChange={(e) => updateSetting('focus', e.target.value)} onBlur={() => handleBlur('focus', 25)} min={1} max={120} />
@@ -696,7 +692,7 @@ const UnifiedSettingsModal = ({
                         </div>
                       </section>
                       <section>
-                        <h3 className="text-xl md:text-2xl font-serif-display text-white mb-2 pt-2 pb-1 leading-normal">Automation</h3>
+                        <h3 className="text-xl font-semibold text-white mb-8 pt-1 leading-normal">Automation</h3>
                         <div className="grid grid-cols-1 gap-2">
                           <ToggleRow label="Auto-start Breaks" description="Start break timer automatically when focus ends." checked={settings.autoStartBreaks} onChange={(val) => toggleSetting('autoStartBreaks', val)} icon={Clock} />
                           <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
@@ -715,7 +711,7 @@ const UnifiedSettingsModal = ({
                     <motion.div key="cust-bg" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
                         <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Background</h3></div>
+                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Background</h3></div>
                       </div>
 
                       {/* Opacity Slider */}
@@ -748,7 +744,7 @@ const UnifiedSettingsModal = ({
                             <button key={id} onClick={() => handleBackgroundChange(src)} className={`relative aspect-[9/16] md:aspect-video rounded-2xl overflow-hidden group transition-all duration-300 cursor-default ${isActive ? 'ring-2 ring-[var(--accent-pill)] ring-offset-2 ring-offset-[var(--bg-modal)] scale-[1.02]' : 'hover:scale-105 ring-1 ring-[var(--border-subtle)]'}`}>
                               {isVideo ? (<video src={src} className="w-full h-full object-cover" muted loop autoPlay playsInline />) : (<img src={src} alt="bg" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />)}
                               {isVideo && (<div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" /><span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span></div>)}
-                              {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
+                              {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
                               {credit && (<div className="absolute bottom-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"><a href={credit.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/10 text-[9px] font-bold text-white/80 hover:text-white uppercase tracking-wider transition-colors"><span>{credit.name}</span><ExternalLink size={8} /></a></div>)}
                             </button>
                           );
@@ -761,7 +757,7 @@ const UnifiedSettingsModal = ({
                     <motion.div key="cust-clock" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
                         <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Clock Style</h3></div>
+                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Clock Style</h3></div>
                       </div>
 
                       {/* LIVE PREVIEW CARD */}
@@ -781,19 +777,19 @@ const UnifiedSettingsModal = ({
                         )}
 
                         <div className={`relative z-10 transition-all duration-300 leading-none tracking-tight
-                             ${(settings.clockType || 'default') === 'default' ? 'font-clock' : ''}
-                             ${settings.clockType === 'sans' ? 'font-clock-sans' : ''}
-                             ${settings.clockType === 'serif' ? 'font-clock-serif' : ''}
-                             ${settings.clockType === 'mono' ? 'font-clock-mono' : ''}
-                             ${settings.clockType === 'display' ? 'font-clock-display' : ''}
-                             ${settings.clockType === 'digital' ? 'font-clock-digital' : ''}
-                             ${settings.clockType === 'pixel' ? 'font-clock-pixel' : ''}
-                             ${settings.clockType === 'cyber' ? 'font-clock-cyber' : ''}
-                             ${settings.clockType === 'hand' ? 'font-clock-hand' : ''}
-                             ${settings.clockType === 'block' ? 'font-clock-block' : ''}
-                             ${settings.clockType === 'elegant' ? 'font-clock-elegant' : ''}
-                             ${settings.clockType === 'neon' ? 'font-clock-neon' : ''}
-                             ${settings.clockType === 'round' ? 'font-clock-round' : ''}
+                             ${(settings.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
+                             ${settings.clockType === 'sans' ? 'font-sans' : ''}
+                             ${settings.clockType === 'serif' ? 'font-serif' : ''}
+                             ${settings.clockType === 'mono' ? 'font-mono' : ''}
+                             ${settings.clockType === 'display' ? 'font-timer-display' : ''}
+                             ${settings.clockType === 'digital' ? 'font-timer-digital' : ''}
+                             ${settings.clockType === 'pixel' ? 'font-timer-pixel' : ''}
+                             ${settings.clockType === 'cyber' ? 'font-timer-cyber' : ''}
+                             ${settings.clockType === 'hand' ? 'font-timer-hand' : ''}
+                             ${settings.clockType === 'block' ? 'font-timer-block' : ''}
+                             ${settings.clockType === 'elegant' ? 'font-timer-elegant' : ''}
+                             ${settings.clockType === 'neon' ? 'font-timer-neon' : ''}
+                             ${settings.clockType === 'round' ? 'font-timer-round' : ''}
                              ${(settings.clockStyle || 'solid') === 'outline' ? 'text-transparent' : 'text-white'}
                            `}
                           style={{
@@ -828,18 +824,18 @@ const UnifiedSettingsModal = ({
                               >
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                   {[
-                                    { id: 'default', label: 'Default', class: 'font-clock' },
-                                    { id: 'sans', label: 'San Francisco', class: 'font-clock-sans' },
-                                    { id: 'serif', label: 'Playfair', class: 'font-clock-serif pb-1' },
-                                    { id: 'mono', label: 'Space Mono', class: 'font-clock-mono text-xs' },
-                                    { id: 'display', label: 'Syne', class: 'font-clock-display font-extrabold' },
-                                    { id: 'pixel', label: '8-Bit', class: 'font-clock-pixel text-[10px]' },
-                                    { id: 'cyber', label: 'Cyberpunk', class: 'font-clock-cyber font-bold' },
-                                    { id: 'block', label: 'Impact', class: 'font-clock-block tracking-wide' },
-                                    { id: 'elegant', label: 'Vogue', class: 'font-clock-elegant italic' },
-                                    { id: 'hand', label: 'Marker', class: 'font-clock-hand text-sm' },
-                                    { id: 'neon', label: 'Neon', class: 'font-clock-neon text-[10px]' },
-                                    { id: 'round', label: 'Pop', class: 'font-clock-round' },
+                                    { id: 'default', label: 'Default', class: 'font-timer-clock' },
+                                    { id: 'sans', label: 'San Francisco', class: 'font-sans' },
+                                    { id: 'serif', label: 'Playfair', class: 'font-serif pb-1' },
+                                    { id: 'mono', label: 'Space Mono', class: 'font-mono text-xs' },
+                                    { id: 'display', label: 'Syne', class: 'font-timer-display font-extrabold' },
+                                    { id: 'pixel', label: '8-Bit', class: 'font-timer-pixel text-[10px]' },
+                                    { id: 'cyber', label: 'Cyberpunk', class: 'font-timer-cyber font-bold' },
+                                    { id: 'block', label: 'Impact', class: 'font-timer-block tracking-wide' },
+                                    { id: 'elegant', label: 'Vogue', class: 'font-timer-elegant italic' },
+                                    { id: 'hand', label: 'Marker', class: 'font-timer-hand text-sm' },
+                                    { id: 'neon', label: 'Neon', class: 'font-timer-neon text-[10px]' },
+                                    { id: 'round', label: 'Pop', class: 'font-timer-round' },
                                   ].map(font => (
                                     <button
                                       key={font.id}
@@ -896,7 +892,7 @@ const UnifiedSettingsModal = ({
                                   className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all relative z-10 ${settings.clockStyle === style || (!settings.clockStyle && style === 'solid') ? 'text-black' : 'text-white/40 hover:text-white'}`}
                                 >
                                   {style}
-                                  {(settings.clockStyle === style || (!settings.clockStyle && style === 'solid')) && <motion.div layoutId="stylePill" className="absolute inset-0 bg-white rounded-lg -z-10 shadow-sm" transition={{ type: "spring", bounce: 0.15, duration: 0.4 }} />}
+                                  {(settings.clockStyle === style || (!settings.clockStyle && style === 'solid')) && <motion.div layoutId="stylePill" className="absolute inset-0 bg-white rounded-lg -z-10 shadow-sm" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
                                 </button>
                               ))}
                             </div>
@@ -910,7 +906,7 @@ const UnifiedSettingsModal = ({
                     <motion.div key="cust-sound" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
                         <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 leading-normal">Timer Sound</h3></div>
+                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Timer Sound</h3></div>
                       </div>
 
                       {/* Volume Slider */}
@@ -972,17 +968,17 @@ const UnifiedSettingsModal = ({
                   {activeTab === 'stats' && (
                     <motion.div key="stats" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="max-w-3xl pb-12 flex flex-col h-full">
                       <div className="flex flex-col items-start gap-4 mb-8">
-                        <div><h3 className="text-xl md:text-2xl font-serif-display text-white mb-0 pt-2 pb-1 leading-normal">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
-                        <div className="flex p-1 bg-white/5 rounded-full border border-white/5 relative">{['today', 'history'].map(view => (<button key={view} onClick={() => setStatsView(view)} className={`relative px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-colors z-10 ${statsView === view ? 'text-black' : 'text-white/40 hover:text-white'}`}>{statsView === view && (<motion.div layoutId="statsViewPill" className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]" transition={{ type: "spring", stiffness: 500, damping: 30 }} />)}{view}</button>))}</div>
+                        <div><h3 className="text-xl font-semibold text-white mb-1 pt-1 leading-normal">Your Progress</h3><p className="text-white/50 text-sm">{statsView === 'today' ? "Today's activity." : "Travel through time."}</p></div>
+                        <div className="flex p-1 bg-white/5 rounded-full border border-white/5 relative">{['today', 'history'].map(view => (<button key={view} onClick={() => setStatsView(view)} className={`relative px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors z-10 ${statsView === view ? 'text-black' : 'text-white/40 hover:text-white'}`}>{statsView === view && (<motion.div layoutId="statsViewPill" className="absolute inset-0 bg-white rounded-full shadow-lg z-[-1]" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />)}{view}</button>))}</div>
                       </div>
                       <AnimatePresence mode="wait">
                         {statsView === 'today' ? (
                           <>
-                            <motion.div key="view-today" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} active={(stats.dailyFocusTime > 0 || stats.dailySessions > 0)} /></motion.div>
+                            <motion.div key="view-today" initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} exit={{ opacity: 0, transform: "translateY(-10px)" }} transition={{ duration: 0.15 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4"><StatCard label="Total Focus Time" value={formatDuration(stats.dailyFocusTime || 0)} icon={Zap} isHero={true} /><StatCard label="Break Time" value={formatDuration(stats.dailyBreakTime || 0)} icon={Coffee} delay={0.1} /><StatCard label="Sessions Completed" value={stats.dailySessions || 0} icon={TrendingUp} delay={0.15} /><StreakCard streak={stats.currentStreak || 0} active={(stats.dailyFocusTime > 0 || stats.dailySessions > 0)} /></motion.div>
                             {user && (user.uid === 'c31d3bf7-9fdb-46ea-9142-14372a088bd2' || user.uid === 'e98940e8-6ce4-4fa9-830b-32dc14ab1cc2') && <DevStatsEditor stats={stats} onStatsUpdate={onDevStatsUpdate} />}
                           </>
                         ) : (
-                          <motion.div key="view-history" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.15 }} className="flex flex-col gap-6"><HistoryCalendar historyData={historyData} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} isExpanded={isCalendarExpanded} setIsExpanded={setIsCalendarExpanded} /><motion.div layout className="space-y-4"><div className="flex items-center gap-3 border-t border-white/10 pt-6"><h4 className="font-serif-display text-lg text-white">{!isCalendarExpanded ? "Stats Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><StatCard label="Focus Time" value={formatDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight /><StatCard label="Break Time" value={formatDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} /></div></motion.div></motion.div>
+                          <motion.div key="view-history" initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} exit={{ opacity: 0, transform: "translateY(-10px)" }} transition={{ duration: 0.15 }} className="flex flex-col gap-6"><HistoryCalendar historyData={historyData} currentMonth={currentMonth} setCurrentMonth={setCurrentMonth} selectedDate={selectedDate} onSelectDate={setSelectedDate} isExpanded={isCalendarExpanded} setIsExpanded={setIsCalendarExpanded} /><motion.div layout className="space-y-4"><div className="flex items-center gap-3 border-t border-white/10 pt-6"><h4 className="font-medium text-lg text-white">{!isCalendarExpanded ? "Stats Overview" : selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</h4></div><div className="grid grid-cols-2 md:grid-cols-3 gap-4"><StatCard label="Focus Time" value={formatDuration(selectedStats.dailyFocusTime || 0)} icon={Zap} highlight /><StatCard label="Break Time" value={formatDuration(selectedStats.dailyBreakTime || 0)} icon={Coffee} /><StatCard label="Sessions" value={selectedStats.dailySessions || 0} icon={TrendingUp} /></div></motion.div></motion.div>
                         )}
                       </AnimatePresence>
                     </motion.div>
@@ -990,7 +986,7 @@ const UnifiedSettingsModal = ({
 
                    {activeTab === 'about' && (
                     <motion.div key="about" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="max-w-2xl h-full flex flex-col">
-                       <h3 className="text-xl md:text-2xl font-serif-display text-white mb-6 leading-normal">About altimer</h3>
+                       <h3 className="text-xl font-semibold text-white mb-6 pt-1 leading-normal">About altimer</h3>
 
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -1012,7 +1008,7 @@ const UnifiedSettingsModal = ({
                       </div>
 
                       <div className="space-y-2 mb-8">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2 pl-1">Legal</h4>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-white/30 mb-2 pl-1">Legal</h4>
                         <a href="/privacy" target="_blank" className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors group">
                           <span className="text-sm text-white/60 group-hover:text-white">Privacy Policy</span>
                           <ExternalLink size={14} className="text-white/20 group-hover:text-white/50" />
@@ -1033,7 +1029,7 @@ const UnifiedSettingsModal = ({
                       {user && !user.isAnonymous ? (
                         <div className="w-full max-w-md flex flex-col gap-4">
                           <ProfileCard user={user} currentUser={user} isSelf={true} />
-                          <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
+                          <motion.button initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
                         </div>
                       ) : (
                         <div className="text-center p-12 bg-white/5 rounded-3xl border border-white/10 dashed flex flex-col items-center justify-center w-full max-w-lg aspect-video">

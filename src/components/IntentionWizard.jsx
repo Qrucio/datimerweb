@@ -67,7 +67,7 @@ const IntentionWizard = ({ onComplete, onCancel }) => {
                             className="flex flex-col gap-8 text-center"
                         >
                             <div>
-                                <h2 className="text-3xl font-serif-display text-white mb-2">What is your intention?</h2>
+                                <h2 className="text-3xl font-serif text-white mb-2">What is your intention?</h2>
                                 <p className="text-white/50">Define your focus for this session.</p>
                             </div>
 
@@ -80,7 +80,7 @@ const IntentionWizard = ({ onComplete, onCancel }) => {
                                         value={task}
                                         onChange={(e) => setTask(e.target.value)}
                                         placeholder="writing my novel..."
-                                        className="w-full bg-transparent border-b border-white/20 py-3 text-xl md:text-2xl text-white placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors font-serif-display"
+                                        className="w-full bg-transparent border-b border-white/20 py-3 text-xl md:text-2xl text-white placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors font-serif"
                                     />
                                 </div>
 
@@ -91,7 +91,7 @@ const IntentionWizard = ({ onComplete, onCancel }) => {
                                         value={time}
                                         onChange={(e) => setTime(e.target.value)}
                                         placeholder="2 hours"
-                                        className="w-full bg-transparent border-b border-white/20 py-3 text-xl md:text-2xl text-white placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors font-serif-display"
+                                        className="w-full bg-transparent border-b border-white/20 py-3 text-xl md:text-2xl text-white placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors font-serif"
                                     />
                                     <p className="text-xs text-white/30">We'll handle the breaks nicely.</p>
                                 </div>
@@ -116,7 +116,7 @@ const IntentionWizard = ({ onComplete, onCancel }) => {
                             className="flex flex-col gap-8"
                         >
                             <div className="text-center">
-                                <h2 className="text-3xl font-serif-display text-white mb-2">Prepare your space</h2>
+                                <h2 className="text-3xl font-serif text-white mb-2">Prepare your space</h2>
                                 <p className="text-white/50">Ensure you have everything you need.</p>
                             </div>
 
@@ -167,7 +167,7 @@ const IntentionWizard = ({ onComplete, onCancel }) => {
                             </div>
 
                             <div>
-                                <h2 className="text-3xl font-serif-display text-white mb-4">Disconnect to Connect</h2>
+                                <h2 className="text-3xl font-serif text-white mb-4">Disconnect to Connect</h2>
                                 <p className="text-white/60 text-lg leading-relaxed max-w-sm mx-auto">
                                     Put your phone away. Silence notifications. This time is for you and your intention.
                                 </p>
