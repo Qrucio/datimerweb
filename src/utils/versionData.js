@@ -1,5 +1,12 @@
 export const releaseNotes = [
   {
+    version: "0.4.5",
+    date: "2026-08-04",
+    changes: [
+      "Set Lakeside as the default background for all users"
+    ]
+  },
+  {
     version: "0.4.4",
     date: "2026-08-04",
     changes: [

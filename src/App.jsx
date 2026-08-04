@@ -2629,7 +2629,7 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
 
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', alarmSound: 'digital', alarmVolume: 0.5, clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/lakeside.avif', alarmSound: 'digital', alarmVolume: 0.5, clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft ?? DEFAULT_SETTINGS.focus * 60);
@@ -2676,6 +2676,17 @@ function MainApp() {
   const [settings, setSettings] = useState(() => Storage.getSettings(DEFAULT_SETTINGS));
   const [settingsTab, setSettingsTab] = useState('preferences');
 
+  // Lakeside Background Migration (One-time override for existing users)
+  useEffect(() => {
+    if (!localStorage.getItem('lakeside_forced_v1')) {
+      setSettings(prev => {
+        const newSettings = { ...prev, background: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/lakeside.avif' };
+        Storage.saveSettingsLocally(newSettings);
+        return newSettings;
+      });
+      localStorage.setItem('lakeside_forced_v1', 'true');
+    }
+  }, []);
 
 
   // --- ROOM SYNC STATE ---
