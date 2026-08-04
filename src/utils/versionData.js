@@ -1,5 +1,14 @@
 export const releaseNotes = [
   {
+    version: "0.4.4",
+    date: "2026-08-04",
+    changes: [
+      "Standardized background brightness to a fixed opacity across the entire app",
+      "Removed custom font selector for the clock and hardcoded Bricolage Grotesque",
+      "Added new dynamic backgrounds to the selection"
+    ]
+  },
+  {
     version: "0.4.3",
     date: "2026-07-20",
     changes: [

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // Digit Component: Handles the animation of a single character
 // ⚡ Bolt Optimization: Added React.memo to prevent unnecessary re-renders of static digits (e.g., minutes).
 // Impact: Reduces React render workload and Framer Motion recalculations by ~60-80% per second tick.
-const Digit = React.memo(({ value, animated = true, clockType }) => {
+const Digit = React.memo(({ value, animated = true }) => {
     if (!animated) {
         return <span className="inline-block">{value}</span>;
     }
@@ -30,7 +30,7 @@ const Digit = React.memo(({ value, animated = true, clockType }) => {
         Positioned absolute to overlay the phantom element.
         overflow-hidden ensures digits slide in/out within the bounds.
       */}
-            <div className={`absolute inset-0 overflow-hidden flex items-center justify-center ${clockType === 'serif' ? 'pb-[0.15em]' : ''}`}>
+            <div className={`absolute inset-0 overflow-hidden flex items-center justify-center`}>
                 <AnimatePresence mode="popLayout" initial={false}>
                     <motion.span
                         key={value}
@@ -58,7 +58,7 @@ const Separator = React.memo(({ value }) => {
     )
 })
 
-const CountdownTimer = ({ timeLeft, disableAnimation = true, clockType }) => {
+const CountdownTimer = ({ timeLeft, disableAnimation = true }) => {
     // Format MM:SS
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
@@ -77,7 +77,7 @@ const CountdownTimer = ({ timeLeft, disableAnimation = true, clockType }) => {
                 }
                 // KEY FIX: Use 'index' as key so the component doesn't unmount, allowing AnimatePresence to work
                 return (
-                    <Digit key={index} value={char} animated={!disableAnimation} clockType={clockType} />
+                    <Digit key={index} value={char} animated={!disableAnimation} />
                 );
             })}
         </div>

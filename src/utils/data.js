@@ -6,6 +6,18 @@ import { CloudRain, CloudLightning, Wind, Waves, Coffee, Tent, Train, Keyboard, 
 
 export const BACKGROUND_OPTIONS = [
   {
+    id: 'retrovan',
+    src: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/retrovan.avif',
+  },
+  {
+    id: 'lakeside',
+    src: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/lakeside.avif',
+  },
+  {
+    id: 'coastallighthouse',
+    src: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/coastallighthouse.avif',
+  },
+  {
     id: 'canyonnight',
     src: 'https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=1920&auto=format&fit=crop',
     credit: { name: 'Mark Basarab', url: 'https://unsplash.com/photos/blue-starry-night-1OtUkD_8svc' }

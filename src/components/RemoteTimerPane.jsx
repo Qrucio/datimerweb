@@ -22,7 +22,7 @@ const calculateTimeLeft = (state) => {
 };
 
 // --- SKELETON VIEW (defined OUTSIDE to avoid remount/animation reset) ---
-const SkeletonContent = ({ localClockType, timerSize }) => (
+const SkeletonContent = ({ timerSize }) => (
     <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pb-0 relative z-10 pointer-events-none">
         <div className="flex flex-col items-center w-full max-w-full relative pointer-events-auto">
             
@@ -68,23 +68,11 @@ const SkeletonContent = ({ localClockType, timerSize }) => (
                 initial={{ backgroundPosition: '200% 0' }}
                 animate={{ backgroundPosition: '-200% 0' }}
                 transition={{ repeat: Infinity, duration: 2.5, ease: [0.77, 0, 0.175, 1], repeatDelay: 1 }}
-                style={{ backgroundSize: '200% auto' }}
+                style={{ backgroundSize: '200% auto', fontWeight: 550 }}
                 className={`
                     leading-none tracking-normal select-none tabular-nums
                     bg-clip-text text-transparent bg-[linear-gradient(102deg,rgba(255,255,255,0.05)_40%,rgba(255,255,255,0.5)_50%,rgba(255,255,255,0.05)_60%)]
-                    ${(localClockType || 'default') === 'default' ? 'font-timer-clock' : ''}
-                    ${localClockType === 'sans' ? 'font-sans' : ''}
-                    ${localClockType === 'serif' ? 'font-serif' : ''}
-                    ${localClockType === 'mono' ? 'font-mono' : ''}
-                    ${localClockType === 'display' ? 'font-timer-display' : ''}
-                    ${localClockType === 'digital' ? 'font-timer-digital' : ''}
-                    ${localClockType === 'pixel' ? 'font-timer-pixel' : ''}
-                    ${localClockType === 'cyber' ? 'font-timer-cyber' : ''}
-                    ${localClockType === 'hand' ? 'font-timer-hand' : ''}
-                    ${localClockType === 'block' ? 'font-timer-block' : ''}
-                    ${localClockType === 'elegant' ? 'font-timer-elegant' : ''}
-                    ${localClockType === 'neon' ? 'font-timer-neon' : ''}
-                    ${localClockType === 'round' ? 'font-timer-round' : ''}
+                    font-timer-bricolage
                     
                     ${({
                         'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
@@ -103,7 +91,7 @@ const SkeletonContent = ({ localClockType, timerSize }) => (
     </main>
 );
 
-const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity, localBackground, localClockType, onSyncClick, isDevMock, onLeaveRoom, onBackgroundMatch }) => {
+const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSyncClick, isDevMock, onLeaveRoom, onBackgroundMatch }) => {
     const [remoteState, setRemoteState] = useState(null);
     const [remoteProfile, setRemoteProfile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(0);
@@ -137,8 +125,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                     serverEndTime: RoomsService.getSyncedTime() + 1500000,
                     mode: 'focus',
                     background: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920',
-                    backgroundOpacity: 0.5,
-                    clockType: 'default'
+                    background: 'default'
                 });
             }, 1500);
             return () => clearTimeout(timer);
@@ -252,7 +239,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                                     style={{
                                         filter: 'brightness(1.2) contrast(1.1)',
                                         transform: 'translateZ(0)',
-                                        opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
+                                        opacity: 0.8
                                     }}
                                     className="w-full h-full object-cover"
                                 />
@@ -262,7 +249,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                                 className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
                                 style={{ 
                                     backgroundImage: `url(${activeBackground})`,
-                                    opacity: localBackgroundOpacity !== undefined ? localBackgroundOpacity : 0.5
+                                    opacity: 0.8
                                 }} 
                             />
                         )
@@ -326,19 +313,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                             className={`
                                 leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                                 
-                                ${(remoteState.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
-                                ${remoteState.clockType === 'sans' ? 'font-sans' : ''}
-                                ${remoteState.clockType === 'serif' ? 'font-serif' : ''}
-                                ${remoteState.clockType === 'mono' ? 'font-mono' : ''}
-                                ${remoteState.clockType === 'display' ? 'font-timer-display' : ''}
-                                ${remoteState.clockType === 'digital' ? 'font-timer-digital' : ''}
-                                ${remoteState.clockType === 'pixel' ? 'font-timer-pixel' : ''}
-                                ${remoteState.clockType === 'cyber' ? 'font-timer-cyber' : ''}
-                                ${remoteState.clockType === 'hand' ? 'font-timer-hand' : ''}
-                                ${remoteState.clockType === 'block' ? 'font-timer-block' : ''}
-                                ${remoteState.clockType === 'elegant' ? 'font-timer-elegant' : ''}
-                                ${remoteState.clockType === 'neon' ? 'font-timer-neon' : ''}
-                                ${remoteState.clockType === 'round' ? 'font-timer-round' : ''}
+                                font-timer-bricolage
                                 
                                 ${({
                                     'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
@@ -349,8 +324,9 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                                 
                                 ${!remoteState.isActive ? 'text-white' : 'text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                             `}
+                            style={{ fontWeight: 550 }}
                         >
-                            <CountdownTimer timeLeft={timeLeft} disableAnimation={true} clockType={remoteState.clockType || 'default'} />
+                            <CountdownTimer timeLeft={timeLeft} disableAnimation={true} />
                         </div>
                         
                         {/* Room Controls Spacer for alignment */}
@@ -372,7 +348,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackgroundOpacity,
                         className="absolute inset-0 z-50 pointer-events-none bg-black/90"
                     >
                         <div className="w-full h-full relative overflow-hidden flex flex-col justify-center items-center">
-                            <SkeletonContent localClockType={localClockType} timerSize={remoteState?.timerSize} />
+                            <SkeletonContent timerSize={remoteState?.timerSize} />
                         </div>
                     </motion.div>
                 )}

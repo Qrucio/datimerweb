@@ -2629,7 +2629,7 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
 
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', backgroundOpacity: 0.3, backgroundBrightnessMap: {}, alarmSound: 'digital', alarmVolume: 0.5, clockType: 'default', clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://images.unsplash.com/photo-1534996858221-380b92700493?q=80&w=1631&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8MHxwaG90by1wYWdlfHx8fA%3D%3D', alarmSound: 'digital', alarmVolume: 0.5, clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft ?? DEFAULT_SETTINGS.focus * 60);
@@ -2844,12 +2844,11 @@ function MainApp() {
       serverEndTime: isActive ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) : null,
       mode,
       background: settings.background,
-      backgroundOpacity: settings.backgroundOpacity,
-      clockType: settings.clockType,
+      background: settings.background,
       pomoCount: pomoCountRef.current,
       pomosBeforeLongBreak: settings.pomosBeforeLongBreak
     };
-  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.backgroundOpacity, settings.clockType, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration, serverClockSynced, pomoCountTrigger, settings.pomosBeforeLongBreak]);
+  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration, serverClockSynced, pomoCountTrigger, settings.pomosBeforeLongBreak]);
 
   const handleRoomClosed = React.useCallback(() => setActiveRoomId(null), []);
   useRoomSync(activeRoomId, isRoomHost, localTimerState, handleRoomClosed);
@@ -5333,23 +5332,10 @@ function MainApp() {
   };
 
   const handleBackgroundChange = (bgSrc) => {
-    // 1. Save Current Brightness to Map
-    const currentBg = settings.background;
-    const currentOpacity = settings.backgroundOpacity;
-    const brightnessMap = { ...(settings.backgroundBrightnessMap || {}) };
-    if (currentBg) {
-      brightnessMap[currentBg] = currentOpacity;
-    }
-
-    // 2. Retrieve Saved Brightness for New Bg (or default to 0.3)
-    const savedOpacity = brightnessMap[bgSrc] !== undefined ? brightnessMap[bgSrc] : 0.3;
-
     // 3. Prepare New Settings with Timestamp
     const newSettings = {
       ...settings,
       background: bgSrc,
-      backgroundOpacity: savedOpacity,
-      backgroundBrightnessMap: brightnessMap,
       updatedAt: Date.now()
     };
 
@@ -5441,7 +5427,7 @@ function MainApp() {
                   style={{
                     filter: 'brightness(1.2) contrast(1.1)',
                     transform: 'translateZ(0)',
-                    opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                    opacity: 0.8
                   }}
                   className="w-full h-full object-cover"
                 />
@@ -5451,7 +5437,7 @@ function MainApp() {
                 className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
                 style={{
                   backgroundImage: `url(${activeBackground})`,
-                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                  opacity: 0.8
                 }}
               />
             )
@@ -5489,7 +5475,7 @@ function MainApp() {
                   style={{
                     filter: 'brightness(1.2) contrast(1.1)',
                     transform: 'translateZ(0)',
-                    opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                    opacity: 0.8
                   }}
                   className="w-full h-full object-cover"
                 />
@@ -5499,7 +5485,7 @@ function MainApp() {
                 className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
                 style={{
                   backgroundImage: `url(${activeBackground})`,
-                  opacity: settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5
+                  opacity: 0.8
                 }}
               />
             )
@@ -5866,20 +5852,7 @@ function MainApp() {
                       className={`
                     leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
                     
-                    ${/* FONT TYPE LOGIC */ ''}
-                    ${(settings.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
-                    ${settings.clockType === 'sans' ? 'font-sans' : ''}
-                    ${settings.clockType === 'serif' ? 'font-serif' : ''}
-                    ${settings.clockType === 'mono' ? 'font-mono' : ''}
-                    ${settings.clockType === 'display' ? 'font-timer-display' : ''}
-                    ${settings.clockType === 'digital' ? 'font-timer-digital' : ''}
-                    ${settings.clockType === 'pixel' ? 'font-timer-pixel' : ''}
-                    ${settings.clockType === 'cyber' ? 'font-timer-cyber' : ''}
-                    ${settings.clockType === 'hand' ? 'font-timer-hand' : ''}
-                    ${settings.clockType === 'block' ? 'font-timer-block' : ''}
-                    ${settings.clockType === 'elegant' ? 'font-timer-elegant' : ''}
-                    ${settings.clockType === 'neon' ? 'font-timer-neon' : ''}
-                    ${settings.clockType === 'round' ? 'font-timer-round' : ''}
+                    font-timer-bricolage
                     
                     ${({
                           'small': isSplitScreen ? 'text-[13vw] md:text-[5rem] lg:text-[6rem]' : 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
@@ -5892,10 +5865,11 @@ function MainApp() {
                     ${'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                   `}
                       style={{
-                        WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined
+                        WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined,
+                        fontWeight: 550
                       }}
                     >
-                      <CountdownTimer timeLeft={timeLeft} disableAnimation={true} clockType={settings.clockType} />
+                      <CountdownTimer timeLeft={timeLeft} disableAnimation={true} />
                     </div>
 
                     {/* --- CONTROLS --- */}
@@ -6023,9 +5997,8 @@ function MainApp() {
                                 roomId={isDevSplit ? 'dev-room' : activeRoomId} 
                                 isHost={isRoomHost} 
                                 remoteUserId={isDevSplit ? 'dev-user' : remoteRoomUserId}
-                                localBackgroundOpacity={settings.backgroundOpacity}
                                 localBackground={activeBackground}
-                                localClockType={settings.clockType}
+                                localClockType="bricolage"
                                 isDevMock={isDevSplit}
                                 onLeaveRoom={handleRoomClosed}
                                 onBackgroundMatch={setIsSeamlessPanorama}

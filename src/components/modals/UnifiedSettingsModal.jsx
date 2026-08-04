@@ -714,28 +714,6 @@ const UnifiedSettingsModal = ({
                         <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Background</h3></div>
                       </div>
 
-                      {/* Opacity Slider */}
-                      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                          <label className="text-xs font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
-                            Brightness
-                          </label>
-                          <span className="text-white font-mono text-xs">{Math.round((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0.1"
-                          max="1"
-                          step="0.05"
-                          value={settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5}
-                          onChange={(e) => updateSetting('backgroundOpacity', parseFloat(e.target.value))}
-                          style={{
-                            background: `linear-gradient(to right, white 0%, white ${((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) - 0.1) / 0.9 * 100}%, #4a4a4e ${((settings.backgroundOpacity !== undefined ? settings.backgroundOpacity : 0.5) - 0.1) / 0.9 * 100}%, #4a4a4e 100%)`
-                          }}
-                          className="modern-slider"
-                        />
-                      </div>
-
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
                         {backgrounds.map((bg, idx) => {
                           const src = bg.src || bg; const id = bg.id || idx; const isActive = settings.background === src; const isVideo = src.match(/\.(mp4|webm)$/i);
@@ -777,24 +755,13 @@ const UnifiedSettingsModal = ({
                         )}
 
                         <div className={`relative z-10 transition-all duration-300 leading-none tracking-tight
-                             ${(settings.clockType || 'default') === 'default' ? 'font-timer-clock' : ''}
-                             ${settings.clockType === 'sans' ? 'font-sans' : ''}
-                             ${settings.clockType === 'serif' ? 'font-serif' : ''}
-                             ${settings.clockType === 'mono' ? 'font-mono' : ''}
-                             ${settings.clockType === 'display' ? 'font-timer-display' : ''}
-                             ${settings.clockType === 'digital' ? 'font-timer-digital' : ''}
-                             ${settings.clockType === 'pixel' ? 'font-timer-pixel' : ''}
-                             ${settings.clockType === 'cyber' ? 'font-timer-cyber' : ''}
-                             ${settings.clockType === 'hand' ? 'font-timer-hand' : ''}
-                             ${settings.clockType === 'block' ? 'font-timer-block' : ''}
-                             ${settings.clockType === 'elegant' ? 'font-timer-elegant' : ''}
-                             ${settings.clockType === 'neon' ? 'font-timer-neon' : ''}
-                             ${settings.clockType === 'round' ? 'font-timer-round' : ''}
+                             font-timer-bricolage
                              ${(settings.clockStyle || 'solid') === 'outline' ? 'text-transparent' : 'text-white'}
                            `}
                           style={{
                             fontSize: settings.clockSize === 'small' ? '3rem' : settings.clockSize === 'medium' ? '5rem' : settings.clockSize === 'giant' ? '9rem' : (settings.clockSize === 'mammoth' ? '11rem' : '7rem'),
                             WebkitTextStroke: (settings.clockStyle === 'outline') ? '2px rgba(255,255,255,0.9)' : '0px',
+                            fontWeight: 550
                           }}
                         >
                           {settings.focus || 25}:00
@@ -804,53 +771,6 @@ const UnifiedSettingsModal = ({
                       </div>
 
                       <div className="space-y-6">
-                        {/* TYPEFACE SELECTOR -> Renamed to FONT & Collapsible */}
-                        <div className="space-y-3">
-                          <button
-                            onClick={() => toggleSection('font')}
-                            className="flex items-center justify-between w-full text-xs font-bold text-white/40 uppercase tracking-widest pl-1 hover:text-white transition-colors"
-                          >
-                            <span>Font</span>
-                            <ChevronDown size={14} className={`transition-transform duration-300 ${expandedSections.font ? 'rotate-180' : ''}`} />
-                          </button>
-
-                          <AnimatePresence>
-                            {(expandedSections.font ?? true) && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                  {[
-                                    { id: 'default', label: 'Default', class: 'font-timer-clock' },
-                                    { id: 'sans', label: 'San Francisco', class: 'font-sans' },
-                                    { id: 'serif', label: 'Playfair', class: 'font-serif pb-1' },
-                                    { id: 'mono', label: 'Space Mono', class: 'font-mono text-xs' },
-                                    { id: 'display', label: 'Syne', class: 'font-timer-display font-extrabold' },
-                                    { id: 'pixel', label: '8-Bit', class: 'font-timer-pixel text-[10px]' },
-                                    { id: 'cyber', label: 'Cyberpunk', class: 'font-timer-cyber font-bold' },
-                                    { id: 'block', label: 'Impact', class: 'font-timer-block tracking-wide' },
-                                    { id: 'elegant', label: 'Vogue', class: 'font-timer-elegant italic' },
-                                    { id: 'hand', label: 'Marker', class: 'font-timer-hand text-sm' },
-                                    { id: 'neon', label: 'Neon', class: 'font-timer-neon text-[10px]' },
-                                    { id: 'round', label: 'Pop', class: 'font-timer-round' },
-                                  ].map(font => (
-                                    <button
-                                      key={font.id}
-                                      onClick={() => updateSetting('clockType', font.id)}
-                                      className={`h-20 rounded-2xl border flex flex-col items-center justify-center transition-all ${settings.clockType === font.id || (!settings.clockType && font.id === 'default') ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 text-white/60 hover:text-white hover:bg-white/10'}`}
-                                      title={font.label}
-                                    >
-                                      <span className={`text-2xl mb-1 ${font.class}`}>{settings.focus || 25}:00</span>
-                                    </button>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* SIZE SELECTOR - Reverted to Grid/Button Style */}
