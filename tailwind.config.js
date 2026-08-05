@@ -1,3 +1,4 @@
+import tailwindcssAnimate from 'tailwindcss-animate';
 /** @type {import('tailwindcss').Config} */
 export default {
     darkMode: ["class"],
@@ -18,6 +19,11 @@ export default {
             mono: ['var(--font-mono)'],
             'timer-bricolage': ['var(--font-timer-bricolage)'],
             'logo': ['var(--font-logo)'],
+        },
+        transitionTimingFunction: {
+            'ios': 'cubic-bezier(0.25, 0.1, 0.25, 1.0)',
+            'smooth': 'cubic-bezier(0.25, 1, 0.5, 1)',
+            'apple': 'cubic-bezier(0.16, 1, 0.3, 1)',
         },
   		colors: {
   			background: 'hsl(var(--background))',
@@ -60,12 +66,8 @@ export default {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
-            transitionTimingFunction: {
-                'ios': 'cubic-bezier(0.25, 0.1, 0.25, 1.0)',
-                'smooth': 'cubic-bezier(0.25, 1, 0.5, 1)',
-            }
   		}
   	}
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 }

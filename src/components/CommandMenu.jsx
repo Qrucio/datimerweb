@@ -816,13 +816,9 @@ export function CommandMenu({
                                     <Sliders className="mr-2 h-4 w-4" />
                                     <span>Preferences</span>
                                 </CommandItem>
-                                <CommandItem onSelect={() => { openSettings?.('customize-background'); setOpen(false); }}>
+                                <CommandItem onSelect={() => { openSettings?.('background'); setOpen(false); }}>
                                     <Palette className="mr-2 h-4 w-4" />
-                                    <span>Background</span>
-                                </CommandItem>
-                                <CommandItem onSelect={() => { openSettings?.('customize-clock'); setOpen(false); }}>
-                                    <ClockIcon className="mr-2 h-4 w-4" />
-                                    <span>Clock Style</span>
+                                    <span>Backgrounds</span>
                                 </CommandItem>
                                 <CommandItem onSelect={() => { openSettings?.('stats'); setOpen(false); }}>
                                     <BarChart2 className="mr-2 h-4 w-4" />

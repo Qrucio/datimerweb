@@ -1,6 +1,6 @@
 import {
     Zap, Coffee, Flame, Heart, Star, Crown, Skull, Trophy,
-    Gem, Sword, Shield, Ghost, Anchor, Music, Gamepad2, Gift,
+    Gem, Sword, Shield, Ghost, Music, Gamepad2,
     Tv, Laptop, Smartphone, Dumbbell, Headphones, Book,
     Camera, Watch, Sun, Moon, Briefcase, Umbrella
 } from 'lucide-react';

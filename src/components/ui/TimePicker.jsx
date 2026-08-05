@@ -9,33 +9,6 @@ const formatTimeDisplay = (timeStr) => {
     return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`;
 };
 
-export const TimeInput = ({ value, onChange, className = "" }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <div className="relative w-full">
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-left flex items-center justify-between hover:bg-white/10 transition-colors ${className}`}
-            >
-                <span className={`text-sm font-bold ${value ? 'text-white' : 'text-white/30'}`}>
-                    {value ? formatTimeDisplay(value) : "Select Time"}
-                </span>
-                <ChevronDown size={16} className={`text-white/30 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isOpen && (
-                <>
-                    <div className="fixed inset-0 z-[60]" onClick={() => setIsOpen(false)} />
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-white/20 rounded-xl shadow-2xl z-[70] p-4">
-                        <TimePicker value={value} onChange={onChange} />
-                    </div>
-                </>
-            )}
-        </div>
-    );
-};
 
 export const TimePicker = ({ value, onChange }) => {
     // Default to 12:00 if empty

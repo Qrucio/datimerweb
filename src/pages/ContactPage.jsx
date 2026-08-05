@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Mail, MessageCircle } from 'lucide-react';
+import { Mail } from 'lucide-react';
 
 export default function ContactPage() {
   return (

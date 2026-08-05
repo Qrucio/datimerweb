@@ -38,6 +38,7 @@ const SnakeGame = lazy(() => import('./components/games/SnakeGame'));
 const TypingGame = lazy(() => import('./components/games/TypingGame'));
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
+import { PiPOverlay } from './components/PiPOverlay';
 import { VideoManager } from './components/video/VideoManager';
 import VideoPipWindow from './components/video/VideoPipWindow';
 import FriendsDock from './components/social/FriendsDock';
@@ -2629,7 +2630,7 @@ function MainApp() {
   const [onboardingInnerStep, setOnboardingInnerStep] = useState(0);
 
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, stopwatch: 0, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/lakeside.avif', alarmSound: 'digital', alarmVolume: 0.5, clockStyle: 'filled', clockSize: 'medium', defaultCurrency: null };
+  const DEFAULT_SETTINGS = { focus: 25, shortBreak: 5, longBreak: 15, autoStartBreaks: false, autoStartWork: false, pomosBeforeLongBreak: 4, background: 'https://mdqrytgnmhdieszgtznf.supabase.co/storage/v1/object/public/timer-backgrounds/lakeside.avif', alarmSound: 'digital', alarmVolume: 0.5, defaultCurrency: null };
   const [initialState] = useState(loadTimerState);
   const [mode, setMode] = useState(initialState?.mode || 'focus');
   const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft ?? DEFAULT_SETTINGS.focus * 60);
@@ -2854,7 +2855,6 @@ function MainApp() {
       totalDuration: actualTotalDuration,
       serverEndTime: isActive ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) : null,
       mode,
-      background: settings.background,
       background: settings.background,
       pomoCount: pomoCountRef.current,
       pomosBeforeLongBreak: settings.pomosBeforeLongBreak
@@ -3103,9 +3103,7 @@ function MainApp() {
 
 
   const [customBackgrounds, setCustomBackgrounds] = useState(() => { try { const saved = localStorage.getItem('zen_custom_bgs'); return saved ? JSON.parse(saved) : []; } catch (e) { return []; } });
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAccount, setShowAccount] = useState(false);
-  const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
+      const [isUnifiedModalOpen, setIsUnifiedModalOpen] = useState(false);
 
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showMusic, setShowMusic] = useState(false);
@@ -3403,7 +3401,6 @@ function MainApp() {
         await UserService.upsertSettings({
           user_id: user.uid,
           notes: updatedNotes,
-          trash: updatedTrash,
           updated_at: new Date()
         });
       } catch (e) {
@@ -3548,15 +3545,13 @@ function MainApp() {
   const [viewingFriendStats, setViewingFriendStats] = useState(null); // User object of friend to view stats for
 
 
-  const [isStrictMenuOpen, setIsStrictMenuOpen] = useState(false);
-
+  
 
 
   // --- STRICT MODE STATE & LOGIC ---
   const [strictMode, setStrictMode] = useState(() => localStorage.getItem('zen_strict_mode') === 'true');
 
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-
+  
 
 
 
@@ -3569,8 +3564,7 @@ function MainApp() {
 
 
   const [showStrictConfirm, setShowStrictConfirm] = useState(false);
-  const [showStrictWarning, setShowStrictWarning] = useState(false);
-  const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
+    const [showStrictDisableConfirm, setShowStrictDisableConfirm] = useState(false);
 
 
 
@@ -3612,7 +3606,6 @@ function MainApp() {
   };
 
   // (We deleted handleStrictResume and the "Trap" useEffect because we don't need them anymore)
-  const unsavedSecondsRef = useRef(0);
   const timerIntervalRef = useRef(null);
   const lastTickRef = useRef(Date.now());
 
@@ -3630,11 +3623,8 @@ function MainApp() {
   const playBtnRef = useRef(null);
   const endTimeRef = useRef(null);
   const audioRefs = useRef({});
-  const accumulatedTimeRef = useRef(0);
-  const lastHeartbeatRef = useRef(0);
   const prevSettings = useRef(DEFAULT_SETTINGS);
 
-  const lastRemoteUpdate = useRef(0); // To avoid echoing back remote changes
   const prevNotes = useRef([]);
 
 
@@ -3710,9 +3700,7 @@ function MainApp() {
       // --- ESCAPE KEY LOGIC (High Priority) ---
       if (e.key === 'Escape') {
         // A. Close Modals (LIFO - Last In First Out logic)
-        if (isStrictMenuOpen) { setIsStrictMenuOpen(false); return; }
         if (isUnifiedModalOpen) { setIsUnifiedModalOpen(false); return; }
-        if (showAccount) { setShowAccount(false); return; }
         if (showStats) { setShowStats(false); return; }
         if (showFriends) { setShowFriends(false); return; }
         if (showMusic) { setShowMusic(false); return; }
@@ -3721,7 +3709,6 @@ function MainApp() {
 
         // B. Close Confirmations
         if (showStrictConfirm) { setShowStrictConfirm(false); return; }
-        if (showStrictWarning) { /* Strict warning usually blocks Esc, but we can allow dismissing if needed */ }
         if (showStrictDisableConfirm) { setShowStrictDisableConfirm(false); return; }
 
 
@@ -3786,7 +3773,7 @@ function MainApp() {
       }
 
       // S: Settings
-      if (e.key === 's' || e.key === 'S') { e.preventDefault(); setShowSettings(prev => !prev); }
+      if (e.key === 's' || e.key === 'S') { e.preventDefault(); setIsUnifiedModalOpen(prev => !prev); }
 
     };
 
@@ -3797,11 +3784,11 @@ function MainApp() {
     // --- CRITICAL: ALL STATE VARIABLES MUST BE HERE ---
     isActive, onboardingStep, mode, timeLeft, settings,
     // Modals
-    showSettings, showFriends,
-    showAccount, showMusic, showStats, viewingFriendStats,
-    showStrictConfirm, showStrictWarning, showStrictDisableConfirm,
+showFriends,
+showMusic, showStats, viewingFriendStats,
+    showStrictConfirm, showStrictDisableConfirm,
     isNoteLibraryOpen, editingNote,
-    isUnifiedModalOpen, isStrictMenuOpen,
+    isUnifiedModalOpen,
     // Music
     isMusicPlaying, currentTrack, volume,
     // Inputs
@@ -3841,7 +3828,6 @@ function MainApp() {
     // We don't need to write to DB here. 
     // LocalStorage has already captured every second via the timer loop.
     // We just reset the ref to prevent double-counting if logic changes later.
-    unsavedSecondsRef.current = 0;
   };
 
 
@@ -3874,7 +3860,6 @@ function MainApp() {
     };
 
     setStats(prev => ({ ...prev, currentStreak }));
-    lastRemoteUpdate.current = payload.timerState.lastUpdated;
 
     try {
       const todayId = formatDateId(new Date());
@@ -3899,11 +3884,6 @@ function MainApp() {
         data: payload.stats
       });
 
-      // 3. User Settings
-      await UserService.upsertSettings({
-        user_id: user.uid,
-        updated_at: new Date()
-      });
 
     } catch (e) {
       console.error("Sync failed", e);
@@ -4838,7 +4818,6 @@ function MainApp() {
           const updatedStats = Storage.updateLocalStats(secondsPassed, mode);
 
           // 3. Add to Server Buffer
-          unsavedSecondsRef.current += secondsPassed;
 
           // 4. Update React State
           setStats(prev => ({
@@ -5011,7 +4990,6 @@ function MainApp() {
     setIsActive(newIsActive);
 
     if (newIsActive) {
-      lastHeartbeatRef.current = Date.now();
       setHasStartedSession(true); // Mark session as started
     }
 
@@ -5040,8 +5018,6 @@ function MainApp() {
     // 1. Clear Local Buffers
     // We discard any partial seconds accumulated since the last tick
     // so they don't get added to stats later.
-    unsavedSecondsRef.current = 0;
-    accumulatedTimeRef.current = 0;
 
     // 2. Reset Timer State
     setIsActive(false);
@@ -5068,7 +5044,6 @@ function MainApp() {
 
   const handleModeChange = (newMode) => {
     flushUnsavedTime();
-    accumulatedTimeRef.current = 0;
     setMode(newMode);
     setIsActive(false);
     
@@ -5144,7 +5119,6 @@ function MainApp() {
           timeLeft: newTimeLeft,
           lastUpdated: Date.now()
         };
-        lastRemoteUpdate.current = timerState.lastUpdated;
 
         // 1. Save Settings
         await UserService.upsertSettings({
@@ -5171,7 +5145,6 @@ function MainApp() {
           timeLeft: newDurationSeconds,
           lastUpdated: Date.now()
         };
-        lastRemoteUpdate.current = timerState.lastUpdated;
 
         await UserService.upsertSettings({
           user_id: user.uid,
@@ -5470,51 +5443,53 @@ function MainApp() {
         />
         {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
 
-        {/* 1.5 BACKGROUND LAYERS (PiP Window - Duplicated) */}
+        {/* 1.5 PIP WINDOW CONTENT (Minimal: Background + Clock + Play/Pause Button) */}
         {isPiPActive && (
           <PiPPortal>
-          {useIntentionTheme ? (
-            <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
-          ) : (
-          activeBackground && (
-            isVideo(activeBackground) ? (
-              <div className={`fixed inset-y-0 left-0 z-0 overflow-hidden w-full`}>
-                <video
-                  ref={mainVideoRef}
-                  src={activeBackground}
-                  autoPlay loop muted playsInline disablePictureInPicture
-                  style={{
-                    filter: 'brightness(1.2) contrast(1.1)',
-                    transform: 'translateZ(0)',
-                    opacity: 0.8
-                  }}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+            {useIntentionTheme ? (
+              <HoloGrainBackground isActive={isActive} playButtonRef={playBtnRef} />
             ) : (
-              <div
-                className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
-                style={{
-                  backgroundImage: `url(${activeBackground})`,
-                  opacity: 0.8
-                }}
-              />
-            )
-          )
-          )}
-          <div
-            className={`fixed inset-y-0 left-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out w-full`}
-            style={{
-              backgroundColor: (activeBackground && !useIntentionTheme)
-                ? 'transparent'
-                : useIntentionTheme
-                  ? 'rgba(0,0,0,0)'
-                  : focusMode
-                    ? 'rgba(0, 0, 0, 0.5)'
-                    : 'rgba(0, 0, 0, 0.55)'
-            }}
-          />
-          {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
+              activeBackground && (
+                isVideo(activeBackground) ? (
+                  <div className={`fixed inset-y-0 left-0 z-0 overflow-hidden w-full`}>
+                    <video
+                      src={activeBackground}
+                      autoPlay loop muted playsInline disablePictureInPicture
+                      style={{
+                        filter: 'brightness(1.2) contrast(1.1)',
+                        transform: 'translateZ(0)',
+                        opacity: 0.8
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className={`fixed inset-y-0 left-0 z-0 bg-cover bg-center w-full`}
+                    style={{
+                      backgroundImage: `url(${activeBackground})`,
+                      opacity: 0.8
+                    }}
+                  />
+                )
+              )
+            )}
+            <div
+              className={`fixed inset-y-0 left-0 z-[1] pointer-events-none transition-colors duration-1000 ease-in-out w-full`}
+              style={{
+                backgroundColor: (activeBackground && !useIntentionTheme)
+                  ? 'transparent'
+                  : useIntentionTheme
+                    ? 'rgba(0,0,0,0)'
+                    : focusMode
+                      ? 'rgba(0, 0, 0, 0.5)'
+                      : 'rgba(0, 0, 0, 0.55)'
+              }}
+            />
+            {!activeBackground && !useIntentionTheme && (<div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] z-0" />)}
+
+            {/* MINIMAL PIP UI OVERLAY (With Idle Hiding) */}
+            <PiPOverlay timeLeft={timeLeft} isActive={isActive} toggleTimer={toggleTimer} />
           </PiPPortal>
         )}
 
@@ -5628,7 +5603,7 @@ function MainApp() {
                       {isMusicPlaying ? (<button onClick={(e) => { e.stopPropagation(); handlePauseMusic(); }} className="ml-2 px-2 py-0.5 rounded-full bg-white text-black flex items-center justify-center hover:bg-gray-200"><Pause size={10} fill="black" /></button>) : (<span className="text-sm font-medium ml-2">Music</span>)}
                     </div>
                   </div>
-                  <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2 || isStrictMenuOpen) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
+                  <BendingDivider activeSide={hoveredDockIndex === 1 ? 'left' : (hoveredDockIndex === 2) ? 'right' : null} isDimmed={isMusicPlaying || strictMode} />
                   <div onMouseEnter={() => setHoveredDockIndex(2)} onClick={() => setIsUnifiedModalOpen(true)} className="relative p-2 rounded-full transition-colors group flex items-center cursor-default text-white/70 hover:text-white hover:bg-white/10">
                     <div className="relative flex items-center justify-center w-6 h-6">
                       <Avatar userData={user} photoURL={user?.photoURL} name={user?.displayName} size="full" isPro={isPro} />
@@ -5637,7 +5612,7 @@ function MainApp() {
                       <span className="text-sm font-medium ml-2">Settings</span>
                     </div>
                   </div>
-                  {/* <BendingDivider activeSide={(hoveredDockIndex === 2 || isStrictMenuOpen) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
+                  {/* <BendingDivider activeSide={(hoveredDockIndex === 2) ? 'left' : (hoveredDockIndex === 3) ? 'right' : null} isDimmed={strictMode} />
                 <motion.button layout onMouseEnter={() => setHoveredDockIndex(3)} onClick={() => { setShowCaffeine(true); setHighlightCaffeine(false); }} className={`relative p-2 rounded-full transition-colors group flex items-center ${showCaffeine ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   {highlightCaffeine && (<div className="absolute -top-12 left-1/2 -translate-x-1/2 animate-bounce text-yellow-400 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.6)] pointer-events-none z-50"><ArrowDown size={32} strokeWidth={3} /><div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-yellow-400 rotate-45" /></div>)}
                   <Coffee size={20} className={showCaffeine ? 'text-yellow-400' : ''} />
@@ -5652,8 +5627,7 @@ function MainApp() {
               </div>
 
               {/* --- TIMER SECTION (Main) --- */}
-              <PiPPortal>
-                <main className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-20 md:pb-0 relative md:absolute z-10 md:pointer-events-none transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] md:inset-0 ${isSplitScreen ? 'md:-translate-x-1/4 -translate-y-[25%] md:translate-y-0' : 'translate-x-0 translate-y-0'}`}>
+              <main className={`flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 pb-20 md:pb-0 relative md:absolute z-10 md:pointer-events-none transition-transform duration-1000 ease-apple md:inset-0 ${isSplitScreen ? 'md:-translate-x-1/4 -translate-y-[25%] md:translate-y-0' : 'translate-x-0 translate-y-0'}`}>
                   <div className="pointer-events-auto flex flex-col items-center animate-fade-in-up w-full max-w-full relative">
 
                     {/* --- MESSAGE BOX & SMART INTERVENTION AREA --- */}
@@ -5865,18 +5839,11 @@ function MainApp() {
                     
                     font-timer-bricolage
                     
-                    ${({
-                          'small': isSplitScreen ? 'text-[13vw] md:text-[5rem] lg:text-[6rem]' : 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
-                          'medium': isSplitScreen ? 'text-[15vw] md:text-[6rem] lg:text-[8rem]' : 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
-                          'giant': isSplitScreen ? 'text-[18vw] md:text-[8rem] lg:text-[10rem]' : 'text-[22vw] md:text-[12rem] lg:text-[16rem]',
-                          'mammoth': isSplitScreen ? 'text-[20vw] md:text-[10rem] lg:text-[12rem]' : 'text-[25vw] md:text-[15rem] lg:text-[20rem]'
-                        })[settings.clockSize] || (isSplitScreen ? 'text-[18vw] md:text-[8rem] lg:text-[10rem]' : 'text-[20vw] md:text-[10rem] lg:text-[12rem]')}
-
-                    ${settings.clockStyle === 'outline' ? 'text-transparent' : 'text-white/90'}
+                    ${isSplitScreen ? 'text-[18vw] md:text-[8rem] lg:text-[10rem]' : 'text-[20vw] md:text-[10rem] lg:text-[12rem]'}
+                    text-white/90
                     ${'drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                   `}
                       style={{
-                        WebkitTextStroke: settings.clockStyle === 'outline' ? '2px rgba(255,255,255,0.9)' : undefined,
                         fontWeight: 550
                       }}
                     >
@@ -6024,8 +5991,6 @@ function MainApp() {
                   )}
                 </AnimatePresence>
 
-              </PiPPortal>
-
               {/* STICKY NOTE WIDGET CONTAINER */}
               <div className={`
                 w-full flex items-start justify-center gap-4 z-20 transition-all duration-700 ease-in-out 
@@ -6134,10 +6099,6 @@ function MainApp() {
           onConfirm={handleStrictDisable}
         />
 
-        {/* <CaffeineTracker
-        isOpen={showCaffeine}
-        onClose={() => setShowCaffeine(false)}
-      /> */}
 
         <Suspense fallback={null}>
           <SocialModal

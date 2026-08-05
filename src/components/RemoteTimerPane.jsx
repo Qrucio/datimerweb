@@ -124,8 +124,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                     totalDuration: 1500,
                     serverEndTime: RoomsService.getSyncedTime() + 1500000,
                     mode: 'focus',
-                    background: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920',
-                    background: 'default'
+                    background: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920'
                 });
             }, 1500);
             return () => clearTimeout(timer);

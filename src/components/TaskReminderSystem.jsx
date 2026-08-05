@@ -254,7 +254,7 @@ const TaskReminderSystem = ({ tasks = [] }) => {
                 // Use the standard notification
                 new Notification(title, {
                     body: body,
-                    icon: '/logo/altimer-logo.png', // Best guess path, or standard icon
+                    icon: '/logo/logo-mark-light-withback.png', // Best guess path, or standard icon
                     silent: false
                 });
             } catch (e) {

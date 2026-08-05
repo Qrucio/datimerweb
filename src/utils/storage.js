@@ -3,7 +3,6 @@ import { logger } from "./logger";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
-    HISTORY: 'zen_stats_history',   // Data waiting to be uploaded
     NOTES: 'zen_cache_notes',
     TRASH: 'zen_cache_trash',       // The Hit List (Deleted Note IDs)
     SETTINGS: 'zen_cache_settings', // User preferences
@@ -458,21 +457,6 @@ export const Storage = {
         }));
     },
 
-    activateProSubscription: async (user, hours) => {
-        const duration = hours * 60 * 60 * 1000;
-        const expiresAt = Date.now() + duration;
-
-        // 1. Local Update
-        Storage.saveProStatus(true, expiresAt);
-
-        // 2. Server Update (Supabase)
-        if (user) {
-            await supabase.from('profiles').update({
-                is_pro: true,
-                pro_expires_at: new Date(expiresAt).toISOString()
-            }).eq('id', user.id);
-        }
-    },
 
     // --- 13. UI PERSISTENCE ---
     getVolume: () => {

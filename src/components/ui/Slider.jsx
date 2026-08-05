@@ -36,7 +36,7 @@ const Slider = ({ value, max = 1, onChange, color = "white", className = "" }) =
                 <div className={`w-full rounded-full transition-transform duration-200 ease-out origin-center ${bgBase} h-[2px] transform scale-y-100 group-hover:scale-y-[2] group-active:scale-y-[2]`}>
                     {/* Filled Part */}
                     <div
-                        className="h-full rounded-full transition-[width] duration-75 ease-out"
+                        className="h-full rounded-full"
                         style={{ width: `${percentage}%`, backgroundColor: color }}
                     />
                 </div>

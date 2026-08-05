@@ -17,17 +17,7 @@ const GoogleLogo = () => (
     </svg>
 );
 
-const StaggeredText = ({ text }) => (
-    <span className="inline-flex flex-wrap justify-center gap-x-2">
-        {text.split(" ").map((word, i) => (
-            <span key={i} className="word-animate" style={{ animationDelay: `${i * 0.15}s` }}>{word}</span>
-        ))}
-    </span>
-);
 
-const RevealLogo = ({ src, className }) => (
-    <motion.img src={src} alt="Logo" className={className} initial={{ opacity: 0 }} animate={{ opacity: 1 }} />
-);
 
 // --- MAIN COMPONENT ---
 const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, onStepChange }) => {

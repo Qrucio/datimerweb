@@ -135,31 +135,6 @@ const formatDuration = (totalSeconds) => {
   return `${m}m ${s}s`;
 };
 
-// --- HELPER: EXTRACT COLOR FROM IMAGE ---
-const useDominantColor = (imageUrl) => {
-  const [color, setColor] = useState("rgba(255, 255, 255, 0.1)");
-
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.src = imageUrl;
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 1;
-        canvas.height = 1;
-        ctx.drawImage(img, 0, 0, 1, 1);
-        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-        setColor(`rgba(${r}, ${g}, ${b}, 0.5)`);
-      } catch (e) { }
-    };
-  }, [imageUrl]);
-
-  return color;
-};
-
 // --- SETTING INPUT COMPONENT (MOVED OUTSIDE) ---
 // This prevents re-rendering/loss of focus on every keystroke
 const SettingInput = ({ label, value, onChange, onBlur, min, max }) => (
@@ -403,13 +378,9 @@ const UnifiedSettingsModal = ({
   isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding, onDevStatsUpdate
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [expandedSections, setExpandedSections] = useState({ customize: true });
-
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(initialTab);
-      // Ensure parents are expanded if a child is initially selected (logic can be enhanced)
-      if (initialTab.startsWith('customize')) setExpandedSections(prev => ({ ...prev, customize: true }));
+      if (initialTab) setActiveTab(initialTab);
     }
   }, [isOpen, initialTab]);
 
@@ -456,7 +427,7 @@ const UnifiedSettingsModal = ({
 
 
   const toggleSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
-  const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
+
 
   const contentVariants = {
     hidden: { opacity: 0, y: 5 },
@@ -522,14 +493,7 @@ const UnifiedSettingsModal = ({
 
   const tabs = [
     { id: 'preferences', label: 'Preferences', icon: Sliders, description: 'Timer & workflow' },
-    {
-      id: 'customize', label: 'Customize', icon: Palette, description: 'Look & feel',
-      children: [
-        { id: 'customize-background', label: 'Background' },
-        { id: 'customize-clock', label: 'Clock Style' },
-        // { id: 'customize-sound', label: 'Timer Sound' }
-      ]
-    },
+    { id: 'background', label: 'Backgrounds', icon: Palette, description: 'Look & feel' },
     { id: 'stats', label: 'Stats', icon: BarChart2, description: 'Track progress' },
     { id: 'about', label: 'About', icon: Info, description: 'App info & support' },
     { id: 'account', label: 'Account', icon: User, description: 'Profile & subscription' }
@@ -588,60 +552,21 @@ const UnifiedSettingsModal = ({
                 </div>
                 <nav className="flex flex-col gap-1 flex-1 w-full overflow-y-auto custom-scrollbar">
                   {tabs.filter(t => t.id !== 'account').map((tab) => {
-                    const isSelected = activeTab === tab.id || (tab.children && activeTab.startsWith(tab.id + '-'));
-                    const isExpanded = expandedSections[tab.id];
+                    const isSelected = activeTab === tab.id;
                     const Icon = tab.icon;
 
                     return (
-                      <div key={tab.id} className="flex flex-col gap-1">
-                        <button
-                          onClick={() => {
-                            setActiveTab(tab.id);
-                            if (tab.children) toggleSection(tab.id);
-                          }}
-                          className={`relative px-3 py-2.5 rounded-xl text-left transition-all duration-200 group flex items-center justify-between ${isSelected && !tab.children ? 'text-black' : isSelected ? 'text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
-                        >
-                          {/* Only show pill on parent if active AND no children (or if logic demands it, but here we want pill on children when children are active)
-                              Actually, user wants "flow through". So if a child is active, maybe the Parent shouldn't have the pill, but the child should.
-                              But the parent "Appearance" is also a clickable page.
-                              Let's just put the pill on the exact active item.
-                          */}
-                          {activeTab === tab.id && <motion.div layoutId="activeTabPill" className={`absolute inset-0 bg-white z-0 rounded-xl ${tab.children ? 'bg-white/10' : ''}`} transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
-                          <div className="relative z-10 flex items-center gap-3">
-                            <Icon size={18} className={activeTab === tab.id && !tab.children ? "text-black" : "group-hover:scale-105 transition-transform"} />
-                            <span className="text-sm font-medium tracking-wide">{tab.label}</span>
-                          </div>
-                          {tab.children && (
-                            <ChevronDown size={14} className={`relative z-10 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''} ${isSelected ? 'text-white/70' : 'text-white/30'}`} />
-                          )}
-                        </button>
-
-                        {/* Sub-items */}
-                        <AnimatePresence>
-                          {tab.children && isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              className="overflow-hidden flex flex-col gap-0.5 ml-9 border-l border-white/10 pl-2"
-                            >
-                              {tab.children.map(child => {
-                                const isChildActive = activeTab === child.id;
-                                return (
-                                  <button
-                                    key={child.id}
-                                    onClick={() => setActiveTab(child.id)}
-                                    className={`relative text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${isChildActive ? 'text-black' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
-                                  >
-                                    {isChildActive && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-lg" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
-                                    <span className="relative z-10">{child.label}</span>
-                                  </button>
-                                )
-                              })}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`relative px-3 py-2.5 rounded-xl text-left transition-all duration-200 group flex items-center justify-between ${isSelected ? 'text-black' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                      >
+                        {isSelected && <motion.div layoutId="activeTabPill" className="absolute inset-0 bg-white z-0 rounded-xl" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
+                        <div className="relative z-10 flex items-center gap-3">
+                          <Icon size={18} className={isSelected ? "text-black" : "group-hover:scale-105 transition-transform"} />
+                          <span className="text-sm font-medium tracking-wide">{tab.label}</span>
+                        </div>
+                      </button>
                     );
                   })}
                 </nav>
@@ -670,9 +595,6 @@ const UnifiedSettingsModal = ({
                     </button>
                   </div>
                 )}
-
-                {/* Version Info Footer - Moved to About Tab */}
-                {/* <VersionInfo /> */}
               </div>
               <CloseButton onClick={onClose} className="hidden md:flex absolute top-8 right-8 z-50" />
 
@@ -698,20 +620,65 @@ const UnifiedSettingsModal = ({
                           <ToggleRow label="Auto-start Focus" description="Start next focus session automatically when break ends." checked={settings.autoStartWork} onChange={(val) => toggleSetting('autoStartWork', val)} icon={Zap} />
                         </div>
                       </section>
+                      <section>
+                        <h3 className="text-xl font-semibold text-white mb-8 pt-1 leading-normal">Sound</h3>
+                        {/* Volume Slider */}
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4 mb-6">
+                          <div className="flex justify-between items-center">
+                            <label className="text-sm font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
+                              <Volume2 size={14} /> Alarm Volume
+                            </label>
+                            <span className="text-white font-mono">{Math.round((settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5}
+                            onChange={(e) => {
+                              const vol = parseFloat(e.target.value);
+                              setSettings(prev => ({ ...prev, alarmVolume: vol }));
+                            }}
+                            style={{
+                              background: `linear-gradient(to right, white 0%, white ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e 100%)`
+                            }}
+                            className="modern-slider"
+                          />
+                        </div>
+
+                        {/* Sound Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {ALARM_SOUNDS.map((sound) => {
+                            const isSelected = (settings.alarmSound || 'digital') === sound.id;
+                            return (
+                              <button
+                                key={sound.id}
+                                onClick={() => {
+                                  setSettings(prev => ({ ...prev, alarmSound: sound.id }));
+                                  const audio = new Audio(sound.src);
+                                  audio.volume = settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5;
+                                  audio.play().catch(e => console.error("Preview failed", e));
+                                }}
+                                className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isSelected
+                                  ? 'bg-white text-black border-white'
+                                  : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:text-white'
+                                  }`}
+                              >
+                                <span className="font-medium">{sound.title}</span>
+                                {isSelected && <div className="p-1 bg-black/10 rounded-full"><Check size={14} strokeWidth={3} /></div>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
                     </motion.div>
                   )}
 
-                  {activeTab === 'customize' && (
-                    <motion.div key="cust-master" variants={contentVariants} initial="hidden" animate="visible" exit="exit">
-                      <MasterCustomizeView onNavigate={setActiveTab} />
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'customize-background' && (
+                  {activeTab === 'background' && (
                     <motion.div key="cust-bg" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
                       <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Background</h3></div>
+                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Backgrounds</h3></div>
                       </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-4 pb-12">
@@ -724,160 +691,6 @@ const UnifiedSettingsModal = ({
                               {isVideo && (<div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"><div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse shadow-[0_0_8px_rgba(129,140,248,0.8)]" /><span className="text-[9px] font-bold text-white/90 uppercase tracking-widest leading-none pt-[1px]">Animated</span></div>)}
                               {isActive && (<div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center"><div className="bg-white text-black text-[11px] font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-lg">Active</div></div>)}
                               {credit && (<div className="absolute bottom-2 right-2 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"><a href={credit.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-1.5 px-2 py-1 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-lg border border-white/10 text-[9px] font-bold text-white/80 hover:text-white uppercase tracking-wider transition-colors"><span>{credit.name}</span><ExternalLink size={8} /></a></div>)}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'customize-clock' && (
-                    <motion.div key="cust-clock" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Clock Style</h3></div>
-                      </div>
-
-                      {/* LIVE PREVIEW CARD */}
-                      <div className="w-full aspect-video md:aspect-[21/9] bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center relative overflow-hidden group">
-                        {/* Background Preview */}
-                        {(settings.background && (settings.background.includes('.mp4') || settings.background.includes('.webm'))) ? (
-                          <video
-                            src={settings.background}
-                            autoPlay
-                            loop
-                            muted
-                            playsInline
-                            className="absolute inset-0 w-full h-full object-cover opacity-20 z-0"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 z-0 opacity-20" style={{ backgroundImage: `url(${settings.background})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                        )}
-
-                        <div className={`relative z-10 transition-all duration-300 leading-none tracking-tight
-                             font-timer-bricolage
-                             ${(settings.clockStyle || 'solid') === 'outline' ? 'text-transparent' : 'text-white'}
-                           `}
-                          style={{
-                            fontSize: settings.clockSize === 'small' ? '3rem' : settings.clockSize === 'medium' ? '5rem' : settings.clockSize === 'giant' ? '9rem' : (settings.clockSize === 'mammoth' ? '11rem' : '7rem'),
-                            WebkitTextStroke: (settings.clockStyle === 'outline') ? '2px rgba(255,255,255,0.9)' : '0px',
-                            fontWeight: 550
-                          }}
-                        >
-                          {settings.focus || 25}:00
-                        </div>
-
-                        <div className="absolute bottom-3 left-0 right-0 text-center text-[10px] text-white/30 uppercase tracking-widest font-bold">Preview</div>
-                      </div>
-
-                      <div className="space-y-6">
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* SIZE SELECTOR - Reverted to Grid/Button Style */}
-                          <div className="space-y-3">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-widest pl-1">Size</label>
-                            <div className="grid grid-cols-5 gap-2 bg-white/5 p-1 rounded-xl border border-white/5">
-                              {['small', 'medium', 'large', 'giant', 'mammoth'].map((size, idx) => (
-                                <button
-                                  key={size}
-                                  onClick={() => updateSetting('clockSize', size)}
-                                  className={`relative group h-full py-3 rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300 ${settings.clockSize === size || (!settings.clockSize && size === 'large') ? 'bg-white text-black shadow-md' : 'hover:bg-white/10 text-white/40 hover:text-white'}`}
-                                  title={size.charAt(0).toUpperCase() + size.slice(1)}
-                                >
-                                  {/* Visual representation of size */}
-                                  <div className={`rounded-full bg-current transition-all duration-500`}
-                                    style={{
-                                      width: `${6 + (idx * 3)}px`,
-                                      height: `${6 + (idx * 3)}px`,
-                                      opacity: settings.clockSize === size ? 1 : 0.6
-                                    }}
-                                  />
-                                </button>
-                              ))}
-                            </div>
-                            <div className="flex justify-between px-1">
-                              <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Small</span>
-                              <span className="text-[9px] text-white/30 uppercase font-bold tracking-widest">Mammoth</span>
-                            </div>
-                          </div>
-
-                          {/* STYLE TOGGLE */}
-                          <div className="space-y-3">
-                            <label className="text-xs font-bold text-white/40 uppercase tracking-widest pl-1">Style</label>
-                            <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 relative h-[52px]">
-                              {['solid', 'outline'].map(style => (
-                                <button
-                                  key={style}
-                                  onClick={() => updateSetting('clockStyle', style)}
-                                  className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all relative z-10 ${settings.clockStyle === style || (!settings.clockStyle && style === 'solid') ? 'text-black' : 'text-white/40 hover:text-white'}`}
-                                >
-                                  {style}
-                                  {(settings.clockStyle === style || (!settings.clockStyle && style === 'solid')) && <motion.div layoutId="stylePill" className="absolute inset-0 bg-white rounded-lg -z-10 shadow-sm" transition={{ type: "tween", ease: [0.23, 1, 0.32, 1], duration: 0.25 }} />}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {activeTab === 'customize-sound' && (
-                    <motion.div key="cust-sound" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <button onClick={() => setActiveTab('customize')} className="p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white transition-colors"><ChevronLeft size={20} /></button>
-                        <div><h3 className="text-xl font-semibold text-white mb-2 leading-normal pt-1">Timer Sound</h3></div>
-                      </div>
-
-                      {/* Volume Slider */}
-                      <div className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4">
-                        <div className="flex justify-between items-center">
-                          <label className="text-sm font-bold text-white/60 uppercase tracking-widest flex items-center gap-2">
-                            <Volume2 size={14} /> Alarm Volume
-                          </label>
-                          <span className="text-white font-mono">{Math.round((settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100)}%</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
-                          value={settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5}
-                          onChange={(e) => {
-                            const vol = parseFloat(e.target.value);
-                            setSettings(prev => ({ ...prev, alarmVolume: vol }));
-                          }}
-                          style={{
-                            // Use the fill color #b200e9 from reference, or match app theme? 
-                            // Reference: background: linear-gradient(to right, #b200e9 var(--fill-percentage), #4a4a4e var(--fill-percentage));
-                            // I will use white for the fill to keep it clean as per original request, but use #4a4a4e for the empty track to match reference.
-                            background: `linear-gradient(to right, white 0%, white ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e ${(settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5) * 100}%, #4a4a4e 100%)`
-                          }}
-                          className="modern-slider"
-                        />
-                      </div>
-
-                      {/* Sound Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {ALARM_SOUNDS.map((sound) => {
-                          const isSelected = (settings.alarmSound || 'digital') === sound.id;
-                          return (
-                            <button
-                              key={sound.id}
-                              onClick={() => {
-                                setSettings(prev => ({ ...prev, alarmSound: sound.id }));
-                                // Preview sound
-                                const audio = new Audio(sound.src);
-                                audio.volume = settings.alarmVolume !== undefined ? settings.alarmVolume : 0.5;
-                                audio.play().catch(e => console.error("Preview failed", e));
-                              }}
-                              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isSelected
-                                ? 'bg-white text-black border-white'
-                                : 'bg-white/5 border-white/5 text-white/70 hover:bg-white/10 hover:text-white'
-                                }`}
-                            >
-                              <span className="font-medium">{sound.title}</span>
-                              {isSelected && <div className="p-1 bg-black/10 rounded-full"><Check size={14} strokeWidth={3} /></div>}
                             </button>
                           );
                         })}
