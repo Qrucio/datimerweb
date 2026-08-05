@@ -1,5 +1,16 @@
 export const releaseNotes = [
   {
+    version: "0.5.0",
+    date: new Date().toISOString().split('T')[0],
+    changes: [
+      "Massive performance optimizations: eliminated 1-second UI stuttering by buffering local storage timer syncs",
+      "Disabled LiveKit video call features to streamline the application and reduce bundle size",
+      "Hardware-accelerated Music Equalizer animations (GPU) for perfectly smooth 60fps visuals",
+      "Implemented intelligent lazy-loading for Command Menu and Onboarding to speed up initial app boot",
+      "Patched memory leak in Realtime WebSockets causing slowdowns after declining room invites"
+    ]
+  },
+  {
     version: "0.4.5",
     date: "2026-08-04",
     changes: [

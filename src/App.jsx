@@ -16,8 +16,8 @@ import RoomInviteToast from './components/social/RoomInviteToast';
 import RemoteTimerPane from './components/RemoteTimerPane';
 import { Storage } from './utils/storage';
 const UnifiedSettingsModal = lazy(() => import('./components/modals/UnifiedSettingsModal'));
-import { CommandMenu } from './components/CommandMenu';
-import OnboardingFlow from './components/OnboardingFlow';
+const CommandMenu = lazy(() => import('./components/CommandMenu').then(module => ({ default: module.CommandMenu })));
+const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
 import IntentionWizard from './components/IntentionWizard';
 import HoloNote from './components/HoloNote';
 import HoloGrainBackground from './components/HoloGrainBackground';
@@ -39,8 +39,8 @@ const TypingGame = lazy(() => import('./components/games/TypingGame'));
 import TaskReminderSystem from './components/TaskReminderSystem';
 import CountdownTimer from './components/CountdownTimer';
 import { PiPOverlay } from './components/PiPOverlay';
-import { VideoManager } from './components/video/VideoManager';
-import VideoPipWindow from './components/video/VideoPipWindow';
+// import { VideoManager } from './components/video/VideoManager';
+// import VideoPipWindow from './components/video/VideoPipWindow';
 import FriendsDock from './components/social/FriendsDock';
 import './components/video/video-styles.css';
 import { FlowTag } from './components/ui/FlowTag';
@@ -5391,8 +5391,8 @@ showMusic, showStats, viewingFriendStats,
 
 
   return (
-    <VideoManager user={user}>
-
+    <>
+      {/* <VideoManager user={user}> */}
       <div className="h-[100dvh] md:min-h-screen bg-black text-white flex flex-col md:block relative overflow-hidden">
 
         {/* 1. BACKGROUND LAYERS (Main Window) */}
@@ -5496,7 +5496,7 @@ showMusic, showStats, viewingFriendStats,
 
 
         {/* --- ONBOARDING FLOW --- */}
-        <VideoPipWindow
+        {/* <VideoPipWindow
           isSocialModalOpen={showFriends}
           onExpand={(serverId) => {
             // If we have an active video server, we want the modal to open TO that server.
@@ -5506,14 +5506,16 @@ showMusic, showStats, viewingFriendStats,
             }
             setShowFriends(true);
           }}
-        />
+        /> */}
         {onboardingStep < 3 && (
-          <OnboardingFlow
-            user={user}
-            onComplete={() => setOnboardingStep(3)}
-            currentStep={onboardingInnerStep}
-            onStepChange={setOnboardingInnerStep}
-          />
+          <Suspense fallback={null}>
+            <OnboardingFlow
+              user={user}
+              onComplete={() => setOnboardingStep(3)}
+              currentStep={onboardingInnerStep}
+              onStepChange={setOnboardingInnerStep}
+            />
+          </Suspense>
         )}
 
         {/* --- INTENTION WIZARD OR DASHBOARD --- */}
@@ -6190,43 +6192,46 @@ showMusic, showStats, viewingFriendStats,
         {/* --- COMMAND MENU --- */}
         {
           (onboardingStep >= 3 || onboardingInnerStep === 2) && (
-            <CommandMenu
-              onboardingMode={onboardingStep < 3}
-              onOnboardingNext={() => setOnboardingInnerStep(3)}
-              openNotes={() => setIsNoteLibraryOpen(true)}
-              openMusic={() => setShowMusic(true)}
-              openSocial={() => setShowFriends(true)}
-              openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
-              setTimerActive={setIsActive}
+            <Suspense fallback={null}>
+              <CommandMenu
+                onboardingMode={onboardingStep < 3}
+                onOnboardingNext={() => setOnboardingInnerStep(3)}
+                openNotes={() => setIsNoteLibraryOpen(true)}
+                openMusic={() => setShowMusic(true)}
+                openSocial={() => setShowFriends(true)}
+                openSettings={(tab = 'preferences') => { setSettingsTab(tab); setIsUnifiedModalOpen(true); }}
+                setTimerActive={setIsActive}
 
-              // Timer Controls
-              mode={mode}
-              setMode={handleModeChange}
-              timeLeft={timeLeft}
-              setTimeLeft={setTimeLeft}
-              isActive={isActive}
-              settings={settings}
-              setSettings={setSettings}
+                // Timer Controls
+                mode={mode}
+                setMode={handleModeChange}
+                timeLeft={timeLeft}
+                setTimeLeft={setTimeLeft}
+                isActive={isActive}
+                settings={settings}
+                setSettings={setSettings}
 
-              // Shortcuts
-              setEditingNote={setEditingNote}
+                // Shortcuts
+                setEditingNote={setEditingNote}
 
-              // Sounds
-              playAmbience={toggleAmbience}
-              unlockedAmbiences={unlockedAmbiences}
-              ambientSounds={AMBIENT_SOUNDS} // Pass data constant
+                // Sounds
+                playAmbience={toggleAmbience}
+                unlockedAmbiences={unlockedAmbiences}
+                ambientSounds={AMBIENT_SOUNDS} // Pass data constant
 
-              // Quicklinks
-              quicklinks={quicklinks}
-              setQuicklinks={setQuicklinks}
-            />
+                // Quicklinks
+                quicklinks={quicklinks}
+                setQuicklinks={setQuicklinks}
+              />
+            </Suspense>
           )
         }
 
 
 
       </div>
-    </VideoManager>
+      {/* </VideoManager> */}
+    </>
   );
 }
 export default function App() {

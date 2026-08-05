@@ -7,7 +7,7 @@ import CloseButton from '../ui/CloseButton';
 import LiquidButton from '../ui/LiquidButton';
 import { getIconById } from '../../utils/iconOptions';
 import ChatArea from '../chat/ChatArea';
-import ServerVideo from './ServerVideo';
+// import ServerVideo from './ServerVideo';
 
 const ServerView = ({ server, user, onClose, members = [], friends = [], onInvite, onMemberUpdate, isFocusing, onMarkRead, getLastReadTime, onViewProfile, onMentionClick, initialTab }) => {
     // SAFETY CHECK: If server or user is missing (e.g. just kicked or session expired), don't crash
@@ -193,7 +193,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
 
     const tabs = [
         { id: 'chat', label: 'Chat', icon: MessageCircle },
-        { id: 'video', label: 'Video', icon: Video },
+        // { id: 'video', label: 'Video', icon: Video },
         { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
         { id: 'members', label: 'Members', icon: Users },
         // Removed Settings Tab as requested
@@ -268,7 +268,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
                         </motion.div>
                     )}
 
-                    {activeTab === 'video' && (
+                    {/* {activeTab === 'video' && (
                         <motion.div
                             key="video"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -276,7 +276,7 @@ const ServerView = ({ server, user, onClose, members = [], friends = [], onInvit
                         >
                             <ServerVideo serverId={server.id} user={user} />
                         </motion.div>
-                    )}
+                    )} */}
 
                     {activeTab === 'leaderboard' && (
                         <motion.div

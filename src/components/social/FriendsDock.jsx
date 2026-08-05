@@ -1,15 +1,16 @@
 import React from 'react';
 import { Pin } from 'lucide-react';
-import { useRemoteParticipants } from '@livekit/components-react';
+// import { useRemoteParticipants } from '@livekit/components-react';
 
 const FriendsDock = ({ friends, onViewFriendStats }) => {
     // get remote participants to check who is in the call
-    const remoteParticipants = useRemoteParticipants();
+    // const remoteParticipants = useRemoteParticipants();
 
     // Create a set of identities (which should match user UIDs) for O(1) lookup
-    const callParticipantIds = new Set(remoteParticipants.map(p => p.identity));
+    // const callParticipantIds = new Set(remoteParticipants.map(p => p.identity));
 
-    const visibleFriends = friends.filter(f => !callParticipantIds.has(f.uid));
+    // const visibleFriends = friends.filter(f => !callParticipantIds.has(f.uid));
+    const visibleFriends = friends; // Fallback to show all friends
 
     if (!visibleFriends || visibleFriends.length === 0) return null;
 
@@ -35,4 +36,4 @@ const FriendsDock = ({ friends, onViewFriendStats }) => {
     );
 };
 
-export default FriendsDock;
+export default React.memo(FriendsDock);

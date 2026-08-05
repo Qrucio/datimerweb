@@ -141,6 +141,7 @@ export const RoomsService = {
                 event: 'room_left',
                 payload: { roomId }
             }).catch(console.error); // Fire and forget if it fails
+            supabase.removeChannel(channel);
 
             const { error } = await supabase
                 .from('rooms')
@@ -171,6 +172,7 @@ export const RoomsService = {
                 event: 'room_declined',
                 payload: { roomId }
             }).catch(console.error);
+            supabase.removeChannel(channel);
 
             // Attempt to delete it anyway (fails if RLS blocks, but we tried)
             await supabase.from('rooms').delete().eq('id', roomId);

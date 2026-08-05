@@ -26,11 +26,26 @@ const getDateId = (date = new Date()) => {
     return `${year}-${month}-${day}`;
 };
 
+let statsBuffer = null;
+let statsFlushTimeout = null;
+const FLUSH_INTERVAL = 10000;
+
 export const Storage = {
     // --- 1. STATS MANAGEMENT (The "Ledger") ---
 
+    flushStatsBuffer: () => {
+        if (statsFlushTimeout) {
+            clearTimeout(statsFlushTimeout);
+            statsFlushTimeout = null;
+        }
+        if (statsBuffer) {
+            localStorage.setItem(KEYS.STATS, JSON.stringify(statsBuffer));
+        }
+    },
+
     // Simple getter for UI/Piggybacking
     getTodayStats: () => {
+        if (statsBuffer) return statsBuffer;
         try {
             return JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
         } catch { return {}; }
@@ -82,13 +97,14 @@ export const Storage = {
     // Call this every second in your timer loop.
     updateLocalStats: (elapsedSeconds, mode) => {
         const today = getDateId();
-        let data = JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
+        let data = statsBuffer || JSON.parse(localStorage.getItem(KEYS.STATS) || '{}');
 
         // Rollover Check: If data is from yesterday, queue it and reset
         if (data.date && data.date !== today) {
             Storage.queueDayForSync(data);
             data = {};
             localStorage.setItem(KEYS.STATS, JSON.stringify(data)); // Force save reset
+            statsBuffer = data;
         }
 
         // Initialize if empty
@@ -111,8 +127,14 @@ export const Storage = {
             data.dailyBreakTime = (data.dailyBreakTime || 0) + elapsedSeconds;
         }
 
-        // Save back to LocalStorage
-        localStorage.setItem(KEYS.STATS, JSON.stringify(data));
+        statsBuffer = data;
+
+        // Debounce write to LocalStorage
+        if (!statsFlushTimeout) {
+            statsFlushTimeout = setTimeout(() => {
+                Storage.flushStatsBuffer();
+            }, FLUSH_INTERVAL);
+        }
         return data;
     },
 
