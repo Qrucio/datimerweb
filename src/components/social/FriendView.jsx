@@ -13,7 +13,8 @@ import { useToast } from '../../hooks/useToast';
 const FriendView = ({
     user, friends, friendRequests, onSendRequest, onAcceptRequest, onDeclineRequest,
     onBlockUser, onUnblockUser, checkOutgoingRequest, onRemoveFriend, onTogglePin,
-    onViewStats, onSearchUsers, blockedUsers, onClose, onServerJoined, activeRoomId
+    onViewStats, onSearchUsers, blockedUsers, onClose, onServerJoined, activeRoomId,
+    currentTimerState
 }) => {
     const { toast } = useToast();
     const [view, setView] = useState('list');
@@ -159,7 +160,8 @@ const FriendView = ({
 
     const handleInviteToRoom = async (friend) => {
         setInvitingState(prev => ({ ...prev, [friend.uid]: 'loading' }));
-        const res = await RoomsService.createRoom(user.uid, friend.uid);
+        const initialTimer = typeof currentTimerState === 'function' ? currentTimerState() : currentTimerState;
+        const res = await RoomsService.createRoom(user.uid, friend.uid, initialTimer);
         if (res.success) {
             window.dispatchEvent(new CustomEvent('join_room', { 
                 detail: { roomId: res.room.id, isHost: true, remoteUserId: friend.uid }

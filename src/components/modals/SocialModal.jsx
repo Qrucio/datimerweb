@@ -13,7 +13,7 @@ const SocialModal = ({
     onDeclineRequest, onBlockUser, onUnblockUser, checkOutgoingRequest,
     onRemoveFriend, onTogglePin, onViewStats, onSearchUsers, blockedUsers,
     isFocusing, onMarkRead, getLastReadTime, unreadCounts,
-    onViewProfile, onMentionClick, initialServerId, initialTab, activeRoomId, // NEW PROPS
+    onViewProfile, onMentionClick, initialServerId, initialTab, activeRoomId, currentTimerState, // NEW PROPS
     ...props // Capture rest if needed, though we destructured most
 }) => {
     // --- STATE ---
@@ -304,6 +304,7 @@ const SocialModal = ({
                                     >
                                         <FriendView
                                             activeRoomId={activeRoomId}
+                                            currentTimerState={currentTimerState}
                                             user={user}
                                             friends={friends}
                                             friendRequests={friendRequests}

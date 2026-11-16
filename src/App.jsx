@@ -2769,7 +2769,8 @@ function MainApp() {
 
       if (shouldDelete) {
         console.log("[Room] Abandoned/Expired room detected on mount. Cleaning up.");
-        RoomsService.leaveRoom(storedRoomId);
+        const wasHost = localStorage.getItem('datimer_isRoomHost') === 'true';
+        RoomsService.leaveRoom(storedRoomId, wasHost);
         setActiveRoomId(null);
       }
     };
@@ -2840,62 +2841,89 @@ function MainApp() {
   // NEW: Track ACTUAL total duration of the current session (for progress bar when time is edited)
   const [currentSessionTotalDuration, setCurrentSessionTotalDuration] = useState(null);
 
-  // Prepare Local Timer State for broadcasting
-  // Only capture timeLeft when paused to avoid broadcasting every second during countdown
-  const pausedTimeLeft = isActive ? null : timeLeftRef.current;
-  const localTimerState = React.useMemo(() => {
-    if (!activeRoomId) return null; // FIX #5: Gate behind roomId
-    
-    // FIX: Always send the correct base duration so the remote progress bar calculates correctly
-    const defaultDuration = mode === 'focus' ? settings.focus * 60 : (mode === 'shortBreak' ? settings.shortBreak * 60 : settings.longBreak * 60);
+  // Extract a standalone timer state getter decoupled from activeRoomId
+  const getCurrentTimerState = React.useCallback(() => {
+    const defaultDuration = mode === 'focus' 
+      ? settings.focus * 60 
+      : (mode === 'shortBreak' ? settings.shortBreak * 60 : settings.longBreak * 60);
     const actualTotalDuration = currentSessionTotalDuration || defaultDuration;
 
     return {
       isActive,
-      remainingDuration: (isActive ? timeLeftRef.current : pausedTimeLeft) * 1000,
+      remainingDuration: (isActive ? timeLeftRef.current : (timeLeftRef.current || 0)) * 1000,
       totalDuration: actualTotalDuration,
-      serverEndTime: isActive ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) : null,
+      serverEndTime: (isActive && mode !== 'stopwatch') 
+        ? RoomsService.getSyncedTime() + (timeLeftRef.current * 1000) 
+        : null,
+      serverStartTime: (isActive && mode === 'stopwatch') 
+        ? RoomsService.getSyncedTime() - (timeLeftRef.current * 1000) 
+        : null,
       mode,
+      timerSize: settings.timerSize || 'medium',
       background: settings.background,
       pomoCount: pomoCountRef.current,
       pomosBeforeLongBreak: settings.pomosBeforeLongBreak
     };
-  }, [activeRoomId, isActive, pausedTimeLeft, mode, settings.background, settings.focus, settings.shortBreak, settings.longBreak, currentSessionTotalDuration, serverClockSynced, pomoCountTrigger, settings.pomosBeforeLongBreak]);
+  }, [isActive, mode, settings.background, settings.focus, settings.shortBreak, settings.longBreak, settings.timerSize, settings.pomosBeforeLongBreak, currentSessionTotalDuration]);
+
+  // Prepare Local Timer State for broadcasting (gated by activeRoomId)
+  const pausedTimeLeft = isActive ? null : timeLeftRef.current;
+  const localTimerState = React.useMemo(() => {
+    if (!activeRoomId) return null;
+    return getCurrentTimerState();
+  }, [activeRoomId, getCurrentTimerState, pausedTimeLeft, serverClockSynced, pomoCountTrigger]);
 
   const handleRoomClosed = React.useCallback(() => setActiveRoomId(null), []);
-  useRoomSync(activeRoomId, isRoomHost, localTimerState, handleRoomClosed);
+  const { remoteTimerState } = useRoomSync(activeRoomId, isRoomHost, localTimerState, handleRoomClosed);
 
   // Room Join & Invite Listeners
+  const pendingAcceptChannelRef = useRef(null);
   useEffect(() => {
     if (!user) return;
 
     const handleJoinRoom = (e) => {
       // If host, don't split yet — wait for participant to accept
       if (e.detail.isHost) {
-        // Store pending room info, listen for participant acceptance
         const pendingRoomId = e.detail.roomId;
         const pendingRemoteUserId = e.detail.remoteUserId;
         
+        if (pendingAcceptChannelRef.current) {
+          supabase.removeChannel(pendingAcceptChannelRef.current);
+          pendingAcceptChannelRef.current = null;
+        }
+
+        const handleDeclined = async () => {
+          console.log("[Rooms] Invite was declined by participant");
+          if (pendingAcceptChannelRef.current) {
+            supabase.removeChannel(pendingAcceptChannelRef.current);
+            pendingAcceptChannelRef.current = null;
+          }
+          await RoomsService.leaveRoom(pendingRoomId, true);
+        };
+
         const acceptChannel = supabase.channel(`room_accept:${pendingRoomId}`)
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${pendingRoomId}` }, (payload) => {
-            // Y accepted — their timer state is now in the room
-            if (payload.new.participant_timer_state) {
+            const pState = payload.new.participant_timer_state;
+            if (pState && (pState.status === 'declined' || pState.status === 'left')) {
+              handleDeclined();
+              return;
+            }
+            if (pState && Object.keys(pState).length > 0) {
               setActiveRoomId(pendingRoomId);
               setIsRoomHost(true);
               setRemoteRoomUserId(pendingRemoteUserId);
-              supabase.removeChannel(acceptChannel);
+              if (pendingAcceptChannelRef.current) {
+                supabase.removeChannel(pendingAcceptChannelRef.current);
+                pendingAcceptChannelRef.current = null;
+              }
             }
           })
-          .on('broadcast', { event: 'room_declined' }, async () => {
-            console.log("[Rooms] Invite was declined by participant");
-            // They declined. We (the host) should delete the DB row safely
-            await RoomsService.leaveRoom(pendingRoomId);
-            supabase.removeChannel(acceptChannel);
+          .on('broadcast', { event: 'room_declined' }, () => {
+            handleDeclined();
           })
           .subscribe();
         
-        // Store cleanup in case component unmounts
-        return () => supabase.removeChannel(acceptChannel);
+        pendingAcceptChannelRef.current = acceptChannel;
       } else {
         // Participant joining — split immediately (they accepted)
         setActiveRoomId(e.detail.roomId);
@@ -2905,8 +2933,7 @@ function MainApp() {
     };
     window.addEventListener('join_room', handleJoinRoom);
 
-    // FIX #3: Listen for invites via postgres_changes on the `rooms` table
-    // instead of unreliable ephemeral broadcasts.
+    // Listen for invites via postgres_changes on the `rooms` table
     const channel = supabase.channel(`invites:${user.uid}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms', filter: `participant_id=eq.${user.uid}` }, (payload) => {
         setIncomingRoomInvite(payload.new);
@@ -2925,8 +2952,12 @@ function MainApp() {
     return () => {
       window.removeEventListener('join_room', handleJoinRoom);
       supabase.removeChannel(channel);
+      if (pendingAcceptChannelRef.current) {
+        supabase.removeChannel(pendingAcceptChannelRef.current);
+        pendingAcceptChannelRef.current = null;
+      }
     };
-  }, [user?.uid]);
+  }, [user?.uid, activeRoomId]);
 
 
   // --- INTENTION MODE STATE ---
@@ -5526,7 +5557,7 @@ showMusic, showStats, viewingFriendStats,
                           invite={incomingRoomInvite}
                         onAccept={() => {
                             if (activeRoomId) {
-                                RoomsService.leaveRoom(activeRoomId);
+                                RoomsService.leaveRoom(activeRoomId, isRoomHost);
                             }
                             setActiveRoomId(incomingRoomInvite.id);
                             setIsRoomHost(false);
@@ -5914,7 +5945,7 @@ showMusic, showStats, viewingFriendStats,
                                     if (isDevSplit) {
                                         setIsDevSplit(false);
                                     } else {
-                                        await RoomsService.leaveRoom(activeRoomId);
+                                        await RoomsService.leaveRoom(activeRoomId, isRoomHost);
                                         handleRoomClosed();
                                     }
                                     setIsLeavingRoom(false);
@@ -5931,19 +5962,19 @@ showMusic, showStats, viewingFriendStats,
                             </motion.button>
                         </div>
                         
-                        {/* Leave Room Button (Mobile) */}
-                        <div className="md:hidden absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-[5] pointer-events-none flex flex-col justify-end items-center pb-[calc(env(safe-area-inset-bottom)+100px)]">
+                        {/* Leave Room Button (Mobile) - positioned unobtrusively in top-right */}
+                        <div className="md:hidden absolute top-4 right-4 z-[40] pointer-events-auto">
                              <button
                                 onClick={async () => {
                                     setIsLeavingRoom(true);
                                     if (isDevSplit) setIsDevSplit(false);
-                                    else { await RoomsService.leaveRoom(activeRoomId); handleRoomClosed(); }
+                                    else { await RoomsService.leaveRoom(activeRoomId, isRoomHost); handleRoomClosed(); }
                                     setIsLeavingRoom(false);
                                 }}
                                 disabled={isLeavingRoom}
-                                className="pointer-events-auto flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white/80 hover:text-red-400 hover:bg-black/80 transition-colors cursor-pointer disabled:opacity-50 shadow-xl"
+                                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-xl border border-white/20 text-white/80 hover:text-red-400 hover:bg-black/80 transition-all cursor-pointer disabled:opacity-50 shadow-lg text-xs font-medium"
                              >
-                                {isLeavingRoom ? <Loader2 size={18} className="animate-spin" /> : <><LogOut size={18} /> <span className="text-sm font-medium">Leave Room</span></>}
+                                {isLeavingRoom ? <Loader2 size={13} className="animate-spin" /> : <><LogOut size={13} /> <span>Leave</span></>}
                              </button>
                         </div>
 
@@ -5953,15 +5984,26 @@ showMusic, showStats, viewingFriendStats,
                                 roomId={isDevSplit ? 'dev-room' : activeRoomId} 
                                 isHost={isRoomHost} 
                                 remoteUserId={isDevSplit ? 'dev-user' : remoteRoomUserId}
+                                remoteTimerState={remoteTimerState}
                                 localBackground={activeBackground}
                                 localClockType="bricolage"
                                 isDevMock={isDevSplit}
                                 onLeaveRoom={handleRoomClosed}
                                 onBackgroundMatch={setIsSeamlessPanorama}
-                                onSyncClick={(remoteState, remoteTimeLeft) => {
-                                   setIsActive(remoteState.isActive);
-                                   setTimeLeft(remoteTimeLeft);
-                                   if (remoteState.mode) handleModeChange(remoteState.mode);
+                                onSyncClick={(targetState, targetTimeLeft) => {
+                                   if (!targetState) return;
+                                   setMode(targetState.mode);
+                                   setTimeLeft(targetTimeLeft);
+                                   setIsActive(targetState.isActive);
+                                   if (targetState.isActive) {
+                                     if (targetState.mode === 'stopwatch') {
+                                       endTimeRef.current = Date.now() - (targetTimeLeft * 1000);
+                                     } else {
+                                       endTimeRef.current = Date.now() + (targetTimeLeft * 1000);
+                                     }
+                                   } else {
+                                     endTimeRef.current = null;
+                                   }
                                 }}
                             />
                         </div>
@@ -6081,6 +6123,7 @@ showMusic, showStats, viewingFriendStats,
         <Suspense fallback={null}>
           <SocialModal
             activeRoomId={activeRoomId}
+            currentTimerState={getCurrentTimerState}
             isOpen={showFriends}
             onClose={() => {
               setShowFriends(false);
