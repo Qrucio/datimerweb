@@ -18,7 +18,13 @@ const SCOPES = [
 
 const AUTH_ENDPOINT = "https://accounts.spotify.com/authorize";
 const TOKEN_ENDPOINT = "https://accounts.spotify.com/api/token";
-const REDIRECT_URI = "https://datimer.netlify.app/";
+// Must exactly match a redirect URI registered in the Spotify dashboard.
+// Production stays on datimer.netlify.app; local dev uses http://127.0.0.1:5173.
+const REDIRECT_URI = `${window.location.origin}/`;
+
+// Authorization codes are single-use. React StrictMode mounts effects twice in
+// dev, so track codes already sent to Spotify to avoid replaying a burned code.
+const exchangedCodes = new Set();
 
 // --- PKCE Helpers ---
 const generateRandomString = (length) => {
@@ -188,7 +194,20 @@ export const useSpotify = () => {
             const storedVerifier = storedVerifierEnc ? await SecureStorage.decrypt(storedVerifierEnc) : null;
 
             // CASE 1: OAuth code present - exchange it for tokens (initial login)
-            if (code && storedVerifier) {
+            if (code && storedVerifier && !exchangedCodes.has(code)) {
+                exchangedCodes.add(code);
+
+                // Strip the single-use code before the request, so a reload or a
+                // second mount cannot replay a code Spotify has already burned.
+                urlParams.delete('code');
+                urlParams.delete('state');
+                const remainingQuery = urlParams.toString();
+                window.history.replaceState(
+                    {},
+                    document.title,
+                    `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}`
+                );
+
                 try {
                     logger.debug("[Spotify] Exchanging OAuth code for tokens");
                     const response = await fetch(TOKEN_ENDPOINT, {
@@ -223,10 +242,9 @@ export const useSpotify = () => {
                         
                         window.localStorage.removeItem('spotify_code_verifier');
                         setToken(data.access_token);
-                        window.history.replaceState({}, document.title, "/");
                     } else {
                         console.error("[Spotify] Token exchange error:", data);
-                        alert(`Spotify Login Failed: ${data.error_description || "Unknown Error"}`);
+                        alert(`Spotify Login Failed: ${data.error_description || data.error || "Unknown Error"}`);
                     }
                 } catch (error) {
                     console.error("[Spotify] Token exchange failed:", error);
@@ -582,9 +600,23 @@ export const useSpotify = () => {
     }, [token, deviceId]);
 
 
+    // The SDK creates its audio element on connect, which browsers can treat as
+    // autoplay. Prime it from a real user gesture before starting playback.
+    const activateAudio = async () => {
+        try {
+            await playerRef.current?.activateElement();
+        } catch (error) {
+            logger.debug("[Spotify] activateElement failed", error);
+        }
+    };
+
     // Play a playlist or track
     const playPlaylist = async (uri, isTrack = false) => {
         if (!token) return;
+
+        if (deviceId) {
+            await activateAudio();
+        }
 
         // 1. Native Playback (Preferred)
         if (deviceId) {
@@ -616,6 +648,7 @@ export const useSpotify = () => {
     // Play/Resume
     const play = async () => {
         if (playerRef.current) {
+            await activateAudio();
             await playerRef.current.resume();
         }
     };
@@ -630,6 +663,7 @@ export const useSpotify = () => {
     // Toggle play/pause
     const togglePlay = async () => {
         if (playerRef.current) {
+            await activateAudio();
             await playerRef.current.togglePlay();
         }
     };
