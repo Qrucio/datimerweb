@@ -1,11 +1,12 @@
-// --- SUPABASE IMPORTS ---
-import { supabase } from '../lib/supabase';
-import React, { useState, useEffect } from 'react';
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Check, X, Loader2, Mail, ArrowLeft, Lock, Eye, EyeOff, Search, MessageCircle } from 'lucide-react';
+import { ArrowRight, Check, X, Loader2, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { supabase } from '../lib/supabase';
+import { UserService } from '../services/userService';
+import { generateSuggestedHandle, generateHandleSuggestions } from '../utils/authHelpers.js';
 
-// --- SUB-COMPONENTS (Move these here or import them) ---
 const GoogleLogo = () => (
     <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
         <g transform="matrix(1, 0, 0, 1, 27.009001, -39.23856)">
@@ -17,159 +18,230 @@ const GoogleLogo = () => (
     </svg>
 );
 
-
-
-// --- MAIN COMPONENT ---
 const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, onStepChange }) => {
-    // INTERNAL STATE - Controlled
     const [localStep, setLocalStep] = useState(0);
     const internalStep = propStep !== undefined ? propStep : localStep;
     const setInternalStep = (val) => {
         setLocalStep(val);
         if (onStepChange) onStepChange(val);
     };
-    const [greetingText, setGreetingText] = useState("Hello, stranger");
-    const [showLoginBtn, setShowLoginBtn] = useState(true);
 
     // Auth Mode State (Email Flow)
-    const [authMode, setAuthMode] = useState('menu'); // 'menu', 'signin', 'signup'
+    const [authMode, setAuthMode] = useState('menu'); // 'menu', 'email-input', 'signin', 'signup'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [lastAuthMethod, setLastAuthMethod] = useState(null);
     const [authLoading, setAuthLoading] = useState(false);
+    const [loadingProvider, setLoadingProvider] = useState(null); // 'google', 'guest', 'email'
     const [authError, setAuthError] = useState(null);
+
+    // Handle State
+    const [onboardingHandle, setOnboardingHandle] = useState("");
+    const [handleStatus, setHandleStatus] = useState("idle"); // 'idle', 'too-short', 'too-long', 'invalid-chars', 'reserved', 'checking', 'available', 'taken', 'error'
+    const [handleSuggestions, setHandleSuggestions] = useState([]);
+    const [isSavingHandle, setIsSavingHandle] = useState(false);
+    const [saveError, setSaveError] = useState(null);
+    const inputRef = useRef(null);
+    const confirmPasswordRef = useRef(null);
 
     useEffect(() => {
         const last = localStorage.getItem('lastAuthMethod');
         if (last) setLastAuthMethod(last);
     }, []);
 
-    // Handle State
-    const [onboardingHandle, setOnboardingHandle] = useState("");
-    const [handleStatus, setHandleStatus] = useState("idle");
-    const [handleSuggestions, setHandleSuggestions] = useState([]);
-    const [isSavingHandle, setIsSavingHandle] = useState(false);
+    // Global keyboard listener for Escape key to navigate back
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                if (authMode === 'signin' || authMode === 'signup') {
+                    setAuthMode('email-input');
+                    setAuthError(null);
+                } else if (authMode === 'email-input') {
+                    setAuthMode('menu');
+                    setAuthError(null);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [authMode]);
 
-    // --- EFFECT: Handle Login Success -> Move to Step 1 ---
+    // Prefill suggested handle when user is available and step is 1
+    useEffect(() => {
+        if (internalStep === 1 && !onboardingHandle && user) {
+            const suggested = generateSuggestedHandle(user);
+            if (suggested) {
+                setOnboardingHandle(suggested);
+            }
+        }
+    }, [internalStep, user, onboardingHandle]);
+
+    // Focus input when moving to handle picker
+    useEffect(() => {
+        if (internalStep === 1) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [internalStep]);
+
+    // Handle Login Success from Step 0 -> Move to Step 1 if handle missing
     useEffect(() => {
         if (user && internalStep === 0) {
             if (user.isAnonymous) {
-                onComplete();
+                if (onComplete) onComplete();
                 return;
             }
-            // If user is here, they are logged in.
-            // Check if they already have a handle to satisfy strict onboarding logic?
-            // Actually App.jsx handles the check. If we are rendered, we need a handle.
-            handleNameTransition(user.displayName ? user.displayName.split(' ')[0] : 'User');
+            if (!user.handle) {
+                setInternalStep(1);
+            }
         }
     }, [user, internalStep]);
 
-    // --- EFFECT: Handle Availability Checker ---
+    // Debounced Handle Availability Checker
     useEffect(() => {
+        const clean = String(onboardingHandle || '').trim().replace(/^@+/, '').toLowerCase();
+
+        if (internalStep !== 1 || !clean) {
+            setHandleStatus("idle");
+            setHandleSuggestions([]);
+            return;
+        }
+
+        if (clean.length < 3) {
+            setHandleStatus("too-short");
+            setHandleSuggestions([]);
+            return;
+        }
+
+        if (clean.length > 20) {
+            setHandleStatus("too-long");
+            setHandleSuggestions([]);
+            return;
+        }
+
+        if (!/^[a-z0-9_]+$/.test(clean)) {
+            setHandleStatus("invalid-chars");
+            setHandleSuggestions([]);
+            return;
+        }
+
+        setHandleStatus("checking");
         const timer = setTimeout(async () => {
-            if (internalStep === 1 && onboardingHandle.length >= 3) {
-                // Ignore if matches current user logic... (Supabase user might have handle in metadata?)
-                // We'll check against DB directly.
+            const res = await UserService.checkHandle(clean, user?.uid || user?.id);
+            if (!res.success) {
+                console.error("Handle check failed:", res.error);
+                setHandleStatus("error");
+                return;
+            }
 
-                const clean = onboardingHandle.toLowerCase();
-
-                // Check against both "handle" and "@handle" variations using the authoritative RPC
-                const [resClean, resAt] = await Promise.all([
-                    supabase.rpc('check_handle', { handle_str: clean }),
-                    supabase.rpc('check_handle', { handle_str: `@${clean}` })
-                ]);
-
-                // RPC returns TRUE if available (not taken by others).
-                // If either format is taken by someone else, verify fails.
-                const available = (resClean.data !== false) && (resAt.data !== false);
-
-                if (available) {
-                    setHandleStatus("available");
+            if (res.available) {
+                setHandleStatus("available");
+                setHandleSuggestions([]);
+            } else {
+                if (res.reason === 'reserved') {
+                    setHandleStatus("reserved");
+                    setHandleSuggestions([]);
                 } else {
                     setHandleStatus("taken");
-                    const base = onboardingHandle.replace(/[^a-zA-Z0-9_]/g, '');
-                    setHandleSuggestions([
-                        `${base}_${Math.floor(Math.random() * 99)}`,
-                        `${base}${new Date().getFullYear()}`,
-                        `its_${base}`
-                    ]);
+                    setHandleSuggestions(generateHandleSuggestions(clean));
                 }
-
-            } else if (onboardingHandle.length > 0 && onboardingHandle.length < 3) {
-                setHandleStatus("idle");
             }
-        }, 500);
+        }, 300);
 
         return () => clearTimeout(timer);
     }, [onboardingHandle, internalStep, user]);
 
-    // --- ANIMATION LOGIC ---
-    const handleNameTransition = async (newName) => {
-        setShowLoginBtn(false);
-        await new Promise(r => setTimeout(r, 800));
-        setGreetingText(`Hello, ${newName}`);
-        await new Promise(r => setTimeout(r, 1200));
-
-        const suggested = newName.replace(/\s+/g, '').toLowerCase().slice(0, 10);
-        setOnboardingHandle(suggested);
-        setInternalStep(1);
-    };
-
-    const handleCheckEmail = async () => {
-        if (!email || !email.includes('@')) {
-            setAuthError("Please enter a valid email.");
-            return;
-        }
-        setAuthLoading(true);
-        setAuthError(null);
-
-        // Smart User Detection
-        // 1. Try to see if we can find them in profiles using the email logic
-        //    (Note: This relies on Policies allowing us to see this, or us handling the error gracefully)
-        try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('email', email)
-                .maybeSingle();
-
-            if (data) {
-                // User exists!
-                setAuthMode('signin');
-            } else {
-                // User does not exist (or RLS hides it) -> Assume Sign Up
-                setAuthMode('signup');
-            }
-        } catch (e) {
-            // Fallback: Assume new user if check fails
-            console.error("Check email error:", e);
-            setAuthMode('signup');
-        } finally {
-            setAuthLoading(false);
-        }
-    };
-
-
     const handleGoogleLogin = async () => {
+        if (authLoading) return;
         try {
+            setAuthLoading(true);
+            setLoadingProvider('google');
+            setAuthError(null);
             localStorage.setItem('lastAuthMethod', 'google');
-            await supabase.auth.signInWithOAuth({
+            const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: `${window.location.origin}/`
                 }
             });
-        } catch (e) { console.error(e); }
+            if (error) throw error;
+        } catch (e) {
+            console.error("Google sign-in error:", e);
+            setAuthError(e.message || "Failed to start Google sign-in. Please try again.");
+            setAuthLoading(false);
+            setLoadingProvider(null);
+        }
     };
 
     const handleGuestLogin = async () => {
-        try { await supabase.auth.signInAnonymously(); } catch (e) { console.error(e); }
+        if (authLoading) return;
+        try {
+            setAuthLoading(true);
+            setLoadingProvider('guest');
+            setAuthError(null);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Connection timed out. Please check your internet connection.')), 15000)
+            );
+            const { error } = await Promise.race([
+                supabase.auth.signInAnonymously(),
+                timeoutPromise
+            ]);
+            if (error) throw error;
+        } catch (e) {
+            console.error("Guest login error:", e);
+            setAuthError(e.message || "Guest login failed. Please try again.");
+        } finally {
+            setAuthLoading(false);
+            setLoadingProvider(null);
+        }
+    };
+
+    const handleCheckEmail = async () => {
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+            setAuthError("Please enter a valid email address.");
+            return;
+        }
+        if (authLoading) return;
+
+        setAuthLoading(true);
+        setLoadingProvider('email');
+        setAuthError(null);
+
+        try {
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Connection timed out. Please check your internet connection.')), 10000)
+            );
+            const { data } = await Promise.race([
+                supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', cleanEmail)
+                    .maybeSingle(),
+                timeoutPromise
+            ]);
+
+            if (data) {
+                setAuthMode('signin');
+            } else {
+                setAuthMode('signup');
+            }
+        } catch (e) {
+            console.warn("Email check fallback to signup:", e);
+            setAuthMode('signup');
+        } finally {
+            setAuthLoading(false);
+            setLoadingProvider(null);
+        }
     };
 
     const handleEmailAuth = async (isSignUp) => {
-        if (!email || !password) {
+        const cleanEmail = String(email || '').trim().toLowerCase();
+        if (!cleanEmail || !password) {
             setAuthError("Please fill in all fields.");
             return;
         }
@@ -177,98 +249,129 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
             setAuthError("Passwords do not match.");
             return;
         }
+        if (password.length < 6) {
+            setAuthError("Password must be at least 6 characters.");
+            return;
+        }
+        if (authLoading) return;
 
         setAuthLoading(true);
+        setLoadingProvider('email');
         setAuthError(null);
         try {
-            let error;
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Connection timed out. Please check your internet connection.')), 15000)
+            );
+
             if (isSignUp) {
-                const { error: signUpError } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: { full_name: email.split('@')[0] } // Make displayName usable immediately
+                const { error: signUpError } = await Promise.race([
+                    supabase.auth.signUp({
+                        email: cleanEmail,
+                        password,
+                        options: {
+                            data: { full_name: cleanEmail.split('@')[0] }
+                        }
+                    }),
+                    timeoutPromise
+                ]);
+                if (signUpError) {
+                    if (/user already registered/i.test(signUpError.message || '')) {
+                        setAuthMode('signin');
+                        throw new Error('An account with this email already exists. Please enter your password to sign in.');
                     }
-                });
-                error = signUpError;
+                    throw signUpError;
+                }
             } else {
-                const { error: signInError } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-                error = signInError;
+                const { error: signInError } = await Promise.race([
+                    supabase.auth.signInWithPassword({
+                        email: cleanEmail,
+                        password,
+                    }),
+                    timeoutPromise
+                ]);
+                if (signInError) throw signInError;
             }
 
-            if (error) throw error;
             localStorage.setItem('lastAuthMethod', 'email');
-            // Success handled by user effect
         } catch (e) {
             console.error("Email auth error:", e);
-            setAuthError(e.message || "Authentication failed");
+            const msg = e.message || "Authentication failed";
+            if (/invalid login credentials/i.test(msg)) {
+                setAuthError("Incorrect email or password. Please try again.");
+            } else if (/email not confirmed/i.test(msg)) {
+                setAuthError("Please verify your email address to sign in.");
+            } else {
+                setAuthError(msg);
+            }
         } finally {
             setAuthLoading(false);
+            setLoadingProvider(null);
         }
     };
 
     const confirmHandleAndContinue = async () => {
-        if (handleStatus !== 'available' || !onboardingHandle) return;
+        const clean = String(onboardingHandle || '').trim().replace(/^@+/, '').toLowerCase();
+        if (clean.length < 3 || isSavingHandle) return;
+
+        if (handleStatus === 'checking') {
+            setIsSavingHandle(true);
+            const checkRes = await UserService.checkHandle(clean, user?.uid || user?.id);
+            if (!checkRes.success || !checkRes.available) {
+                setIsSavingHandle(false);
+                setHandleStatus(checkRes.available ? 'available' : (checkRes.reason === 'reserved' ? 'reserved' : 'taken'));
+                if (!checkRes.available) {
+                    setSaveError(checkRes.reason === 'reserved' ? 'This username is reserved.' : 'That username is taken.');
+                }
+                return;
+            }
+        } else if (handleStatus !== 'available') {
+            return;
+        }
+
         setIsSavingHandle(true);
-        const fullHandle = onboardingHandle; // Store without @ prefix
-        localStorage.setItem('zen_user_handle', fullHandle);
+        setSaveError(null);
 
         try {
-            // 1. Update Profile
-            await supabase.from('profiles').upsert({
-                id: user.id, // Supabase maps uid to id
-                email: user.email,
-                display_name: user.displayName || "User",
-                photo_url: user.photoURL,
-                handle: fullHandle,
-                handle_lowercase: fullHandle.toLowerCase(),
-                // Initialize default stats if needed, or rely on defaults
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), 15000)
+            );
+            const res = await Promise.race([
+                UserService.setHandle(user, clean),
+                timeoutPromise
+            ]);
 
+            if (!res.success) {
+                if (res.taken) {
+                    setHandleStatus("taken");
+                    setSaveError("That handle was just taken. Please choose another.");
+                } else {
+                    setSaveError(res.error?.message || "Failed to save username. Please try again.");
+                }
+                setIsSavingHandle(false);
+                return;
+            }
+
+            localStorage.setItem('zen_user_handle', clean);
+            confetti({
+                particleCount: 80,
+                spread: 60,
+                origin: { y: 0.6 }
             });
 
-            // 2. Update Settings (Private) - store last handle change
-            // We'll just update the settings JSONB blob
-            // First fetch existing to be safe, or just upsert merge
-            // Supabase upsert on JSONB columns replaces value unless using specialized logic,
-            // but here we just blindly init or update.
-            // For now, let's just ignore lastHandleChange in user_settings or do a simple fetch/update if critical.
-            // Simplified: we trust the triggered creation in migration mostly, or just upsert.
-
-            // For now we skip lastHandleChange logic or put it in metadata if needed.
-            // Let's just proceed.
-
-            setTimeout(() => {
-                setIsSavingHandle(false);
-                setInternalStep(2);
-            }, 500);
-
+            setIsSavingHandle(false);
+            if (onComplete) {
+                onComplete(clean);
+            }
         } catch (e) {
             console.error("Error saving handle:", e);
+            setSaveError(e.message || "An unexpected error occurred. Please try again.");
             setIsSavingHandle(false);
         }
     };
 
-    // --- STARS CSS ---
-    const starsCss = `
-        @keyframes twinkle {
-            0% { opacity: 0.2; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-            100% { opacity: 0.2; transform: scale(0.8); }
-        }
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            animation: twinkle 4s infinite ease-in-out;
-        }
-    `;
-
-    // Generate random stars
-    const stars = React.useMemo(() => {
-        return Array.from({ length: 60 }).map((_, i) => ({
+    // Stars background
+    const stars = useMemo(() => {
+        return Array.from({ length: 50 }).map(() => ({
             top: `${Math.random() * 100}%`,
             left: `${Math.random() * 100}%`,
             size: Math.random() < 0.7 ? 1 : 2,
@@ -277,11 +380,23 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
     }, []);
 
     return (
-        <div className="fixed inset-0 z-50 bg-[#020202] overflow-hidden text-white font-sans selection:bg-white/30 font-light">
-            <style>{starsCss}</style>
+        <div className="fixed inset-0 z-50 bg-[#020202] overflow-y-auto overflow-x-hidden text-white font-sans selection:bg-white/30 font-light select-none">
+            <style>{`
+                @keyframes twinkle {
+                    0% { opacity: 0.2; transform: scale(0.8); }
+                    50% { opacity: 1; transform: scale(1.2); }
+                    100% { opacity: 0.2; transform: scale(0.8); }
+                }
+                .star {
+                    position: absolute;
+                    background: white;
+                    border-radius: 50%;
+                    animation: twinkle 4s infinite ease-in-out;
+                }
+            `}</style>
 
             {/* Stars Background */}
-            <div className="absolute inset-0 z-0 pointer-events-none opacity-50">
+            <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
                 {stars.map((s, i) => (
                     <div
                         key={i}
@@ -297,324 +412,431 @@ const OnboardingFlow = ({ user, isMigrating, onComplete, currentStep: propStep, 
                 ))}
             </div>
 
-            {/* Gradient Overlay for Depth */}
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-900/10 pointer-events-none" />
+            {/* Ambient Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-blue-950/20 pointer-events-none" />
 
-            {/* MAIN CONTENT AREA */}
+            {/* CONTENT AREA */}
             <AnimatePresence mode="wait">
                 {/* STEP 0: LOGIN */}
                 {internalStep === 0 && (
                     <motion.div
                         key="step0"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-                        transition={{ duration: 0.5 }}
-                        className="absolute inset-0 z-10 flex flex-col items-center justify-center"
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95, filter: 'blur(8px)' }}
+                        transition={{ duration: 0.4 }}
+                        className="min-h-[100dvh] w-full z-10 flex flex-col items-center justify-center p-4 sm:p-6 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]"
                     >
-
                         {/* Header Section */}
-                        <div className={`flex flex-col items-center mb-16 transition-opacity duration-700 ${authMode === 'menu' ? 'opacity-100' : 'opacity-0 pointer-events-none absolute'}`}>
-                            <img src="/logo/logo-mark-light.svg" className="w-32 h-32 mb-8 opacity-90 animate-fade-in drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" alt="DaTimer" />
-                            <h2 className="text-4xl md:text-6xl text-white font-extralight tracking-tight animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                        <div className="flex flex-col items-center mb-8 sm:mb-12">
+                            <img
+                                src="/logo/logo-mark-light.svg"
+                                className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 mb-4 sm:mb-6 opacity-90 drop-shadow-[0_0_20px_rgba(255,255,255,0.25)]"
+                                alt="DaTimer"
+                            />
+                            <h2 className="text-2xl sm:text-3xl md:text-5xl text-white font-extralight tracking-tight text-center px-4">
                                 Time is relative. Come bend it.
                             </h2>
                         </div>
 
-                        {showLoginBtn && (
-                            <div className="w-full max-w-sm px-8 animate-fade-in opacity-0" style={{ animationDelay: '0.5s', animationFillMode: 'forwards' }}>
-                                <AnimatePresence mode="wait">
-                                    {authMode === 'menu' ? (
-                                        <motion.div
-                                            key="menu"
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-                                            className="flex flex-col items-center gap-4 w-full"
+                        {/* Auth Container */}
+                        <div className="w-full max-w-sm px-4">
+                            <AnimatePresence mode="wait">
+                                {authMode === 'menu' ? (
+                                    <motion.div
+                                        key="menu"
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex flex-col items-center gap-4 w-full"
+                                    >
+                                        <button
+                                            onClick={handleGoogleLogin}
+                                            disabled={authLoading}
+                                            className="group relative w-full flex items-center justify-center gap-3 px-6 py-4 border border-white/10 rounded-full hover:bg-white/5 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-white/40 outline-none"
                                         >
-                                            <button onClick={handleGoogleLogin} className="group relative w-full flex items-center justify-center gap-3 px-6 py-4 border border-white/10 rounded-full hover:bg-white/5 transition-all duration-500 overflow-visible">
-                                                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full" />
+                                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full pointer-events-none" />
+                                            {authLoading && loadingProvider === 'google' ? (
+                                                <Loader2 size={18} className="animate-spin text-white" />
+                                            ) : (
                                                 <GoogleLogo />
-                                                <span className="text-sm font-light tracking-widest text-white/90 group-hover:tracking-[0.2em] transition-all duration-500">CONTINUE WITH GOOGLE</span>
-                                                {lastAuthMethod === 'google' && (
-                                                    <span className="absolute -top-3 right-4 bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.4)] tracking-widest z-10">LAST USED</span>
-                                                )}
-                                            </button>
+                                            )}
+                                            <span className="text-sm font-light tracking-widest text-white/90 group-hover:tracking-[0.18em] transition-all duration-300">
+                                                CONTINUE WITH GOOGLE
+                                            </span>
+                                            {lastAuthMethod === 'google' && (
+                                                <span className="absolute -top-2.5 right-4 bg-white text-black text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md tracking-wider">
+                                                    LAST USED
+                                                </span>
+                                            )}
+                                        </button>
 
-                                            <button onClick={() => { setAuthMode('email-input'); setAuthError(null); setEmail(''); setPassword(''); }} className="group relative w-full flex items-center justify-center gap-3 px-6 py-4 border border-white/10 rounded-full hover:bg-white/5 transition-all duration-500 overflow-visible">
-                                                <Mail size={16} className="text-white/60 group-hover:text-white transition-colors" />
-                                                <span className="text-sm font-light tracking-widest text-white/60 group-hover:text-white group-hover:tracking-[0.2em] transition-all duration-500">USE EMAIL</span>
-                                                {lastAuthMethod === 'email' && (
-                                                    <span className="absolute -top-3 right-4 bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.4)] tracking-widest z-10">LAST USED</span>
-                                                )}
-                                            </button>
-
-                                            <button onClick={handleGuestLogin} className="mt-6 text-[10px] text-white/20 hover:text-white/80 uppercase tracking-[0.2em] transition-all duration-500 hover:tracking-[0.3em]">
-                                                Enter as Guest
-                                            </button>
-                                        </motion.div>
-                                    ) : authMode === 'email-input' ? (
-                                        <motion.div
-                                            key="email-input"
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -20 }}
-                                            className="flex flex-col gap-6 w-full"
+                                        <button
+                                            onClick={() => { setAuthMode('email-input'); setAuthError(null); setEmail(''); setPassword(''); setConfirmPassword(''); }}
+                                            disabled={authLoading}
+                                            className="group relative w-full flex items-center justify-center gap-3 px-6 py-4 border border-white/10 rounded-full hover:bg-white/5 transition-all duration-300 disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-white/40 outline-none"
                                         >
-                                            <div className="text-center">
-                                                <button onClick={() => { setAuthMode('menu'); setAuthError(null); }} className="mb-4 text-white/30 hover:text-white transition-colors">
-                                                    <ArrowLeft size={20} />
-                                                </button>
-                                                <h3 className="text-xl font-light text-white tracking-wide">Enter your email</h3>
-                                            </div>
+                                            <Mail size={16} className="text-white/60 group-hover:text-white transition-colors" />
+                                            <span className="text-sm font-light tracking-widest text-white/70 group-hover:text-white group-hover:tracking-[0.18em] transition-all duration-300">
+                                                USE EMAIL
+                                            </span>
+                                            {lastAuthMethod === 'email' && (
+                                                <span className="absolute -top-2.5 right-4 bg-white text-black text-[9px] font-bold px-2 py-0.5 rounded-full shadow-md tracking-wider">
+                                                    LAST USED
+                                                </span>
+                                            )}
+                                        </button>
 
-                                            {authError && <div className="text-center text-red-400 text-xs tracking-wide animate-shake">{authError}</div>}
+                                        <button
+                                            onClick={handleGuestLogin}
+                                            disabled={authLoading}
+                                            className="mt-4 text-[11px] text-white/30 hover:text-white/80 uppercase tracking-[0.25em] transition-all duration-300 hover:tracking-[0.3em] disabled:opacity-40 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-white/40 outline-none rounded-lg p-1 flex items-center gap-2"
+                                        >
+                                            {authLoading && loadingProvider === 'guest' && <Loader2 size={12} className="animate-spin text-white/50" />}
+                                            {authLoading && loadingProvider === 'guest' ? "Entering..." : "Enter as Guest"}
+                                        </button>
 
-                                            <input
-                                                type="email"
-                                                placeholder="user@example.com"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleCheckEmail()}
-                                                autoFocus
-                                                className="w-full bg-transparent border-b border-white/20 py-3 text-center text-white text-lg placeholder-white/10 focus:outline-none focus:border-white/60 transition-colors"
-                                            />
-
+                                        {authError && (
+                                            <p className="mt-3 text-center text-red-400 text-xs tracking-wide">
+                                                {authError}
+                                            </p>
+                                        )}
+                                    </motion.div>
+                                ) : authMode === 'email-input' ? (
+                                    <motion.div
+                                        key="email-input"
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -15 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex flex-col gap-5 w-full"
+                                    >
+                                        <div className="text-center relative">
                                             <button
-                                                onClick={handleCheckEmail}
-                                                disabled={authLoading}
-                                                className="w-full py-4 mt-4 bg-white/5 border border-white/10 rounded-full text-white font-light tracking-widest text-xs hover:bg-white hover:text-black transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 uppercase"
+                                                type="button"
+                                                onClick={() => { setAuthMode('menu'); setAuthError(null); }}
+                                                className="absolute left-0 top-1 text-white/40 hover:text-white transition-colors p-1"
+                                                title="Back (Esc)"
                                             >
-                                                {authLoading && <Loader2 size={14} className="animate-spin" />}
-                                                Continue
+                                                <ArrowLeft size={18} />
                                             </button>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div
-                                            key="password-form"
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -20 }}
-                                            className="flex flex-col gap-6 w-full"
+                                            <h3 className="text-lg font-light text-white tracking-wide">Enter your email</h3>
+                                        </div>
+
+                                        {authError && (
+                                            <div className="text-center text-red-400 text-xs tracking-wide">
+                                                {authError}
+                                            </div>
+                                        )}
+
+                                        <input
+                                            type="email"
+                                            inputMode="email"
+                                            autoComplete="email"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            placeholder="you@example.com"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleCheckEmail()}
+                                            disabled={authLoading}
+                                            autoFocus
+                                            className="w-full bg-transparent border-b border-white/20 py-3 text-center text-white text-base placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors disabled:opacity-50"
+                                        />
+
+                                        <button
+                                            onClick={handleCheckEmail}
+                                            disabled={authLoading}
+                                            className="w-full py-3.5 mt-2 bg-white/5 border border-white/10 rounded-full text-white font-light tracking-widest text-xs hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 uppercase focus-visible:ring-2 focus-visible:ring-white/40 outline-none"
                                         >
-                                            <div className="text-center relative">
-                                                <button onClick={() => { setAuthMode('email-input'); setAuthError(null); }} className="absolute left-0 top-1 text-white/30 hover:text-white transition-colors">
-                                                    <ArrowLeft size={20} />
+                                            {authLoading && <Loader2 size={14} className="animate-spin" />}
+                                            Continue
+                                        </button>
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="password-form"
+                                        initial={{ opacity: 0, y: 15 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -15 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="flex flex-col gap-5 w-full"
+                                    >
+                                        <div className="text-center relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setAuthMode('email-input'); setAuthError(null); }}
+                                                className="absolute left-0 top-1 text-white/40 hover:text-white transition-colors p-1"
+                                                title="Back (Esc)"
+                                            >
+                                                <ArrowLeft size={18} />
+                                            </button>
+                                            <h3 className="text-lg font-light text-white tracking-wide">
+                                                {authMode === 'signin' ? 'Welcome back' : 'Create account'}
+                                            </h3>
+                                            <p className="text-xs text-white/40 mt-1 truncate max-w-[200px] mx-auto">{email}</p>
+                                        </div>
+
+                                        {authError && (
+                                            <div className="text-center text-red-400 text-xs tracking-wide">
+                                                {authError}
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-3">
+                                            <div className="relative">
+                                                <input
+                                                    type={showPassword ? "text" : "password"}
+                                                    autoComplete={authMode === 'signup' ? "new-password" : "current-password"}
+                                                    placeholder="Password"
+                                                    value={password}
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            if (authMode === 'signup') {
+                                                                confirmPasswordRef.current?.focus();
+                                                            } else {
+                                                                handleEmailAuth(false);
+                                                            }
+                                                        }
+                                                    }}
+                                                    disabled={authLoading}
+                                                    autoFocus
+                                                    className="w-full bg-transparent border-b border-white/20 py-2.5 text-center text-white text-base placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors pr-8 disabled:opacity-50"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors"
+                                                    tabIndex={-1}
+                                                >
+                                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                                 </button>
-                                                <h3 className="text-xl font-light text-white tracking-wide">{authMode === 'signin' ? 'Welcome back.' : 'Join us.'}</h3>
-                                                <p className="text-xs text-white/30 mt-1">{email}</p>
                                             </div>
 
-                                            {authError && <div className="text-center text-red-400 text-xs tracking-wide animate-shake">{authError}</div>}
-
-                                            <div className="space-y-4">
+                                            {authMode === 'signup' && (
                                                 <div className="relative">
                                                     <input
+                                                        ref={confirmPasswordRef}
                                                         type={showPassword ? "text" : "password"}
-                                                        placeholder="Password"
-                                                        value={password}
-                                                        onChange={(e) => setPassword(e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && (authMode === 'signup' ? null : handleEmailAuth(false))}
-                                                        autoFocus
-                                                        className="w-full bg-transparent border-b border-white/20 py-3 text-center text-white text-lg placeholder-white/10 focus:outline-none focus:border-white/60 transition-colors pr-8"
+                                                        autoComplete="new-password"
+                                                        placeholder="Confirm Password"
+                                                        value={confirmPassword}
+                                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleEmailAuth(true)}
+                                                        disabled={authLoading}
+                                                        className="w-full bg-transparent border-b border-white/20 py-2.5 text-center text-white text-base placeholder-white/20 focus:outline-none focus:border-white/60 transition-colors pr-8 disabled:opacity-50"
                                                     />
-                                                    <button onClick={() => setShowPassword(!showPassword)} className="absolute right-0 top-1/2 -translate-y-1/2 text-white/20 hover:text-white transition-colors">
-                                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                                    </button>
                                                 </div>
+                                            )}
+                                        </div>
 
-                                                {authMode === 'signup' && (
-                                                    <div className="relative animate-fade-in-up">
-                                                        <input
-                                                            type={showPassword ? "text" : "password"}
-                                                            placeholder="Confirm Password"
-                                                            value={confirmPassword}
-                                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                                            onKeyDown={(e) => e.key === 'Enter' && handleEmailAuth(true)}
-                                                            onPaste={(e) => e.preventDefault()}
-                                                            className="w-full bg-transparent border-b border-white/20 py-3 text-center text-white text-lg placeholder-white/10 focus:outline-none focus:border-white/60 transition-colors pr-8"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
+                                        <button
+                                            onClick={() => handleEmailAuth(authMode === 'signup')}
+                                            disabled={authLoading}
+                                            className="w-full py-3.5 mt-2 bg-white/5 border border-white/10 rounded-full text-white font-light tracking-widest text-xs hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 uppercase focus-visible:ring-2 focus-visible:ring-white/40 outline-none"
+                                        >
+                                            {authLoading && <Loader2 size={14} className="animate-spin" />}
+                                            {authMode === 'signin' ? 'Enter' : 'Create Account'}
+                                        </button>
 
+                                        {/* Mode Toggle Button */}
+                                        <div className="text-center mt-1">
                                             <button
-                                                onClick={() => handleEmailAuth(authMode === 'signup')}
-                                                disabled={authLoading}
-                                                className="w-full py-4 mt-4 bg-white/5 border border-white/10 rounded-full text-white font-light tracking-widest text-xs hover:bg-white hover:text-black transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 uppercase"
+                                                type="button"
+                                                onClick={() => {
+                                                    setAuthError(null);
+                                                    setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                                                }}
+                                                className="text-xs text-white/40 hover:text-white transition-colors py-1"
                                             >
-                                                {authLoading && <Loader2 size={14} className="animate-spin" />}
-                                                {authMode === 'signin' ? 'Enter' : 'Create'}
+                                                {authMode === 'signin' ? "Need an account? Sign up" : "Already have an account? Sign in"}
                                             </button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </motion.div>
                 )}
 
-                {/* STEP 1: HANDLE */}
+                {/* STEP 1: USERNAME PICKER */}
                 {internalStep === 1 && (
                     <motion.div
                         key="step1"
-                        initial={{ opacity: 0, scale: 1.05 }}
+                        initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
-                        transition={{ duration: 0.5 }}
-                        className="fixed inset-0 z-40 flex flex-col items-center justify-center"
+                        exit={{ opacity: 0, scale: 0.95, filter: 'blur(8px)' }}
+                        transition={{ duration: 0.4 }}
+                        className="min-h-[100dvh] w-full z-40 flex flex-col items-center justify-center p-4 sm:p-6 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]"
                     >
-                        <div className="w-full max-w-4xl px-8 flex flex-col items-center">
-                            <h2 className="text-3xl md:text-5xl text-white font-extralight tracking-tight text-center leading-tight mb-16 animate-fade-in">
-                                <span className="block text-sm tracking-[0.4em] text-white/50 uppercase mb-4">Identity</span>
-                                {isMigrating ? "Claim your username." : "What shall we call you?"}
+                        <div className="w-full max-w-xl flex flex-col items-center text-center">
+                            <span className="text-xs tracking-[0.35em] text-white/40 uppercase mb-3 font-mono">
+                                {isMigrating ? "Account Update" : "Welcome"}
+                            </span>
+                            <h2 className="text-2xl sm:text-3xl md:text-5xl text-white font-extralight tracking-tight mb-3">
+                                What shall we call you?
                             </h2>
-
-                            <div className="relative w-full flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                                <div className="relative flex items-center justify-center p-4">
-                                    <span className="text-4xl md:text-6xl font-thin text-white/20 select-none mr-2 leading-relaxed">@</span>
-                                    <div className="relative min-w-[20px]">
-                                        <span className="invisible text-4xl md:text-6xl font-thin whitespace-pre block h-full min-w-[1ch] px-4 leading-relaxed tracking-normal">{onboardingHandle || "user"}</span>
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            value={onboardingHandle}
-                                            onChange={(e) => {
-                                                const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 15);
-                                                setOnboardingHandle(val);
-                                                if (val !== onboardingHandle) setHandleStatus("checking");
-                                            }}
-                                            onKeyDown={(e) => e.key === 'Enter' && confirmHandleAndContinue()}
-                                            className="absolute inset-0 w-full h-full bg-transparent border-none outline-none text-4xl md:text-6xl font-thin text-white placeholder-white/10 text-left p-0 m-0 focus:ring-0 px-4 leading-relaxed tracking-normal"
-                                            placeholder="user"
-                                            spellCheck={false}
-                                        />
-                                    </div>
-                                    <div className="absolute left-full ml-6 top-1/2 -translate-y-1/2 flex items-center">
-                                        {handleStatus === 'checking' && <Loader2 size={24} className="animate-spin text-white/30" />}
-                                        {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                                            <div className="bg-green-500/10 p-2 rounded-full border border-green-500/30"><Check size={20} className="text-green-400" strokeWidth={2} /></div>
-                                        )}
-                                        {handleStatus === 'taken' && (
-                                            <div className="bg-red-500/10 p-2 rounded-full border border-red-500/30"><X size={20} className="text-red-400" strokeWidth={2} /></div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="h-32 mt-12 flex flex-col items-center justify-start w-full">
-                                    <AnimatePresence mode="wait">
-                                        {handleStatus === 'taken' && (
-                                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col items-center gap-4">
-                                                <span className="text-red-400/80 text-xs tracking-widest uppercase">Taken. Try these?</span>
-                                                <div className="flex flex-wrap justify-center gap-3">
-                                                    {handleSuggestions.map((s) => (
-                                                        <button key={s} onClick={() => { setOnboardingHandle(s); setHandleStatus("available"); }} className="px-4 py-2 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 text-white/60 hover:text-white text-xs tracking-wider transition-all">@{s}</button>
-                                                    ))}
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                        {handleStatus === 'available' && onboardingHandle.length > 0 && (
-                                            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-2">
-                                                <button onClick={confirmHandleAndContinue} disabled={isSavingHandle} className="group flex items-center gap-3 px-8 py-3 bg-white text-black rounded-full font-medium tracking-widest text-xs uppercase hover:scale-105 transition-all">
-                                                    <span>{isSavingHandle ? "Initializing..." : "Begin"}</span>
-                                                    {!isSavingHandle && <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />}
-                                                </button>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {/* STEP 2: COMMAND BAR INTRO */}
-                {internalStep === 2 && (
-                    <motion.div
-                        key="step2"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.5 }}
-                        className="fixed inset-0 z-40 bg-black/90 flex flex-col items-center justify-center backdrop-blur-md"
-                    >
-                        <div className="flex flex-col items-center max-w-lg text-center px-8 animate-fade-in-up">
-                            <div className="relative mb-12 group">
-                                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-1000" />
-                                <div className="relative p-8 bg-gradient-to-b from-white/10 to-transparent rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl group-hover:scale-105 transition-transform duration-500">
-                                    <Search size={64} className="text-white" strokeWidth={1} />
-                                </div>
-                                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/80 border border-white/20 rounded-full text-xs font-mono text-white/70 whitespace-nowrap">
-                                    Ctrl + Space
-                                </div>
-                            </div>
-
-                            <h2 className="text-3xl md:text-4xl text-white font-extralight tracking-tight mb-6">
-                                Command everything.
-                            </h2>
-
-                            <p className="text-white/50 text-lg font-light leading-relaxed max-w-sm mb-12">
-                                Press <strong className="text-white font-medium">Ctrl + Space</strong> to access the Command Bar anytime. Control music, timer, and notes without dragging your mouse.
+                            <p className="text-sm text-white/40 font-light mb-8 sm:mb-12">
+                                Choose your unique handle. You can change this later in settings.
                             </p>
 
-                            <div className="mt-4 flex flex-col items-center gap-2 animate-pulse">
-                                <span className="text-white/30 text-xs font-mono tracking-widest uppercase">Waiting for input...</span>
-                            </div>
-                        </div>
-                    </motion.div>
-                )
-                }
+                            {/* Handle Input Container */}
+                            <div className="w-full flex flex-col items-center">
+                                <div className="relative flex items-center justify-center w-full max-w-md py-2 border-b border-white/20 focus-within:border-white/70 transition-colors">
+                                    <span className="text-2xl sm:text-3xl md:text-5xl font-thin text-white/30 mr-1 select-none">
+                                        @
+                                    </span>
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={onboardingHandle}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20);
+                                            setOnboardingHandle(val);
+                                            setSaveError(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                confirmHandleAndContinue();
+                                            }
+                                        }}
+                                        className="w-full bg-transparent border-none outline-none text-2xl sm:text-3xl md:text-5xl font-thin text-white placeholder-white/10 text-left p-0 focus:ring-0 tracking-normal"
+                                        placeholder="username"
+                                        spellCheck={false}
+                                        autoComplete="off"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        inputMode="text"
+                                    />
 
-                {/* STEP 3: SOCIAL INTRO */}
-                {internalStep === 3 && (
-                    <motion.div
-                        key="step3"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.5 }}
-                        className="fixed inset-0 z-40 bg-black/90 flex flex-col items-center justify-center backdrop-blur-md"
-                    >
-                        <div className="flex flex-col items-center max-w-lg text-center px-8 animate-fade-in-up">
-                            <div className="relative mb-12 group">
-                                <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-1000" />
-                                <div className="relative p-8 bg-gradient-to-b from-white/10 to-transparent rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl group-hover:scale-105 transition-transform duration-500">
-                                    <MessageCircle size={64} className="text-white" strokeWidth={1} />
+                                    {/* Status Indicator */}
+                                    <div className="flex items-center ml-3">
+                                        {handleStatus === 'checking' && (
+                                            <Loader2 size={22} className="animate-spin text-white/40" />
+                                        )}
+                                        {handleStatus === 'available' && (
+                                            <div className="bg-emerald-500/10 p-1.5 rounded-full border border-emerald-500/30">
+                                                <Check size={18} className="text-emerald-400" strokeWidth={2.5} />
+                                            </div>
+                                        )}
+                                        {(handleStatus === 'taken' || handleStatus === 'reserved' || handleStatus === 'too-long' || handleStatus === 'invalid-chars') && (
+                                            <div className="bg-rose-500/10 p-1.5 rounded-full border border-rose-500/30">
+                                                <X size={18} className="text-rose-400" strokeWidth={2.5} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Status Feedback & Suggestions */}
+                                <div className="min-h-[90px] mt-4 flex flex-col items-center justify-start w-full">
+                                    {saveError && (
+                                        <p className="text-rose-400 text-xs tracking-wide mb-3">
+                                            {saveError}
+                                        </p>
+                                    )}
+
+                                    {handleStatus === 'too-short' && (
+                                        <span className="text-white/30 text-xs tracking-wider font-light">
+                                            Must be at least 3 characters (letters, numbers, underscores)
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'too-long' && (
+                                        <span className="text-rose-400 text-xs tracking-wider font-light">
+                                            Username must be 20 characters or fewer
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'invalid-chars' && (
+                                        <span className="text-rose-400 text-xs tracking-wider font-light">
+                                            Only letters, numbers, and underscores are allowed
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'reserved' && (
+                                        <span className="text-rose-400 text-xs tracking-wider font-light">
+                                            This username is reserved. Please choose another.
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'error' && (
+                                        <span className="text-rose-400 text-xs tracking-wider font-light">
+                                            Could not check username. Please check your internet connection.
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'available' && (
+                                        <span className="text-emerald-400/90 text-xs tracking-wider uppercase font-mono">
+                                            Handle available
+                                        </span>
+                                    )}
+
+                                    {handleStatus === 'taken' && (
+                                        <div className="flex flex-col items-center gap-3">
+                                            <span className="text-rose-400/80 text-xs tracking-wider uppercase font-mono">
+                                                Handle taken. Try one of these:
+                                            </span>
+                                            <div className="flex flex-wrap justify-center gap-2">
+                                                {handleSuggestions.map((s) => (
+                                                    <button
+                                                        key={s}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setOnboardingHandle(s);
+                                                        }}
+                                                        className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 text-white/70 hover:text-white text-xs tracking-wider transition-all"
+                                                    >
+                                                        @{s}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Submit Action */}
+                                    <div className="mt-6">
+                                        <button
+                                            onClick={confirmHandleAndContinue}
+                                            disabled={(handleStatus !== 'available' && handleStatus !== 'checking') || isSavingHandle}
+                                            className="group flex items-center gap-3 px-8 py-3.5 bg-white text-black rounded-full font-medium tracking-widest text-xs uppercase hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-30 disabled:pointer-events-none disabled:hover:scale-100 shadow-[0_0_20px_rgba(255,255,255,0.15)] focus-visible:ring-2 focus-visible:ring-white/40 outline-none"
+                                        >
+                                            <span>{isSavingHandle ? "Setting up..." : "Begin"}</span>
+                                            {isSavingHandle ? (
+                                                <Loader2 size={14} className="animate-spin text-black" />
+                                            ) : (
+                                                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {/* Switch Account option if user signed in with wrong account */}
+                                    {user && !user.isAnonymous && (
+                                        <div className="mt-8 flex items-center justify-center gap-2 text-xs text-white/30">
+                                            <span>Signed in as <strong className="text-white/60 font-medium">{user.email || user.displayName || 'User'}</strong></span>
+                                            <span>•</span>
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    await supabase.auth.signOut();
+                                                    setInternalStep(0);
+                                                    setAuthMode('menu');
+                                                }}
+                                                className="hover:text-white underline underline-offset-2 transition-colors cursor-pointer"
+                                            >
+                                                Switch account
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-
-                            <h2 className="text-3xl md:text-4xl text-white font-extralight tracking-tight mb-6">
-                                Stay connected.
-                            </h2>
-
-                            <p className="text-white/50 text-lg font-light leading-relaxed max-w-sm mb-12">
-                                Chat with friends, share your status, and keep each other accountable in real-time.
-                            </p>
-
-                            <button
-                                onClick={() => {
-                                    onComplete();
-                                    window.location.reload();
-                                }}
-                                onMouseEnter={() => {
-                                    confetti({
-                                        particleCount: 100,
-                                        spread: 70,
-                                        origin: { y: 0.6 }
-                                    });
-                                }}
-                                className="group px-12 py-4 bg-white text-black rounded-full font-bold tracking-widest text-xs uppercase hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] transition-all duration-500"
-                            >
-                                Let's go
-                            </button>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-        </div >
+        </div>
     );
-
 };
 
 export default OnboardingFlow;

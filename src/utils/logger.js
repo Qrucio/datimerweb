@@ -1,5 +1,4 @@
-
-const isDev = import.meta.env.DEV;
+const isDev = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
 export const logger = {
     debug: (...args) => isDev && console.log(...args),

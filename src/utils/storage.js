@@ -1,5 +1,5 @@
-import { supabase } from "../lib/supabase";
-import { logger } from "./logger";
+import { supabase } from "../lib/supabase.js";
+import { logger } from "./logger.js";
 
 const KEYS = {
     STATS: 'zen_stats_current',     // Today's active stats
