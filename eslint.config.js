@@ -31,5 +31,8 @@ export default defineConfig([
     languageOptions: {
       globals: globals.node,
     },
+    rules: {
+      'no-unused-vars': 'off',
+    },
   },
 ])
