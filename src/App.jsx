@@ -15,6 +15,7 @@ import { useRoomSync } from './hooks/useRoomSync';
 import RoomInviteToast from './components/social/RoomInviteToast';
 import RemoteTimerPane from './components/RemoteTimerPane';
 import { Storage } from './utils/storage';
+import { handleUserMapping as executeUserMapping } from './utils/authHelpers.js';
 const UnifiedSettingsModal = lazy(() => import('./components/modals/UnifiedSettingsModal'));
 const CommandMenu = lazy(() => import('./components/CommandMenu').then(module => ({ default: module.CommandMenu })));
 const OnboardingFlow = lazy(() => import('./components/OnboardingFlow'));
@@ -3043,6 +3044,7 @@ function MainApp() {
 
   // --- FIX: Hydrate History from Server on Load ---
   useEffect(() => {
+    if (onboardingStep !== 3) return;
     const syncHistory = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -3091,6 +3093,9 @@ function MainApp() {
 
   const handleProfileUpdate = (updates) => {
     setUser(prev => ({ ...prev, ...updates }));
+    if (updates.handle) {
+      localStorage.setItem('zen_user_handle', updates.handle);
+    }
     setViewingProfile(prev => {
       // Since the update came from the active profile modal (which only allows editing self),
       // we can safely update the viewingProfile if it exists.
@@ -3140,7 +3145,7 @@ function MainApp() {
         }
       }
     } catch (e) { console.error("Error restoring stats", e); }
-  }, [onboardingStep]);
+  }, []);
 
   // --- SHOPIFY SUBSCRIPTION SYNC ---
   useEffect(() => {
@@ -3290,49 +3295,7 @@ function MainApp() {
 
 
 
-  // --- OPTIMIZED SYNC: Run ONCE on mount ---
-  // --- OPTIMIZED SYNC: Run ONCE on mount ---
-  useEffect(() => {
-    if (!user || user.isAnonymous) return;
 
-    const checkAndMigrateProfile = async () => {
-      try {
-        // Check if profile exists in Supabase
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('id, handle, is_pro')
-          .eq('id', user.uid)
-          .single();
-
-        if (!profile && !error) {
-          // Case 1: No Profile -> New User logic
-          console.log("No profile found, redirecting to onboarding...");
-          setOnboardingStep(1);
-
-        } else if (profile) {
-          // Case 2: Profile Exists
-
-          // A. Sync Server Status to Local Cache
-          if (profile.is_pro) {
-            // If DB says Pro, ensure LocalStorage agrees (restore logic)
-            setIsPro(true);
-            Storage.saveProStatus(true); // Helper to save claim
-          }
-
-          // B. Handle Check
-          if (!profile.handle) {
-            // If profile exists but no handle, go to onboarding
-            setOnboardingStep(1);
-          }
-          // Else, all good.
-        }
-      } catch (e) {
-        console.error("Profile check failed:", e);
-      }
-    };
-
-    checkAndMigrateProfile();
-  }, [user]);
 
 
   const handleReorderNotes = (newOrder) => {
@@ -3618,7 +3581,7 @@ function MainApp() {
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, [onboardingStep]);
+  }, []);
 
   const playBtnRef = useRef(null);
   const endTimeRef = useRef(null);
@@ -3674,7 +3637,7 @@ function MainApp() {
       // Volume will be set dynamically on play
       audioRefs.current[sound.id] = audio;
     });
-  }, [onboardingStep]); // Run once on mount
+  }, []); // Run once on mount
 
   // Update audio source if custom sounds are added (future proofing)
   // or if we needed to reload them. For now, static list is fine.
@@ -3893,18 +3856,66 @@ showMusic, showStats, viewingFriendStats,
 
 
   // --- UPDATED AUTH EFFECT (Supabase) ---
+  const authSeqRef = useRef(0);
+  const currentUserRef = useRef(null);
   useEffect(() => {
-    // Check active session
+    currentUserRef.current = user;
+  }, [user]);
+
+  const handleUserMapping = useCallback(async (supaUser) => {
+    const seq = ++authSeqRef.current;
+    return executeUserMapping(supaUser, {
+      setUser,
+      setOnboardingStep,
+      setOnboardingInnerStep,
+      setIsPro,
+      setDataLoaded,
+      setIsAuthChecking,
+      seq,
+      currentSeqGetter: () => authSeqRef.current,
+      isDemo: typeof window !== 'undefined' && window.location?.search?.includes('demo=')
+    });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Safety timeout: Never stay stuck on AppLoader forever (max 6 seconds)
+    const authTimeout = setTimeout(() => {
+      setIsAuthChecking(false);
+    }, 6000);
+
+    const safeUserMapping = async (supaUser) => {
+      await handleUserMapping(supaUser);
+      if (isMounted) {
+        clearTimeout(authTimeout);
+      }
+    };
+
+    // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        handleUserMapping(session.user);
-      } else {
-        handleUserMapping(null);
+      if (isMounted) {
+        safeUserMapping(session?.user || null);
+      }
+    }).catch(err => {
+      console.warn("getSession error:", err);
+      if (isMounted) {
+        setIsAuthChecking(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleUserMapping(session?.user || null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+
+      // Handle TOKEN_REFRESHED: only refresh silently if same user ID
+      if (event === 'TOKEN_REFRESHED') {
+        const currentId = currentUserRef.current?.uid || currentUserRef.current?.id;
+        if (session?.user && currentId === session.user.id) {
+          return;
+        }
+      }
+
+      safeUserMapping(session?.user || null);
     });
 
     // REALTIME PROFILE SYNC
@@ -3912,95 +3923,54 @@ showMusic, showStats, viewingFriendStats,
       .on('postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles' },
         (payload) => {
-          // If the update matches current user, refresh map
+          if (!isMounted) return;
           supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user && session.user.id === payload.new.id) {
+            if (isMounted && session?.user && session.user.id === payload.new.id) {
               console.log("Profile updated externally, refreshing...");
-              handleUserMapping(session.user);
+              safeUserMapping(session.user);
             }
           });
         }
       )
       .subscribe();
 
+    // Tab visibility change: re-verify session when returning to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isMounted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (isMounted) {
+            const currentId = currentUserRef.current?.uid || currentUserRef.current?.id;
+            const sessionUserId = session?.user?.id;
+            if (currentId !== sessionUserId) {
+              safeUserMapping(session?.user || null);
+            }
+          }
+        }).catch(e => console.warn("Visibility session check error:", e));
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Online event: network reconnected
+    const handleOnline = () => {
+      if (isMounted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (isMounted && session?.user) {
+            safeUserMapping(session.user);
+          }
+        }).catch(e => console.warn("Online reconnect check error:", e));
+      }
+    };
+    window.addEventListener('online', handleOnline);
+
     return () => {
+      isMounted = false;
+      clearTimeout(authTimeout);
       subscription.unsubscribe();
       supabase.removeChannel(profileChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
     };
-  }, [onboardingStep]);
-
-  const handleUserMapping = async (supaUser) => {
-    // GUARD: Skip Auth check if in Demo Mode
-    if (window.location.search.includes('demo=')) {
-      setIsAuthChecking(false);
-
-      return;
-    }
-
-
-
-    if (supaUser) {
-      // 1. FETCH PROFILE DATA (Handle, About, Pro Status)
-      let profileData = {};
-      try {
-        const { success, data } = await UserService.getProfile(supaUser.id, 'handle, about, is_pro, photo_url, display_name');
-        if (success && data) {
-          profileData = data;
-        }
-      } catch (e) {
-        console.warn("Profile fetch failed, using auth defaults", e);
-      }
-
-      // 2. MAP & MERGE USER
-      const appUser = {
-        ...supaUser,
-        uid: supaUser.id, // CRITICAL: Maintain 'uid' for existing code
-        displayName: supaUser.user_metadata?.full_name || supaUser.email?.split('@')[0],
-        photoURL: supaUser.user_metadata?.avatar_url,
-        isAnonymous: supaUser.is_anonymous,
-        handle: profileData.handle || null,
-        about: profileData.about || null,
-        isPro: profileData.is_pro || false
-      };
-
-      setUser(appUser);
-
-      // 3. STORAGE & ONBOARDING SYNC
-      if (appUser.isAnonymous) {
-        console.log("Guest session active.");
-        localStorage.removeItem('zen_user_handle');
-        localStorage.setItem('pomodoro_user_name', "Guest");
-        setOnboardingStep(3);
-      }
-
-      // Registered User Logic
-      if (appUser.handle) {
-        localStorage.setItem('zen_user_handle', appUser.handle);
-        setOnboardingStep(3);
-      } else {
-        // Fallback: If handle missing but user exists, just let them in.
-        // They can set handle in settings.
-        console.warn("Handle missing for user, defaulting to dashboard.");
-        setOnboardingStep(3);
-
-      }
-
-    } else {
-      // SESSION EXPIRED OR USER SIGNED OUT
-      // Clear all user data to prevent stale state
-      setUser(null);
-      setOnboardingStep(0); // Always reset to login screen
-      setDataLoaded(false);
-      
-      // Clear localStorage to prevent stale data showing
-      localStorage.removeItem('zen_user_handle');
-      localStorage.removeItem('pomodoro_user_name');
-      
-      console.log("Session cleared - user signed out or session expired.");
-    }
-
-    setIsAuthChecking(false);
-  };
+  }, [handleUserMapping]);
 
   // --- DEMO MODE REMOVED ---
   // Demo functionality has been disabled as per security requirements.
@@ -4071,7 +4041,7 @@ showMusic, showStats, viewingFriendStats,
       }
     }
     return { isOnline, isActive, statusText, mode, timeLeft };
-  }, [onboardingStep]);
+  }, []);
 
   // 1. LISTEN TO FRIEND REQUESTS (Incoming)
   useEffect(() => {
@@ -4709,7 +4679,7 @@ showMusic, showStats, viewingFriendStats,
       }
     });
     setAmbienceState({});
-  }, [onboardingStep]);
+  }, []);
 
   // 3. Wrap changeAmbienceVolume in useCallback
   const changeAmbienceVolume = useCallback((id, newVol) => {
@@ -4720,7 +4690,7 @@ showMusic, showStats, viewingFriendStats,
       ...prev,
       [id]: { ...prev[id], volume: newVol }
     }));
-  }, [onboardingStep]);
+  }, []);
 
   // --- HANDLER: TOGGLE LOFI ---
   const toggleLofi = () => {
@@ -4744,20 +4714,21 @@ showMusic, showStats, viewingFriendStats,
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
-
+    } catch (error) {
+      console.warn("Supabase auth.signOut warning (clearing local state anyway):", error);
+    } finally {
       // 1. Clear ALL Persistent Data (Centralized)
       Storage.clearAll();
 
-
+      setUser(null);
+      setOnboardingStep(0);
       setOnboardingInnerStep(0);
       setIsPro(false); // Explicit state update
       setNotes([]);    // Reset notes UI
       setTasks([]);
       setHabits([]);
       setStats(DEFAULT_STATS); // Reset stats UI
-
-    } catch (error) {
-      console.error("Error signing out: ", error);
+      setDataLoaded(false);
     }
   };
 
@@ -5511,7 +5482,12 @@ showMusic, showStats, viewingFriendStats,
           <Suspense fallback={null}>
             <OnboardingFlow
               user={user}
-              onComplete={() => setOnboardingStep(3)}
+              onComplete={(savedHandle) => {
+                if (savedHandle) {
+                  setUser(prev => prev ? ({ ...prev, handle: savedHandle }) : prev);
+                }
+                setOnboardingStep(3);
+              }}
               currentStep={onboardingInnerStep}
               onStepChange={setOnboardingInnerStep}
             />
@@ -6031,7 +6007,7 @@ showMusic, showStats, viewingFriendStats,
             onOpenPro={(source) => setProModalSource(source || 'settings')}
             onReplayOnboarding={() => { setIsUnifiedModalOpen(false); setOnboardingStep(0); setOnboardingInnerStep(0); }}
             initialTab={settingsTab}
-
+            onProfileUpdate={handleProfileUpdate}
           />
         </Suspense>
 

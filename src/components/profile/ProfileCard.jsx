@@ -4,6 +4,7 @@ import { Edit2, Save, X, UserPlus, MessageCircle, MoreVertical, Shield, Check, C
 import Avatar from '../Avatar';
 
 import { supabase } from '../../lib/supabase';
+import { UserService } from '../../services/userService';
 import { formatDistanceToNow } from 'date-fns';
 
 const ProfileCard = ({ user, currentUser, onClose, isSelf, onAddFriend, onMessage, onProfileUpdate }) => {
@@ -15,37 +16,46 @@ const ProfileCard = ({ user, currentUser, onClose, isSelf, onAddFriend, onMessag
 
     // HANDLE CHECK STATE
     const [isCheckingHandle, setIsCheckingHandle] = useState(false);
-    const [handleAvailable, setHandleAvailable] = useState(null); // null = unknown, true = mobile, false = taken
+    const [handleAvailable, setHandleAvailable] = useState(null); // null = unknown, true = available, false = taken
 
     // Status Resolution
     const isPro = user.isPro || user.subscription?.plan === 'pro' || user.subscription?.plan === 'flow';
     const isDev = user.isDev;
 
-    // EFFECT: Debounced Handle Check using setTimeout
+    // EFFECT: Debounced Handle Check using UserService
     useEffect(() => {
-        const cleanHandle = editHandle.replace(/@/g, ''); // Ensure clean
-        if (!isEditing || cleanHandle === (user.handle || '').replace(/@/g, '')) return; // Don't check own handle
-        if (cleanHandle.length < 3) { setHandleAvailable(false); return; }
+        const cleanHandle = editHandle.trim().replace(/^@+/, '').toLowerCase();
+        const currentHandle = (user.handle || '').trim().replace(/^@+/, '').toLowerCase();
+        if (!isEditing || cleanHandle === currentHandle) {
+            setHandleAvailable(null);
+            setIsCheckingHandle(false);
+            return;
+        }
+        if (cleanHandle.length < 3) {
+            setHandleAvailable(false);
+            setIsCheckingHandle(false);
+            return;
+        }
 
         setIsCheckingHandle(true);
         const timer = setTimeout(async () => {
             try {
-                // RPC Check (Bypasses RLS issues)
-                const { data: isAvailable, error } = await supabase
-                    .rpc('check_handle', { handle_str: cleanHandle });
-
-                if (error) throw error;
-                setHandleAvailable(isAvailable);
+                const res = await UserService.checkHandle(cleanHandle, currentUser?.uid || currentUser?.id || user?.id);
+                if (res.success) {
+                    setHandleAvailable(res.available);
+                } else {
+                    setHandleAvailable(null);
+                }
             } catch (err) {
                 console.error("Handle check failed", err);
                 setHandleAvailable(null);
             } finally {
                 setIsCheckingHandle(false);
             }
-        }, 500); // 500ms debounce
+        }, 400);
 
         return () => clearTimeout(timer);
-    }, [editHandle, isEditing, user.handle]);
+    }, [editHandle, isEditing, user.handle, currentUser?.uid, currentUser?.id, user?.id]);
 
     // EFFECT: Update local state when prop changes
     useEffect(() => {
@@ -57,35 +67,41 @@ const ProfileCard = ({ user, currentUser, onClose, isSelf, onAddFriend, onMessag
     const handleSave = async () => {
         if (!isSelf) return;
 
+        const cleanHandle = editHandle.trim().replace(/^@+/, '').toLowerCase();
+
         // Blocking Check
         if (handleAvailable === false) {
-            alert("Handle is taken. Please choose another.");
+            alert("Username is taken or reserved. Please choose another.");
+            return;
+        }
+        if (cleanHandle.length < 3 || cleanHandle.length > 20) {
+            alert("Username must be between 3 and 20 characters.");
             return;
         }
 
         setIsSaving(true);
         try {
-            // Update Profile
+            const userId = user.id || user.uid || currentUser?.uid || currentUser?.id;
             const updates = {
-                handle: editHandle.replace(/^@+/, ''), // Ensure clean save
+                handle: cleanHandle,
                 about: editAbout,
-                updated_at: new Date().toISOString()
             };
 
-            const { error } = await supabase
-                .from('profiles')
-                .update(updates)
-                .eq('id', user.id);
+            const res = await UserService.updateProfile(userId, updates);
+            if (!res.success) {
+                throw res.error || new Error('Failed to save profile');
+            }
 
-            if (error) throw error;
+            if (isSelf) {
+                localStorage.setItem('zen_user_handle', cleanHandle);
+            }
             setIsEditing(false);
-            // We assume Parent / Realtime will update the UI
+            if (onProfileUpdate) onProfileUpdate({ handle: cleanHandle, about: editAbout });
         } catch (err) {
             console.error("Profile Save Error:", err);
             alert(`Failed to save profile: ${err.message || 'Unknown error'}`);
         } finally {
             setIsSaving(false);
-            if (onProfileUpdate) onProfileUpdate({ handle: editHandle.replace(/^@+/, ''), about: editAbout });
         }
     };
 

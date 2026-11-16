@@ -375,7 +375,8 @@ const MasterCustomizeView = ({ onNavigate }) => (
 const UnifiedSettingsModal = ({
   isOpen, onClose, user, signOut, settings, setSettings,
   handleSettingsSave, handleBackgroundChange, backgrounds = [],
-  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding, onDevStatsUpdate
+  isPro = false, stats = {}, onOpenPro, initialTab = 'preferences', onReplayOnboarding, onDevStatsUpdate,
+  onProfileUpdate
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
   useEffect(() => {
@@ -761,7 +762,7 @@ const UnifiedSettingsModal = ({
                     <motion.div key="acc" variants={contentVariants} initial="hidden" animate="visible" exit="exit" className="h-full flex flex-col items-center justify-center p-0 md:p-4">
                       {user && !user.isAnonymous ? (
                         <div className="w-full max-w-md flex flex-col gap-4">
-                          <ProfileCard user={user} currentUser={user} isSelf={true} />
+                          <ProfileCard user={user} currentUser={user} isSelf={true} onProfileUpdate={onProfileUpdate} />
                           <motion.button initial={{ opacity: 0, transform: "translateY(10px)" }} animate={{ opacity: 1, transform: "translateY(0px)" }} transition={{ delay: 0.1, duration: 0.4 }} onClick={signOut} className="w-full h-12 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60 hover:text-white transition-all hover:-translate-y-0.5 focus:ring-4 focus:ring-white/5 outline-none group border border-white/10" style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.04))" }}><LogOut size={14} className="text-white/40 group-hover:text-white transition-colors" /><span>Sign Out</span></motion.button>
                         </div>
                       ) : (
