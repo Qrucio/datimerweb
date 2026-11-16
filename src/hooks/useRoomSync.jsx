@@ -11,7 +11,6 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
     
     const [isReady, setIsReady] = useState(false);
 
-    // NEW: Ref to track the latest state and any pending broadcasts
     const latestStateRef = useRef(localTimerState);
     const hasPendingSync = useRef(false);
 
@@ -26,7 +25,6 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         setIsReady(false);
     }, [roomId]);
 
-    // Keep the ref in sync with state so the broadcast function always has the latest version
     useEffect(() => {
         stateVersionRef.current = stateVersion;
     }, [stateVersion]);
@@ -52,21 +50,25 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         }
         
         lastBroadcastState.current = strState;
-        hasPendingSync.current = false; // Clear pending flag since we are about to sync it
+        hasPendingSync.current = false;
         isSyncing.current = true;
         
         let success = false;
         let retries = 0;
+        const maxRetries = 5;
         
-        while (!success && retries < 3) {
+        while (!success && retries < maxRetries) {
             const currentVersion = stateVersionRef.current;
-            // Always use the latest state we captured at the start of this sync attempt
             const res = await RoomsService.mutateState(roomId, currentVersion, isHost, stateToSync);
             if (res.success) {
                 setStateVersion(prev => prev + 1);
+                stateVersionRef.current = currentVersion + 1;
                 success = true;
             } else {
-                console.warn(`[useRoomSync] OCC Conflict (Attempt ${retries + 1}). Fetching latest state_version...`);
+                console.warn(`[useRoomSync] OCC Conflict (Attempt ${retries + 1}/${maxRetries}). Fetching latest state_version...`);
+                // Exponential backoff with jitter before fetching and retrying
+                await new Promise(r => setTimeout(r, 40 * (2 ** retries) + Math.random() * 40));
+                
                 const { room } = await RoomsService.getRoom(roomId);
                 if (room) {
                     setStateVersion(room.state_version);
@@ -77,19 +79,18 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         }
         
         if (!success) {
-            console.error("[useRoomSync] Failed to broadcast state after 3 OCC retries.");
+            console.error("[useRoomSync] Failed to broadcast state after max retries.");
             lastBroadcastState.current = null;
         }
         
         isSyncing.current = false;
         
-        // If the state changed while we were syncing, immediately trigger another sync
         if (hasPendingSync.current) {
             sync();
         }
     }, [roomId, isHost]);
 
-    // Broadcast local state to the DB when it changes
+    // Broadcast local state to DB when it changes
     useEffect(() => {
         if (!roomId || !localTimerState || !isReady) return;
         
@@ -97,7 +98,6 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         if (lastBroadcastState.current === strState) return;
         
         if (isSyncing.current) {
-            // Queue it up so it gets picked up when the current sync finishes
             hasPendingSync.current = true;
             return;
         }
@@ -105,8 +105,7 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         performSync();
     }, [localTimerState, roomId, isHost, performSync, isReady]);
 
-    // Listen for Postgres changes to keep stateVersion perfectly in sync 
-    // even if the remote user triggers the mutation.
+    // Listen for Realtime Postgres changes and Broadcast events
     useEffect(() => {
         if (!roomId) return;
         setIsReady(false);
@@ -114,11 +113,25 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
         let hasReceivedRealtimeUpdate = false;
 
         const processRoomState = (room) => {
+            if (!room) return;
             setStateVersion(room.state_version);
-            setRemoteTimerState(isHost ? room.participant_timer_state : room.host_timer_state);
+            
+            const remoteState = isHost ? room.participant_timer_state : room.host_timer_state;
+            
+            // Check if remote user marked themselves as left or declined
+            if (remoteState && (remoteState.status === 'left' || remoteState.status === 'declined')) {
+                console.log(`[useRoomSync] Remote user ${remoteState.status}. Closing room.`);
+                if (isHost) {
+                    RoomsService.leaveRoom(roomId, true).catch(() => {});
+                }
+                if (onRoomClosed) onRoomClosed();
+                return;
+            }
+            
+            setRemoteTimerState(remoteState);
         };
 
-        // Fetch initial version on mount
+        // Fetch initial state on mount
         const fetchInitial = async () => {
             const { room } = await RoomsService.getRoom(roomId);
             if (room && !hasReceivedRealtimeUpdate) {
@@ -134,70 +147,46 @@ export const useRoomSync = (roomId, isHost, localTimerState, onRoomClosed) => {
                 processRoomState(payload.new);
             })
             .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, () => {
-                console.log("[Room] Room was deleted by the host or watchdog. Closing.");
+                console.log("[useRoomSync] Room was deleted. Closing room.");
                 if (onRoomClosed) onRoomClosed();
             })
             .on('broadcast', { event: 'room_left' }, () => {
-                console.log("[Room] Remote user left the room via broadcast. Closing.");
+                console.log("[useRoomSync] Remote user left the room via broadcast. Closing room.");
+                if (isHost) {
+                    RoomsService.leaveRoom(roomId, true).catch(() => {});
+                }
                 if (onRoomClosed) onRoomClosed();
             })
             .subscribe();
 
-        return () => { supabase.removeChannel(channel); };
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [roomId, isHost, onRoomClosed]);
     
-    // NEW: Smart Lazy Evaluation Watchdog
+    // Watchdog ONLY for pending/unaccepted invites (5 minutes timeout)
     useEffect(() => {
         if (!roomId) return;
+
+        // An active room has remoteTimerState populated with an active or paused timer
+        const isPendingInvite = !remoteTimerState || Object.keys(remoteTimerState).length === 0;
         
-        const getExpirationTime = (state) => {
-            if (!state || !state.isActive) return null;
-            if (state.mode === 'stopwatch') return Infinity; // Stopwatch never naturally expires
-            return state.serverEndTime || Infinity; // In case of missing timestamp, don't kill
-        };
-
-        const localExp = getExpirationTime(localTimerState);
-        const remoteExp = getExpirationTime(remoteTimerState);
-
-        const localIsPaused = !localTimerState?.isActive;
-        const remoteIsPaused = !remoteTimerState?.isActive;
-
-        // Determine when the LATEST active timer will end
-        let maxExpiration = -Infinity;
-        if (!localIsPaused && localExp !== null) maxExpiration = Math.max(maxExpiration, localExp);
-        if (!remoteIsPaused && remoteExp !== null) maxExpiration = Math.max(maxExpiration, remoteExp);
-
-        // If someone is running a stopwatch, it never expires. Watchdog sleeps forever.
-        if (maxExpiration === Infinity) {
+        // Active sessions should NEVER be auto-deleted while user has the room open
+        if (!isPendingInvite) {
             return;
         }
 
-        // Differentiate between an active room and a pending invite
-        const isPendingInvite = !remoteTimerState || Object.keys(remoteTimerState).length === 0;
-        const baseGracePeriod = isPendingInvite ? (5 * 60 * 1000) : (15 * 60 * 1000); // 5 mins for pending, 15 mins for active
-
-        let timeUntilWatchdogFires = baseGracePeriod;
-
-        if (maxExpiration !== -Infinity) {
-            // Someone is running a countdown timer!
-            // The watchdog should fire baseGracePeriod AFTER the timer ends.
-            const now = RoomsService.getSyncedTime();
-            timeUntilWatchdogFires = (maxExpiration - now) + baseGracePeriod;
-        }
-
-        // If it should have fired in the past, cap it to 0 (execute immediately in setTimeout)
-        timeUntilWatchdogFires = Math.max(0, timeUntilWatchdogFires);
-
-        console.log(`[Watchdog] Scheduled to evaluate room death in ${Math.round(timeUntilWatchdogFires/1000)}s`);
+        const pendingGracePeriod = 5 * 60 * 1000; // 5 mins
+        console.log(`[Watchdog] Pending invite timeout armed for 5 minutes.`);
 
         const timeout = setTimeout(() => {
-            console.log(`[Watchdog] ${baseGracePeriod / 60000} minutes of zero activity elapsed (timers naturally expired or paused). Abandoning room.`);
-            RoomsService.leaveRoom(roomId);
+            console.log(`[Watchdog] Pending invite timed out without acceptance. Abandoning room.`);
+            RoomsService.leaveRoom(roomId, isHost);
             if (onRoomClosed) onRoomClosed();
-        }, timeUntilWatchdogFires);
+        }, pendingGracePeriod);
 
         return () => clearTimeout(timeout);
-    }, [roomId, localTimerState, remoteTimerState, onRoomClosed]);
+    }, [roomId, isHost, remoteTimerState, onRoomClosed]);
 
-    return { stateVersion };
+    return { stateVersion, remoteTimerState, isReady };
 };

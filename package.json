@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --import ./tests/setup.js --test \"tests/**/*.test.js\""
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",

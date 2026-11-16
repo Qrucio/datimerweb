@@ -1,19 +1,27 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountdownTimer from './CountdownTimer';
 import { supabase } from '../lib/supabase';
 import { RoomsService } from '../services/roomsService';
 import Avatar from './Avatar';
-import { Play, Pause, LogOut } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
-// FIX #7: Support video backgrounds (same check as App.jsx)
 const isVideo = (url) => {
     if (!url) return false;
     return url.match(/\.(mp4|webm|mov)(\?.*)?$/i);
 };
 
-const calculateTimeLeft = (state) => {
+export const calculateTimeLeft = (state) => {
     if (!state) return 0;
+    // Stopwatch counts UP from serverStartTime
+    if (state.mode === 'stopwatch') {
+        if (state.isActive && state.serverStartTime) {
+            const now = RoomsService.getSyncedTime();
+            return Math.max(0, Math.floor((now - state.serverStartTime) / 1000));
+        }
+        return Math.floor((state.remainingDuration || 0) / 1000);
+    }
+    // Countdown modes count DOWN to serverEndTime
     if (state.isActive && state.serverEndTime) {
         const now = RoomsService.getSyncedTime();
         return Math.max(0, Math.ceil((state.serverEndTime - now) / 1000));
@@ -91,8 +99,20 @@ const SkeletonContent = ({ timerSize }) => (
     </main>
 );
 
-const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSyncClick, isDevMock, onLeaveRoom, onBackgroundMatch }) => {
-    const [remoteState, setRemoteState] = useState(null);
+const RemoteTimerPane = ({ 
+    roomId, 
+    isHost, 
+    remoteUserId, 
+    localBackground, 
+    onSyncClick, 
+    isDevMock, 
+    onLeaveRoom, 
+    onBackgroundMatch,
+    remoteTimerState: externalRemoteState 
+}) => {
+    const [mockState, setMockState] = useState(null);
+    const remoteState = isDevMock ? mockState : externalRemoteState;
+
     const [remoteProfile, setRemoteProfile] = useState(null);
     const [timeLeft, setTimeLeft] = useState(0);
     const prevTimeLeft = useRef(0);
@@ -101,85 +121,55 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
     const [assetLoaded, setAssetLoaded] = useState(false);
     const [assetError, setAssetError] = useState(false);
 
-    const handleStateUpdate = (newState) => {
-        setRemoteState(newState);
-        const newTime = calculateTimeLeft(newState);
-        setTimeLeft(newTime);
-        prevTimeLeft.current = newTime;
-    };
-
-    // Fetch initial room state and remote user profile
+    // Fetch remote user profile on mount
     useEffect(() => {
         if (isDevMock) {
-            // Simulate network fetch for dev mock
             const timer = setTimeout(() => {
                 setRemoteProfile({
                     display_name: 'Dev Tester',
                     handle: 'tester',
                     avatar_url: null
                 });
-                handleStateUpdate({
+                setMockState({
                     isActive: true,
                     remainingDuration: 1500000,
                     totalDuration: 1500,
                     serverEndTime: RoomsService.getSyncedTime() + 1500000,
                     mode: 'focus',
+                    timerSize: 'medium',
                     background: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&dl=kalen-emsley-Bkci_8qcdvQ-unsplash.jpg&w=1920'
                 });
-            }, 1500);
+            }, 1000);
             return () => clearTimeout(timer);
         }
 
-        if (!roomId || !remoteUserId) return;
+        if (!remoteUserId) return;
 
-        const init = async () => {
-            // Fetch profile
+        const fetchProfile = async () => {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', remoteUserId).single();
             setRemoteProfile(profile);
-
-            // Fetch room
-            const { room } = await RoomsService.getRoom(roomId);
-            if (room) {
-                handleStateUpdate(isHost ? room.participant_timer_state : room.host_timer_state);
-            }
         };
-        init();
+        fetchProfile();
+    }, [remoteUserId, isDevMock]);
 
-        // Subscribe to room changes
-        const channel = supabase.channel(`room:${roomId}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, (payload) => {
-                const updatedRoom = payload.new;
-                handleStateUpdate(isHost ? updatedRoom.participant_timer_state : updatedRoom.host_timer_state);
-            })
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
-    }, [roomId, isHost, remoteUserId]);
-
-    // Compute dynamic time left
-    // FIX #8: Use setInterval at 250ms instead of requestAnimationFrame at 60fps.
-    // Only call setTimeLeft when the displayed second actually changes.
+    // Compute dynamic time left at 250ms interval
     useEffect(() => {
         if (!remoteState) return;
 
         const tick = () => {
             const newTimeLeft = calculateTimeLeft(remoteState);
-
-            // Only re-render if the displayed second changed
             if (newTimeLeft !== prevTimeLeft.current) {
                 prevTimeLeft.current = newTimeLeft;
                 setTimeLeft(newTimeLeft);
             }
         };
         
-        tick(); // Run immediately
-        const intervalId = setInterval(tick, 250); // 4x/sec is plenty for sub-second accuracy
+        tick();
+        const intervalId = setInterval(tick, 250);
         return () => clearInterval(intervalId);
     }, [remoteState]);
 
-    // Use their profile background if available, else fallback
     const activeBackground = remoteState?.background || remoteProfile?.timer_state?.background || null;
-    
     const isSameBackground = Boolean(localBackground && activeBackground && localBackground === activeBackground);
 
     useEffect(() => {
@@ -191,11 +181,10 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
     const isDataReady = remoteState !== null && remoteProfile !== null && remoteState.mode !== undefined;
     const isFullyReady = isDataReady && (isSameBackground || !activeBackground || assetLoaded || assetError);
 
-    // Asset preloading effect
+    // Asset preloading with safety timeout
     useEffect(() => {
         if (!isDataReady) return;
         
-        // Reset state if background changes
         setAssetLoaded(false);
         setAssetError(false);
 
@@ -204,23 +193,34 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
             return;
         }
 
+        // 3.5s safety timeout so slow background video/image doesn't hang skeleton indefinitely
+        const safetyTimeout = setTimeout(() => {
+            setAssetLoaded(true);
+        }, 3500);
+
         if (isVideo(activeBackground)) {
-            // Video loading is handled by DOM events on the <video> tag
-            return;
+            return () => clearTimeout(safetyTimeout);
         }
 
-        // Image preloading
         const img = new Image();
         img.src = activeBackground;
-        img.onload = () => setAssetLoaded(true);
-        img.onerror = () => setAssetError(true);
+        img.onload = () => {
+            clearTimeout(safetyTimeout);
+            setAssetLoaded(true);
+        };
+        img.onerror = () => {
+            clearTimeout(safetyTimeout);
+            setAssetError(true);
+        };
+
+        return () => clearTimeout(safetyTimeout);
     }, [isDataReady, activeBackground]);
 
     return (
         <div className={`w-full h-full relative overflow-hidden flex flex-col justify-center items-center transition-colors duration-1000 ${isSameBackground ? 'bg-transparent' : 'bg-black'}`}>
             {isDataReady && (
                 <>
-                    {/* FIX #7: Remote Background — supports both image and video */}
+                    {/* Remote Background — supports both image and video */}
                     {!isSameBackground && activeBackground && (
                         isVideo(activeBackground) ? (
                             <div className="absolute inset-0 z-0 overflow-hidden">
@@ -254,13 +254,13 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                         )
                     )}
 
-                    {/* Remote Content (wrapped identically to App.jsx to ensure perfect horizontal alignment) */}
+                    {/* Remote Content */}
                     <main className="flex-1 flex flex-col items-center justify-center min-h-0 w-full px-4 pt-16 md:pb-0 relative z-10 pointer-events-none">
                         <div className="flex flex-col items-center w-full max-w-full relative pointer-events-auto">
-                            {/* Profile Header — sits in the top area, outside of the centered timer flow */}
+                            {/* Profile Header */}
                             <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 w-max">
                                 <Avatar userData={remoteProfile} size="lg" />
-                                <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile?.display_name || 'Unknown'}</span>
+                                <span className="text-white/70 font-bold whitespace-nowrap">{remoteProfile?.display_name || 'Coworking Buddy'}</span>
                             </div>
 
                             {/* --- MODE SWITCHER (Non-interactive replica of App.jsx) --- */}
@@ -270,7 +270,9 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                                 const isActive = remoteState.isActive;
                                 
                                 const totalSeconds = remoteState.totalDuration || (remoteState.mode === 'focus' ? 1500 : 300);
-                                const progress = m.id === 'stopwatch' ? 100 : (totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0);
+                                const progress = m.id === 'stopwatch' 
+                                    ? (isActive ? 100 : 0)
+                                    : (totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0);
 
                                 let containerClass = `relative h-full rounded-full transition-all overflow-hidden flex items-center justify-center whitespace-nowrap min-w-0 `;
 
@@ -286,7 +288,10 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                                 return (
                                     <div key={m.id} className={containerClass}>
                                         {/* Progress Bar Background */}
-                                        <div className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? 'opacity-100' : 'opacity-0'}`} style={{ width: `${isActive && isCurrent ? progress : 0}%` }} />
+                                        <div 
+                                            className={`absolute inset-y-0 left-0 bg-white transition-all duration-1000 ease-linear will-change-[width] ${isActive && isCurrent ? (m.id === 'stopwatch' ? 'opacity-30 animate-pulse' : 'opacity-100') : 'opacity-0'}`} 
+                                            style={{ width: `${isActive && isCurrent ? progress : 0}%` }} 
+                                        />
 
                                         <span className={`relative z-10 font-medium flex items-center justify-center gap-1 ${isCurrent ? 'mix-blend-difference text-white' : ''}`}>
                                             <span className="whitespace-nowrap">{m.label}</span>
@@ -296,7 +301,7 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                             })}
                         </div>
 
-                        {/* --- CYCLE TALLY INDICATOR (Read-only replica of remote user's session progress) --- */}
+                        {/* --- CYCLE TALLY INDICATOR --- */}
                         <div className={`relative z-50 flex items-center justify-center gap-3 -mb-4 h-8 cursor-default min-w-[100px] transition-opacity duration-300 ${remoteState.mode === 'stopwatch' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                             {Array.from({ length: remoteState.pomosBeforeLongBreak || 4 }).map((_, i) => {
                                 const isCompleted = i < (remoteState.pomoCount || 0);
@@ -307,20 +312,17 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                             })}
                         </div>
 
-                        {/* --- TIMER (Matches App.jsx classes and dynamic sizing/fonts) --- */}
+                        {/* --- TIMER --- */}
                         <div
                             className={`
                                 leading-none tracking-normal select-none tabular-nums transition-all duration-700 cursor-default
-                                
                                 font-timer-bricolage
-                                
                                 ${({
                                     'small': 'text-[13vw] md:text-[5rem] lg:text-[6rem]',
                                     'medium': 'text-[15vw] md:text-[6rem] lg:text-[8rem]',
                                     'giant': 'text-[18vw] md:text-[8rem] lg:text-[10rem]',
                                     'mammoth': 'text-[20vw] md:text-[10rem] lg:text-[12rem]'
                                 }[remoteState.timerSize || 'medium']) || 'text-[15vw] md:text-[6rem] lg:text-[8rem]'}
-                                
                                 ${!remoteState.isActive ? 'text-white' : 'text-white/90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]'}
                             `}
                             style={{ fontWeight: 550 }}
@@ -328,16 +330,25 @@ const RemoteTimerPane = ({ roomId, isHost, remoteUserId, localBackground, onSync
                             <CountdownTimer timeLeft={timeLeft} disableAnimation={true} />
                         </div>
                         
-                        {/* Room Controls Spacer for alignment */}
-                        <div className="flex items-center gap-6 mt-8 md:mt-10 w-full justify-center h-20 pointer-events-none">
-                            {/* The Leave Room button was moved to a Pull Tab on the outer pane edge in App.jsx */}
+                        {/* --- CONTROLS / SYNC WITH FRIEND --- */}
+                        <div className="flex items-center gap-4 mt-6 md:mt-8 w-full justify-center h-14 pointer-events-auto">
+                            {onSyncClick && remoteState && (
+                                <button
+                                    onClick={() => onSyncClick(remoteState, timeLeft)}
+                                    className="flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white/90 hover:text-white text-xs font-medium border border-white/10 backdrop-blur-md transition-all shadow-lg group cursor-pointer"
+                                    title="Sync your timer with your friend's current session"
+                                >
+                                    <RefreshCw size={13} className="group-hover:rotate-180 transition-transform duration-500" />
+                                    <span>Sync with Friend</span>
+                                </button>
+                            )}
                         </div>
                         </div>
                     </main>
                 </>
             )}
 
-            {/* Asset Preload Overlay — Skeleton stays on top until background image/video is ready */}
+            {/* Asset Preload Overlay — Skeleton */}
             <AnimatePresence>
                 {!isFullyReady && (
                     <motion.div 

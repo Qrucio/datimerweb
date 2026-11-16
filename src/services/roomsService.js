@@ -5,12 +5,56 @@ import { Storage } from '../utils/storage';
 let serverTimeOffset = 0;
 const getDeclinedIds = () => new Set(JSON.parse(localStorage.getItem('datimer_declined_invites') || '[]'));
 
+/**
+ * Reliable broadcast sender that ensures the channel is connected and subscribed
+ * before dispatching the payload, then safely disposes of the channel.
+ */
+const sendReliableBroadcast = async (channelName, event, payload) => {
+    return new Promise((resolve) => {
+        const channel = supabase.channel(channelName);
+        let resolved = false;
+
+        const cleanup = () => {
+            if (!resolved) {
+                resolved = true;
+                setTimeout(() => {
+                    supabase.removeChannel(channel);
+                }, 200);
+                resolve();
+            }
+        };
+
+        const timeout = setTimeout(() => {
+            console.warn(`[RoomsService] Broadcast to ${channelName} timed out`);
+            cleanup();
+        }, 3000);
+
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                try {
+                    await channel.send({
+                        type: 'broadcast',
+                        event,
+                        payload
+                    });
+                } catch (err) {
+                    console.error(`[RoomsService] Broadcast send failed on ${channelName}:`, err);
+                } finally {
+                    clearTimeout(timeout);
+                    cleanup();
+                }
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                clearTimeout(timeout);
+                cleanup();
+            }
+        });
+    });
+};
+
 export const RoomsService = {
     /**
      * NTP-like Clock Sync
      * Runs multiple times and averages the offset for millisecond accuracy.
-     * FIX #3: Removed the broadcast-based invite from createRoom.
-     * Invites now go through DB inserts for reliability (see room_invites table usage).
      */
     syncClock: async () => {
         const offsets = [];
@@ -23,16 +67,14 @@ export const RoomsService = {
                 const t3 = Date.now();
                 const rtt = t3 - t0;
                 // Assuming server processing time is negligible, T1 ≈ T2 ≈ serverTime
-                // offset = serverTime - (t0 + rtt / 2)
                 const offset = serverTime - (t0 + rtt / 2);
                 offsets.push({ offset, rtt });
             } catch (err) {
-                console.error("Clock sync failed on iteration", i, err);
+                console.error("[RoomsService] Clock sync failed on iteration", i, err);
             }
         }
 
         if (offsets.length > 0) {
-            // Discard the highest RTT outlier for accuracy
             offsets.sort((a, b) => a.rtt - b.rtt);
             const trimmed = offsets.slice(0, Math.max(1, offsets.length - 1));
             const avg = trimmed.reduce((a, b) => a + b.offset, 0) / trimmed.length;
@@ -47,36 +89,44 @@ export const RoomsService = {
 
     /**
      * Create a room and invite a user.
-     * FIX #3: Uses a DB row in the `rooms` table itself as the invite mechanism.
-     * The receiver listens via postgres_changes on `rooms` where they are the participant.
-     * This is far more reliable than ephemeral broadcast which can be missed.
+     * Inserts the host's initial timer state immediately so the guest doesn't get stuck on an infinite skeleton.
+     * If an unaccepted or stale invite exists, deletes it so a fresh INSERT event fires in Realtime.
      */
-    createRoom: async (hostId, targetUserId) => {
+    createRoom: async (hostId, targetUserId, initialHostTimerState = null) => {
         try {
-            const { data: existing } = await supabase.from('rooms').select('*').eq('host_id', hostId).eq('participant_id', targetUserId).limit(1).single();
+            const { data: existing } = await supabase
+                .from('rooms')
+                .select('*')
+                .eq('host_id', hostId)
+                .eq('participant_id', targetUserId)
+                .limit(1)
+                .single();
+
             if (existing) {
-                // 1. Is it an active room? (Participant has joined)
+                // If it's an active session where participant has already joined, keep it
                 const pState = existing.participant_timer_state;
-                // If it's a JSONB column defaulting to '{}', we must check if it has keys
-                const isActiveSession = pState && typeof pState === 'object' && Object.keys(pState).length > 0;
+                const isActiveSession = pState && typeof pState === 'object' && Object.keys(pState).length > 0 && !pState.status;
                 
                 if (isActiveSession) {
                     return { success: true, room: existing };
                 }
 
-                // 2. Is it a fresh invite? (Less than 60 seconds old)
-                const ageMs = Date.now() - new Date(existing.created_at).getTime();
-                if (ageMs < 60000) {
-                    return { success: true, room: existing };
-                }
-
-                // 3. It's stale. Safely delete it so we can create a fresh one.
+                // If it's a pending invite or stale invite, delete it so the new insert fires a fresh Realtime INSERT
                 await supabase.from('rooms').delete().eq('id', existing.id);
+            }
+
+            const insertPayload = {
+                host_id: hostId,
+                participant_id: targetUserId,
+                state_version: 1
+            };
+            if (initialHostTimerState) {
+                insertPayload.host_timer_state = initialHostTimerState;
             }
 
             const { data, error } = await supabase
                 .from('rooms')
-                .insert({ host_id: hostId, participant_id: targetUserId })
+                .insert(insertPayload)
                 .select()
                 .single();
             
@@ -120,6 +170,10 @@ export const RoomsService = {
             
             if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
             if (data && getDeclinedIds().has(data.id)) return { success: true, invite: null };
+            // Also skip if participant already marked as left or declined
+            if (data?.participant_timer_state?.status === 'declined' || data?.participant_timer_state?.status === 'left') {
+                return { success: true, invite: null };
+            }
             
             return { success: true, invite: data || null };
         } catch(e) {
@@ -130,25 +184,32 @@ export const RoomsService = {
 
     /**
      * Leave / close a room.
-     * FIX #4: Proper cleanup — deletes the room row from the DB.
+     * Dual-signal:
+     * 1. Subscribed broadcast of 'room_left'.
+     * 2. Sets status: 'left' on participant state if not host (RLS safety).
+     * 3. Deletes the room row (succeeds for host).
      */
-    leaveRoom: async (roomId) => {
+    leaveRoom: async (roomId, isHost = false) => {
         try {
-            // Broadcast over the existing channel to notify peer instantly
-            const channel = supabase.channel(`room_sync:${roomId}`);
-            await channel.send({
-                type: 'broadcast',
-                event: 'room_left',
-                payload: { roomId }
-            }).catch(console.error); // Fire and forget if it fails
-            supabase.removeChannel(channel);
+            // 1. Send reliable broadcast
+            await sendReliableBroadcast(`room_sync:${roomId}`, 'room_left', { roomId });
 
+            // 2. If participant, update DB state as fallback signal for host in case RLS blocks delete
+            if (!isHost) {
+                await supabase
+                    .from('rooms')
+                    .update({ participant_timer_state: { status: 'left' } })
+                    .eq('id', roomId)
+                    .catch(() => {});
+            }
+
+            // 3. Attempt DB delete (Host has RLS delete permission)
             const { error } = await supabase
                 .from('rooms')
                 .delete()
                 .eq('id', roomId);
                 
-            if (error) throw error;
+            if (error && isHost) throw error;
             return { success: true };
         } catch (error) {
             console.error("[RoomsService] Leave room failed", error);
@@ -157,8 +218,12 @@ export const RoomsService = {
     },
 
     /**
-     * Decline an incoming invite
-     * Broadcasts to host and marks locally to avoid RLS limitations
+     * Decline an incoming invite.
+     * Dual-signal:
+     * 1. Marks declined in local storage.
+     * 2. Reliable broadcast of 'room_declined' on accept channel.
+     * 3. Sets participant_timer_state = { status: 'declined' } so host's Postgres listener catches it.
+     * 4. Attempts DB delete.
      */
     declineInvite: async (roomId) => {
         try {
@@ -166,16 +231,18 @@ export const RoomsService = {
             set.add(roomId);
             localStorage.setItem('datimer_declined_invites', JSON.stringify(Array.from(set)));
             
-            const channel = supabase.channel(`room_accept:${roomId}`);
-            await channel.send({
-                type: 'broadcast',
-                event: 'room_declined',
-                payload: { roomId }
-            }).catch(console.error);
-            supabase.removeChannel(channel);
+            // 1. Reliable broadcast to host's accept channel
+            await sendReliableBroadcast(`room_accept:${roomId}`, 'room_declined', { roomId });
 
-            // Attempt to delete it anyway (fails if RLS blocks, but we tried)
-            await supabase.from('rooms').delete().eq('id', roomId);
+            // 2. Update DB state to notify host via postgres_changes even if broadcast missed
+            await supabase
+                .from('rooms')
+                .update({ participant_timer_state: { status: 'declined' } })
+                .eq('id', roomId)
+                .catch(() => {});
+
+            // 3. Attempt deletion
+            await supabase.from('rooms').delete().eq('id', roomId).catch(() => {});
             
             return { success: true };
         } catch (error) {
@@ -186,6 +253,7 @@ export const RoomsService = {
 
     /**
      * Mutate Room State using OCC (Optimistic Concurrency Control)
+     * with fallback to direct update if OCC fails.
      */
     mutateState: async (roomId, expectedVersion, isHost, newState) => {
         try {
@@ -196,10 +264,22 @@ export const RoomsService = {
                 p_new_timer_state: newState
             });
 
-            if (error) throw error;
+            if (error) {
+                console.warn("[RoomsService] mutate_room_state RPC error, attempting direct update fallback:", error);
+                const updatePayload = isHost 
+                    ? { host_timer_state: newState }
+                    : { participant_timer_state: newState };
+                
+                const { error: directError } = await supabase
+                    .from('rooms')
+                    .update(updatePayload)
+                    .eq('id', roomId);
+
+                if (directError) throw directError;
+            }
             return { success: true };
         } catch (error) {
-            console.error("[RoomsService] Mutate state failed (OCC conflict)", error);
+            console.error("[RoomsService] Mutate state failed", error);
             return { success: false, error };
         }
     }
